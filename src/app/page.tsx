@@ -43,10 +43,9 @@ export default function Home() {
   const [calculatedDose, setCalculatedDose] = useState<number | null>(null);
   const [chartData, setChartData] = useState<any[]>([]);
   const [proteinBinding, setProteinBinding] = useState(0);
-  const [volumeDistribution, setVolumeDistribution] = useState(0);
-  const [clearanceRate, setClearanceRate] = useState(0);
   const [bioavailability, setBioavailability] = useState(100);
   const [kidneyFunction, setKidneyFunction] = useState(100);
+  const [volumeDistribution, setVolumeDistribution] = useState(0);
   const [molecularWeight, setMolecularWeight] = useState(0);
   const [logP, setLogP] = useState(0);
   const [showDilution, setShowDilution] = useState(false);
@@ -451,7 +450,9 @@ export default function Home() {
     kidneyFunction, volumeDistribution,
     molecularWeight, logP,
     sourceAnimal, targetAnimal,
-    showDilution, dilutionFactor
+    showDilution, dilutionFactor,
+    calculateDose, generateChartData, updateCalculationSteps,
+    animals
   ]);
 
   const exportCalculations = () => {
@@ -508,7 +509,7 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                 <div className="flex items-center space-x-2">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="rounded-full">
+                      <Button variant="ghost" size="sm" className="rounded-full">
                         <Info className="h-5 w-5" />
                       </Button>
                     </PopoverTrigger>
