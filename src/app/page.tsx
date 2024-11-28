@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -218,8 +218,15 @@ export default function Home() {
     setTargetWeight(animals[targetAnimal as keyof typeof animals].weight.toString());
   }, [targetAnimal]);
 
-  // Calculate dose based on selected method
-  const calculateDose = (baseWeight: number, targetWeight: number, baseDose: number, method: string, sourceAnimal: string, targetAnimal: string) => {
+  // Memoize calculation functions
+  const calculateDose = useCallback((
+    baseWeight: number,
+    targetWeight: number,
+    baseDose: number,
+    method: string,
+    sourceAnimal: string,
+    targetAnimal: string
+  ) => {
     const weightRatio = targetWeight / baseWeight;
     let scalingFactor = 0;
     let methodDescription = '';
@@ -300,26 +307,14 @@ export default function Home() {
     }
 
     return { dose, scalingFactor, methodDescription, steps };
-  };
+  }, [proteinBinding, bioavailability, kidneyFunction, volumeDistribution, molecularWeight, logP, scalingExponent]);
 
-  const updateCalculationSteps = (baseWeight: number, targetWeight: number, baseDose: number, method: string) => {
-    const weightRatio = targetWeight / baseWeight;
-    const result = calculateDose(baseWeight, targetWeight, baseDose, method, sourceAnimal, targetAnimal);
-    
-    let steps: string[] = [
-      `1. ${result.methodDescription}`,
-      `2. Weight ratio = ${targetWeight.toFixed(3)} kg / ${baseWeight.toFixed(3)} kg = ${weightRatio.toFixed(4)}`,
-      `3. ${result.steps.join('\n   ')}`
-    ];
-
-    if (showDilution && Number(dilutionFactor) !== 1) {
-      steps.push(`4. Dilution adjustment: ${result.dose.toFixed(4)} mg × ${dilutionFactor} = ${(result.dose * Number(dilutionFactor)).toFixed(4)} mg`);
-    }
-
-    return steps;
-  };
-
-  const generateChartData = (baseWeight: number, baseDose: number, method: string, sourceAnimal: string) => {
+  const generateChartData = useCallback((
+    baseWeight: number,
+    baseDose: number,
+    method: string,
+    sourceAnimal: string
+  ) => {
     let points: any[] = [];
     const animalEntries = Object.entries(animals);
     
@@ -412,7 +407,29 @@ export default function Home() {
     );
 
     return points;
-  };
+  }, [animals, calculateDose]);
+
+  const updateCalculationSteps = useCallback((
+    baseWeight: number,
+    targetWeight: number,
+    baseDose: number,
+    method: string
+  ) => {
+    const weightRatio = targetWeight / baseWeight;
+    const result = calculateDose(baseWeight, targetWeight, baseDose, method, sourceAnimal, targetAnimal);
+    
+    let steps: string[] = [
+      `1. ${result.methodDescription}`,
+      `2. Weight ratio = ${targetWeight.toFixed(3)} kg / ${baseWeight.toFixed(3)} kg = ${weightRatio.toFixed(4)}`,
+      `3. ${result.steps.join('\n   ')}`
+    ];
+
+    if (showDilution && Number(dilutionFactor) !== 1) {
+      steps.push(`4. Dilution adjustment: ${result.dose.toFixed(4)} mg × ${dilutionFactor} = ${(result.dose * Number(dilutionFactor)).toFixed(4)} mg`);
+    }
+
+    return steps;
+  }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose]);
 
   // Single useEffect for all calculations
   useEffect(() => {
@@ -445,14 +462,10 @@ export default function Home() {
     }
   }, [
     sourceWeight, targetWeight, baseDose,
-    scalingMethod, scalingExponent,
-    proteinBinding, bioavailability,
-    kidneyFunction, volumeDistribution,
-    molecularWeight, logP,
+    scalingMethod,
     sourceAnimal, targetAnimal,
     showDilution, dilutionFactor,
-    calculateDose, generateChartData, updateCalculationSteps,
-    animals
+    calculateDose, generateChartData, updateCalculationSteps
   ]);
 
   const exportCalculations = () => {
