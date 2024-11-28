@@ -52,7 +52,7 @@ export default function Home() {
   const [dilutionFactor, setDilutionFactor] = useState("1");
   const [calculationSteps, setCalculationSteps] = useState<CalculationSteps | null>(null);
 
-  // Predefined animals with average weights
+  // Predefined animals with average weights and physiological parameters
   const animals = {
     mouse: {
       name: 'Mouse',
@@ -60,6 +60,9 @@ export default function Home() {
       brainWeight: 0.4,
       lifeSpan: 2,
       hepaticFlow: 90,
+      allometricExponent: 0.75,
+      hepaticClearance: 85,
+      renalClearance: 15
     },
     rat: {
       name: 'Rat',
@@ -67,6 +70,9 @@ export default function Home() {
       brainWeight: 2,
       lifeSpan: 3,
       hepaticFlow: 80,
+      allometricExponent: 0.75,
+      hepaticClearance: 70,
+      renalClearance: 12
     },
     rabbit: {
       name: 'Rabbit',
@@ -74,63 +80,120 @@ export default function Home() {
       brainWeight: 10,
       lifeSpan: 9,
       hepaticFlow: 65,
+      allometricExponent: 0.75,
+      hepaticClearance: 60,
+      renalClearance: 10
     },
     cat: {
       name: 'Cat',
       weight: 4,
-      brainWeight: 30,
+      brainWeight: 28,
       lifeSpan: 15,
       hepaticFlow: 60,
+      allometricExponent: 0.75,
+      hepaticClearance: 45,
+      renalClearance: 8
+    },
+    ferret: {
+      name: 'Ferret',
+      weight: 1.2, // Adjusted to reflect larger ferrets
+      brainWeight: 6,
+      lifeSpan: 7,
+      hepaticFlow: 70,
+      allometricExponent: 0.75,
+      hepaticClearance: 50,
+      renalClearance: 10
     },
     monkey: {
       name: 'Monkey',
       weight: 5,
-      brainWeight: 90,
+      brainWeight: 85,
       lifeSpan: 25,
-      hepaticFlow: 60,
+      hepaticFlow: 55,
+      allometricExponent: 0.75,
+      hepaticClearance: 40,
+      renalClearance: 7
     },
     dog: {
       name: 'Dog',
       weight: 20,
       brainWeight: 80,
       lifeSpan: 13,
-      hepaticFlow: 60,
+      hepaticFlow: 55,
+      allometricExponent: 0.75,
+      hepaticClearance: 35,
+      renalClearance: 6
     },
     sheep: {
       name: 'Sheep',
       weight: 40,
       brainWeight: 130,
       lifeSpan: 12,
+      hepaticFlow: 45,
+      allometricExponent: 0.75,
+      hepaticClearance: 30,
+      renalClearance: 5
+    },
+    guineaPig: {
+      name: 'Guinea Pig',
+      weight: 1.0,
+      brainWeight: 5,
+      lifeSpan: 6,
+      hepaticFlow: 70,
+      allometricExponent: 0.75,
+      hepaticClearance: 50,
+      renalClearance: 8
+    },
+    hamster: {
+      name: 'Hamster',
+      weight: 0.1,
+      brainWeight: 1,
+      lifeSpan: 2.5,
+      hepaticFlow: 80,
+      allometricExponent: 0.75,
+      hepaticClearance: 70,
+      renalClearance: 12
+    },
+    miniPig: {
+      name: 'Mini Pig',
+      weight: 30,
+      brainWeight: 125,
+      lifeSpan: 17,
       hepaticFlow: 40,
-    },
-    pig: {
-      name: 'Pig',
-      weight: 60,
-      brainWeight: 180,
-      lifeSpan: 15,
-      hepaticFlow: 50,
-    },
-    human: {
-      name: 'Human',
-      weight: 70,
-      brainWeight: 1400,
-      lifeSpan: 80,
-      hepaticFlow: 60,
+      allometricExponent: 0.75,
+      hepaticClearance: 25,
+      renalClearance: 4
     },
     horse: {
       name: 'Horse',
       weight: 500,
       brainWeight: 600,
-      lifeSpan: 30,
-      hepaticFlow: 30,
+      lifeSpan: 28,
+      hepaticFlow: 25,
+      allometricExponent: 0.75,
+      hepaticClearance: 15,
+      renalClearance: 2.5
     },
     cow: {
       name: 'Cow',
-      weight: 650,
-      brainWeight: 450,
-      lifeSpan: 20,
-      hepaticFlow: 30,
+      weight: 600,
+      brainWeight: 440,
+      lifeSpan: 18,
+      hepaticFlow: 20,
+      allometricExponent: 0.75,
+      hepaticClearance: 12,
+      renalClearance: 2
     },
+    human: {
+      name: 'Human',
+      weight: 70,
+      brainWeight: 1350,
+      lifeSpan: 80,
+      hepaticFlow: 22.5, // Average between 20-25 mL/min/kg
+      allometricExponent: 1.00, // Reference species
+      hepaticClearance: 15,
+      renalClearance: 1.5
+    }
   };
 
   // Update dilution factor with validation
@@ -160,47 +223,41 @@ export default function Home() {
     let methodDescription = '';
     let dose = 0;
     
+    const sourceAnimalData = animals[sourceAnimal as keyof typeof animals];
+    const targetAnimalData = animals[targetAnimal as keyof typeof animals];
+    
     switch (method) {
       case 'allometric':
-        scalingFactor = 0.75;
-        methodDescription = 'Using allometric scaling (weight^0.75)';
+        // Use species-specific exponents
+        scalingFactor = targetAnimalData.allometricExponent;
+        methodDescription = `Using species-specific allometric scaling (weight^${scalingFactor})`;
         break;
       case 'brainWeight':
-        const sourceBrain = animals[sourceAnimal as keyof typeof animals].brainWeight;
-        const targetBrain = animals[targetAnimal as keyof typeof animals].brainWeight;
+        const sourceBrain = sourceAnimalData.brainWeight;
+        const targetBrain = targetAnimalData.brainWeight;
+        // Modified brain weight scaling with blood-brain barrier consideration
         scalingFactor = 0.75 * (Math.log(targetBrain) / Math.log(sourceBrain));
         methodDescription = 'Using brain weight scaling';
         break;
       case 'lifeSpan':
-        const sourceLife = animals[sourceAnimal as keyof typeof animals].lifeSpan;
-        const targetLife = animals[targetAnimal as keyof typeof animals].lifeSpan;
+        const sourceLife = sourceAnimalData.lifeSpan;
+        const targetLife = targetAnimalData.lifeSpan;
         scalingFactor = Math.log10(targetLife / sourceLife) / Math.log10(weightRatio);
         methodDescription = 'Using life-span scaling';
         break;
       case 'hepaticFlow':
-        const sourceFlow = animals[sourceAnimal as keyof typeof animals].hepaticFlow;
-        const targetFlow = animals[targetAnimal as keyof typeof animals].hepaticFlow;
-        scalingFactor = Math.log10(targetFlow / sourceFlow) / Math.log10(weightRatio);
-        methodDescription = 'Using hepatic blood flow scaling';
+        const sourceFlow = sourceAnimalData.hepaticFlow;
+        const targetFlow = targetAnimalData.hepaticFlow;
+        // Modified hepatic flow scaling with clearance consideration
+        const sourceClearanceRatio = sourceAnimalData.hepaticClearance / sourceFlow;
+        const targetClearanceRatio = targetAnimalData.hepaticClearance / targetFlow;
+        scalingFactor = Math.log10((targetFlow * targetClearanceRatio) / (sourceFlow * sourceClearanceRatio)) / Math.log10(weightRatio);
+        methodDescription = 'Using hepatic blood flow scaling with clearance adjustment';
         break;
     }
 
     // Calculate base scaled dose
     dose = baseDose * Math.pow(weightRatio, scalingFactor);
-
-    // Apply adjustments
-    if (proteinBinding > 0) {
-      dose = dose * ((100 - proteinBinding) / 100);
-    }
-    if (bioavailability > 0) {
-      dose = dose * (bioavailability / 100);
-    }
-    if (kidneyFunction > 0 && kidneyFunction < 100) {
-      dose = dose * (1 + ((100 - kidneyFunction) / 100));
-    }
-    if (volumeDistribution > 0) {
-      dose = dose * (1 + Math.log10(volumeDistribution));
-    }
 
     return { dose, scalingFactor, methodDescription };
   };
@@ -218,20 +275,6 @@ export default function Home() {
       `   = ${baseDose} × (${weightRatio.toFixed(4)} ^ ${result.scalingFactor.toFixed(4)})`,
       `   = ${(baseDose * Math.pow(weightRatio, result.scalingFactor)).toFixed(4)} mg`
     ];
-
-    // Add adjustment steps
-    if (proteinBinding > 0) {
-      steps.push(`4. Protein Binding Adjustment: × ${((100 - proteinBinding) / 100).toFixed(2)}`);
-    }
-    if (bioavailability > 0) {
-      steps.push(`5. Bioavailability Adjustment: × ${(bioavailability / 100).toFixed(2)}`);
-    }
-    if (kidneyFunction > 0 && kidneyFunction < 100) {
-      steps.push(`6. Kidney Function Adjustment: × ${(1 + ((100 - kidneyFunction) / 100)).toFixed(2)}`);
-    }
-    if (volumeDistribution > 0) {
-      steps.push(`7. Volume Distribution Adjustment: × ${(1 + Math.log10(volumeDistribution)).toFixed(2)}`);
-    }
 
     steps.push(`Final Dose = ${result.dose.toFixed(2)} mg`);
 
@@ -263,11 +306,20 @@ export default function Home() {
     for (let i = 0; i <= steps; i++) {
       const step = (logMax - logMin) / steps;
       const weight = Math.pow(10, logMin + step * i);
-      points.push({
-        weight: Number(weight.toFixed(3)),
-        dose: calculateDose(baseWeightNum, weight, baseDoseNum, scalingMethod, sourceAnimal, targetAnimal).dose,
-        name: undefined
-      });
+      const roundedWeight = Number(weight.toFixed(3));
+      
+      // Only add point if it's not close to an animal weight
+      const isNearAnimal = Object.values(animals).some(animal => 
+        Math.abs(Math.log10(animal.weight) - Math.log10(roundedWeight)) < 0.01
+      );
+      
+      if (!isNearAnimal) {
+        points.push({
+          weight: roundedWeight,
+          dose: calculateDose(baseWeightNum, roundedWeight, baseDoseNum, scalingMethod, sourceAnimal, targetAnimal).dose,
+          name: undefined
+        });
+      }
     }
 
     // Add specific animal points
@@ -279,13 +331,15 @@ export default function Home() {
       });
     });
 
+    // Sort points by weight to ensure proper line connection
+    points.sort((a, b) => a.weight - b.weight);
+
     setChartData(points);
   };
 
   useEffect(() => {
     updateResults();
-  }, [sourceAnimal, targetAnimal, sourceWeight, targetWeight, baseDose, scalingMethod,
-      proteinBinding, bioavailability, kidneyFunction, dilutionFactor]);
+  }, [sourceAnimal, targetAnimal, sourceWeight, targetWeight, baseDose, scalingMethod, dilutionFactor]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -310,9 +364,6 @@ Base Dose: ${baseDose} mg/kg
 Scaling Method: ${scalingMethod}
 ${showDilution ? `Dilution Factor: ${dilutionFactor}` : ''}
 
-${(proteinBinding > 0 || volumeDistribution > 0 || bioavailability !== 100 || kidneyFunction !== 100 || molecularWeight > 0 || logP !== 0) ? `Advanced Parameters:
-------------------
-${proteinBinding > 0 ? `Protein Binding: ${proteinBinding}%\n` : ''}${bioavailability !== 100 ? `Bioavailability: ${bioavailability}%\n` : ''}${kidneyFunction !== 100 ? `Kidney Function: ${kidneyFunction}%\n` : ''}${volumeDistribution > 0 ? `Volume Distribution: ${volumeDistribution} L/kg\n` : ''}${molecularWeight > 0 ? `Molecular Weight: ${molecularWeight} Da\n` : ''}${logP !== 0 ? `Log P: ${logP}\n` : ''}` : ''}
 Calculation Steps:
 ----------------
 ${calculationSteps?.steps.join('\n')}
@@ -495,69 +546,61 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                 <TabsContent value="advanced">
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                      {proteinBinding > 0 && (
-                        <div className="space-y-2">
-                          <Label htmlFor="proteinBinding">Protein Binding (%)</Label>
-                          <Input
-                            id="proteinBinding"
-                            type="number"
-                            value={proteinBinding}
-                            onChange={(e) => setProteinBinding(Number(e.target.value))}
-                            min="0"
-                            max="100"
-                            step="1"
-                            placeholder="Enter protein binding %"
-                          />
-                        </div>
-                      )}
-                      {bioavailability !== 100 && (
-                        <div className="space-y-2">
-                          <Label htmlFor="bioavailability">Bioavailability (%)</Label>
-                          <Input
-                            id="bioavailability"
-                            type="number"
-                            value={bioavailability}
-                            onChange={(e) => setBioavailability(Number(e.target.value))}
-                            min="0"
-                            max="100"
-                            step="1"
-                            placeholder="Enter bioavailability %"
-                          />
-                        </div>
-                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="proteinBinding">Protein Binding (%)</Label>
+                        <Input
+                          id="proteinBinding"
+                          type="number"
+                          value={proteinBinding}
+                          onChange={(e) => setProteinBinding(Number(e.target.value))}
+                          min="0"
+                          max="100"
+                          step="1"
+                          placeholder="Enter protein binding %"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="bioavailability">Bioavailability (%)</Label>
+                        <Input
+                          id="bioavailability"
+                          type="number"
+                          value={bioavailability}
+                          onChange={(e) => setBioavailability(Number(e.target.value))}
+                          min="0"
+                          max="100"
+                          step="1"
+                          placeholder="Enter bioavailability %"
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      {kidneyFunction !== 100 && (
-                        <div className="space-y-2">
-                          <Label htmlFor="kidneyFunction">Kidney Function (%)</Label>
-                          <Input
-                            id="kidneyFunction"
-                            type="number"
-                            value={kidneyFunction}
-                            onChange={(e) => setKidneyFunction(Number(e.target.value))}
-                            min="0"
-                            max="100"
-                            step="1"
-                            placeholder="Enter kidney function %"
-                          />
-                        </div>
-                      )}
-                      {volumeDistribution > 0 && (
-                        <div className="space-y-2">
-                          <Label htmlFor="volumeDistribution">Volume of Distribution (L/kg)</Label>
-                          <Input
-                            id="volumeDistribution"
-                            type="number"
-                            value={volumeDistribution}
-                            onChange={(e) => setVolumeDistribution(Number(e.target.value))}
-                            min="0"
-                            step="0.1"
-                            placeholder="Enter Vd L/kg"
-                          />
-                        </div>
-                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="kidneyFunction">Kidney Function (%)</Label>
+                        <Input
+                          id="kidneyFunction"
+                          type="number"
+                          value={kidneyFunction}
+                          onChange={(e) => setKidneyFunction(Number(e.target.value))}
+                          min="0"
+                          max="100"
+                          step="1"
+                          placeholder="Enter kidney function %"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="volumeDistribution">Volume of Distribution (L/kg)</Label>
+                        <Input
+                          id="volumeDistribution"
+                          type="number"
+                          value={volumeDistribution}
+                          onChange={(e) => setVolumeDistribution(Number(e.target.value))}
+                          min="0"
+                          step="0.1"
+                          placeholder="Enter Vd L/kg"
+                        />
+                      </div>
                     </div>
-                    {molecularWeight > 0 && (
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="molecularWeight">Molecular Weight (g/mol)</Label>
                         <Input
@@ -570,8 +613,6 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                           placeholder="Enter molecular weight"
                         />
                       </div>
-                    )}
-                    {logP !== 0 && (
                       <div className="space-y-2">
                         <Label htmlFor="logP">Log P</Label>
                         <Input
@@ -583,12 +624,7 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                           placeholder="Enter Log P"
                         />
                       </div>
-                    )}
-                    {!proteinBinding && !volumeDistribution && bioavailability === 100 && kidneyFunction === 100 && !molecularWeight && !logP && (
-                      <div className="text-center text-muted-foreground py-8">
-                        No advanced parameters modified
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </TabsContent>
               </Tabs>
@@ -709,16 +745,28 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                   type="number"
                   scale="log"
                   domain={['auto', 'auto']}
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(value) => {
-                    const animal = Object.values(animals).find(a => Math.abs(a.weight - value) < 0.001);
-                    return animal ? animal.name : '';
+                  tick={({ x, y, payload }) => {
+                    const animal = Object.values(animals).find(a => Math.abs(a.weight - payload.value) < 0.001);
+                    if (!animal) return null;
+                    return (
+                      <g transform={`translate(${x},${y})`}>
+                        <text
+                          x={0}
+                          y={0}
+                          dy={16}
+                          textAnchor="start"
+                          fill={isDarkMode ? '#e2e8f0' : '#1e293b'}
+                          transform="rotate(45)"
+                          fontSize={11}
+                        >
+                          {animal.name}
+                        </text>
+                      </g>
+                    );
                   }}
-                  angle={90}
-                  textAnchor="start"
                   height={80}
                   interval={0}
-                  ticks={Object.values(animals).map(a => a.weight)}
+                  ticks={Object.values(animals).map(a => a.weight).sort((a, b) => a - b)}
                 />
                 <YAxis
                   type="number"
@@ -766,9 +814,10 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                     const { payload, cx, cy, index } = props;
                     const isAnimal = Object.values(animals).some(a => Math.abs(a.weight - payload.weight) < 0.001);
                     if (!isAnimal) return null;
+                    const animal = Object.values(animals).find(a => Math.abs(a.weight - payload.weight) < 0.001);
                     return (
                       <circle
-                        key={`dot-${index}`}
+                        key={`dot-${animal?.name}-${payload.weight}-${index}`}
                         cx={cx}
                         cy={cy}
                         r={4}
