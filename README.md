@@ -59,7 +59,7 @@ A comprehensive web application for calculating and visualizing pharmacological 
 
 ```bash
 # Install dependencies
-npm install
+npm install --legacy-peer-deps # For shadcn/ui
 
 # Run development server
 npm run dev
@@ -79,6 +79,46 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 5. View calculated dose and visualization
 6. Use dark/light mode toggle as preferred
 
+## Deployment
+
+### Vercel (Recommended)
+The easiest deployment option since it's built by the Next.js team:
+
+1. Push your code to GitHub
+2. Visit [Vercel](https://vercel.com)
+3. Import your GitHub repository
+4. Vercel will auto-detect Next.js settings
+5. Click "Deploy"
+
+### Netlify
+1. Push to GitHub
+2. Visit [Netlify](https://netlify.com)
+3. Click "New site from Git"
+4. Configure build:
+   - Build command: `npm run build`
+   - Publish directory: `.next`
+5. Deploy site
+
+### Heroku
+1. Add to package.json:
+   ```json
+   {
+     "scripts": {
+       "heroku-postbuild": "npm run build",
+       "start": "next start -p $PORT"
+     }
+   }
+   ```
+2. Run:
+   ```bash
+   heroku create your-app-name
+   heroku buildpacks:set heroku/nodejs
+   git push heroku main
+   ```
+
+### Environment Setup
+Create `.env.local` for local development and add variables to your deployment platform's settings.
+
 ## Contributing
 
 1. Fork the repository
@@ -93,4 +133,4 @@ For inquiries: sergey.kornilov@biostochastics.com
 
 ## License
 
-MIT License - see the [LICENSE](LICENSE) file for details
+[MIT License](https://opensource.org/license/mit)

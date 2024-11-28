@@ -295,6 +295,44 @@ export default function Home() {
     }
   }, [isDarkMode]);
 
+  const exportCalculations = () => {
+    if (!calculatedDose) return;
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const calculations = `DoseFinder Calculation Report
+Generated: ${new Date().toLocaleString()}
+
+Parameters:
+-----------
+Source Animal: ${sourceAnimal} (${sourceWeight} kg)
+Target Animal: ${targetAnimal} (${targetWeight} kg)
+Base Dose: ${baseDose} mg/kg
+Scaling Method: ${scalingMethod}
+${showDilution ? `Dilution Factor: ${dilutionFactor}` : ''}
+
+${(proteinBinding > 0 || volumeDistribution > 0 || bioavailability !== 100 || kidneyFunction !== 100 || molecularWeight > 0 || logP !== 0) ? `Advanced Parameters:
+------------------
+${proteinBinding > 0 ? `Protein Binding: ${proteinBinding}%\n` : ''}${bioavailability !== 100 ? `Bioavailability: ${bioavailability}%\n` : ''}${kidneyFunction !== 100 ? `Kidney Function: ${kidneyFunction}%\n` : ''}${volumeDistribution > 0 ? `Volume Distribution: ${volumeDistribution} L/kg\n` : ''}${molecularWeight > 0 ? `Molecular Weight: ${molecularWeight} Da\n` : ''}${logP !== 0 ? `Log P: ${logP}\n` : ''}` : ''}
+Calculation Steps:
+----------------
+${calculationSteps?.steps.join('\n')}
+${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg` : ''}
+
+Results:
+--------
+Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg/kg` : ''}`;
+
+    const blob = new Blob([calculations], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dosefinder-calculation-${timestamp}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <main className="container mx-auto p-4 max-w-5xl flex-grow">
@@ -413,8 +451,26 @@ export default function Home() {
                         />
                         <div className="pt-2">
                           <Label>Calculated Dose</Label>
-                          <div className="text-2xl font-bold text-primary">
-                            {calculatedDose !== null ? `${calculatedDose.toFixed(2)} mg` : '-'}
+                          <div className="flex items-center space-x-2">
+                            <div>
+                              <div className="text-2xl font-bold text-primary">
+                                {calculatedDose !== null ? `${calculatedDose.toFixed(2)} mg` : '-'}
+                              </div>
+                              {showDilution && Number(dilutionFactor) !== 1 && calculationSteps && (
+                                <div className="text-sm text-muted-foreground">
+                                  Final with dilution: {calculationSteps.finalDose.toFixed(2)} mg
+                                </div>
+                              )}
+                            </div>
+                            {calculatedDose && (
+                              <Button 
+                                variant="outline"
+                                onClick={exportCalculations}
+                                size="sm"
+                              >
+                                Export
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -439,83 +495,100 @@ export default function Home() {
                 <TabsContent value="advanced">
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="proteinBinding">Protein Binding (%)</Label>
-                        <Input
-                          id="proteinBinding"
-                          type="number"
-                          value={proteinBinding}
-                          onChange={(e) => setProteinBinding(Number(e.target.value))}
-                          min="0"
-                          max="100"
-                          step="1"
-                          placeholder="Enter protein binding %"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="bioavailability">Bioavailability (%)</Label>
-                        <Input
-                          id="bioavailability"
-                          type="number"
-                          value={bioavailability}
-                          onChange={(e) => setBioavailability(Number(e.target.value))}
-                          min="0"
-                          max="100"
-                          step="1"
-                          placeholder="Enter bioavailability %"
-                        />
-                      </div>
+                      {proteinBinding > 0 && (
+                        <div className="space-y-2">
+                          <Label htmlFor="proteinBinding">Protein Binding (%)</Label>
+                          <Input
+                            id="proteinBinding"
+                            type="number"
+                            value={proteinBinding}
+                            onChange={(e) => setProteinBinding(Number(e.target.value))}
+                            min="0"
+                            max="100"
+                            step="1"
+                            placeholder="Enter protein binding %"
+                          />
+                        </div>
+                      )}
+                      {bioavailability !== 100 && (
+                        <div className="space-y-2">
+                          <Label htmlFor="bioavailability">Bioavailability (%)</Label>
+                          <Input
+                            id="bioavailability"
+                            type="number"
+                            value={bioavailability}
+                            onChange={(e) => setBioavailability(Number(e.target.value))}
+                            min="0"
+                            max="100"
+                            step="1"
+                            placeholder="Enter bioavailability %"
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
+                      {kidneyFunction !== 100 && (
+                        <div className="space-y-2">
+                          <Label htmlFor="kidneyFunction">Kidney Function (%)</Label>
+                          <Input
+                            id="kidneyFunction"
+                            type="number"
+                            value={kidneyFunction}
+                            onChange={(e) => setKidneyFunction(Number(e.target.value))}
+                            min="0"
+                            max="100"
+                            step="1"
+                            placeholder="Enter kidney function %"
+                          />
+                        </div>
+                      )}
+                      {volumeDistribution > 0 && (
+                        <div className="space-y-2">
+                          <Label htmlFor="volumeDistribution">Volume of Distribution (L/kg)</Label>
+                          <Input
+                            id="volumeDistribution"
+                            type="number"
+                            value={volumeDistribution}
+                            onChange={(e) => setVolumeDistribution(Number(e.target.value))}
+                            min="0"
+                            step="0.1"
+                            placeholder="Enter Vd L/kg"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {molecularWeight > 0 && (
                       <div className="space-y-2">
-                        <Label htmlFor="kidneyFunction">Kidney Function (%)</Label>
+                        <Label htmlFor="molecularWeight">Molecular Weight (g/mol)</Label>
                         <Input
-                          id="kidneyFunction"
+                          id="molecularWeight"
                           type="number"
-                          value={kidneyFunction}
-                          onChange={(e) => setKidneyFunction(Number(e.target.value))}
-                          min="0"
-                          max="100"
-                          step="1"
-                          placeholder="Enter kidney function %"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="volumeDistribution">Volume of Distribution (L/kg)</Label>
-                        <Input
-                          id="volumeDistribution"
-                          type="number"
-                          value={volumeDistribution}
-                          onChange={(e) => setVolumeDistribution(Number(e.target.value))}
+                          value={molecularWeight}
+                          onChange={(e) => setMolecularWeight(Number(e.target.value))}
                           min="0"
                           step="0.1"
-                          placeholder="Enter Vd L/kg"
+                          placeholder="Enter molecular weight"
                         />
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="molecularWeight">Molecular Weight (g/mol)</Label>
-                      <Input
-                        id="molecularWeight"
-                        type="number"
-                        value={molecularWeight}
-                        onChange={(e) => setMolecularWeight(Number(e.target.value))}
-                        min="0"
-                        step="0.1"
-                        placeholder="Enter molecular weight"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="logP">Log P</Label>
-                      <Input
-                        id="logP"
-                        type="number"
-                        value={logP}
-                        onChange={(e) => setLogP(Number(e.target.value))}
-                        step="0.1"
-                        placeholder="Enter Log P"
-                      />
-                    </div>
+                    )}
+                    {logP !== 0 && (
+                      <div className="space-y-2">
+                        <Label htmlFor="logP">Log P</Label>
+                        <Input
+                          id="logP"
+                          type="number"
+                          value={logP}
+                          onChange={(e) => setLogP(Number(e.target.value))}
+                          step="0.1"
+                          placeholder="Enter Log P"
+                        />
+                      </div>
+                    )}
+                    {!proteinBinding && !volumeDistribution && bioavailability === 100 && kidneyFunction === 100 && !molecularWeight && !logP && (
+                      <div className="text-center text-muted-foreground py-8">
+                        No advanced parameters modified
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
               </Tabs>
