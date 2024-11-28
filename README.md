@@ -44,25 +44,33 @@ By using this Calculator, you agree to these terms and assume full responsibilit
 - Human (Reference Species)
 
 ### Scaling Methods
-1. Allometric Scaling (Weight^0.75)
+1. Allometric Scaling
+   - Customizable scaling exponent (default: 0.75)
    - Based on standard metabolic scaling principles
    - Uses the widely accepted 3/4 power law
    - Suitable for initial dose estimation
+   - Reference: West GB, Brown JH, Enquist BJ. Science. 1997
 
 2. Brain Weight Scaling
+   - Uses 2/3 power law relationship for brain-to-body mass
    - Considers species-specific brain weight differences
    - Particularly useful for CNS-active compounds
    - Accounts for neural tissue distribution
+   - Reference: Wang Z et al. Brain-weight scaling in mammals
 
 3. Life-Span Scaling
    - Based on maximum life-span potential
+   - Uses natural logarithm for better accuracy
    - Useful for chronic toxicity studies
    - Considers species longevity differences
+   - Reference: Boxenbaum H. J Pharmacokinet Biopharm. 1982
 
 4. Hepatic Blood Flow Scaling
    - Uses species-specific hepatic blood flow rates
+   - Incorporates hepatic clearance ratios
    - Relevant for highly extracted drugs
    - Considers first-pass metabolism
+   - Reference: Davies B, Morris T. Pharm Res. 1993
 
 ### Physiological Parameters
 Each species entry includes:
@@ -73,39 +81,65 @@ Each species entry includes:
 - Hepatic clearance (mL/min/kg)
 - Renal clearance (mL/min/kg)
 
+### Animal Database
+| Species    | Weight (kg) | Brain (g) | Life Span (y) | Hepatic Flow (mL/min/kg) | Hep. Clear. | Renal Clear. |
+|------------|------------|-----------|---------------|-------------------------|-------------|--------------|
+| Mouse      | 0.02       | 0.4       | 2             | 131                     | 90          | 15           |
+| Rat        | 0.15       | 2.0       | 3             | 85                      | 73          | 12           |
+| Hamster    | 0.1        | 1.0       | 2.5           | 90                      | 75          | 12           |
+| Guinea Pig | 1.0        | 4.8       | 6             | 75                      | 55          | 8            |
+| Ferret     | 1.2        | 7.2       | 7             | 72                      | 52          | 10           |
+| Rabbit     | 2.0        | 9.1       | 9             | 77                      | 65          | 10           |
+| Cat        | 4.0        | 28.4      | 15            | 65                      | 48          | 8            |
+| Monkey     | 5.0        | 95.0      | 25            | 58                      | 42          | 7            |
+| Dog        | 20.0       | 85.0      | 13            | 55                      | 38          | 6            |
+| Mini Pig   | 30.0       | 125.0     | 17            | 45                      | 28          | 4            |
+| Sheep      | 40.0       | 130.0     | 12            | 47                      | 32          | 5            |
+| Horse      | 500.0      | 620.0     | 28            | 28                      | 18          | 2.5          |
+| Cow        | 600.0      | 445.0     | 18            | 25                      | 15          | 2            |
+| Human      | 70.0       | 1350.0    | 80            | 20.7                    | 15          | 1.5          |
+
 ### Important Notes
-1. The allometric exponent is set to 0.75 for all species, following standard metabolic scaling principles.
-2. Clearance values are population averages and may vary significantly based on the specific drug.
-3. For more accurate dosing, consider drug-specific parameters such as:
+1. Brain weight values are based on adult animals and may vary by strain/breed
+2. Hepatic blood flow values are from Davies & Morris (1993) and recent literature
+3. Clearance values are population averages and may vary by compound
+4. Life span data represents typical maximum values in controlled conditions
+5. For more accurate dosing, consider drug-specific parameters such as:
    - Plasma protein binding
    - Blood-brain barrier penetration
    - Volume of distribution
    - Route of administration
    - Bioavailability
 
+### Calculation Methods
+
+#### Allometric Scaling
+```
+Scaled Factor = (Target Weight / Base Weight) ^ Scaling Exponent
+where Scaling Exponent is customizable (default: 0.75)
+```
+
+#### Brain Weight Scaling
+```
+Scaling Factor = (2/3) * ln(Target Brain / Source Brain) / ln(Target Weight / Source Weight)
+```
+
+#### Life-Span Scaling
+```
+Scaling Factor = ln(Target Life / Source Life) / ln(Target Weight / Source Weight)
+```
+
+#### Hepatic Flow Scaling
+```
+Clearance Ratio = Hepatic Clearance / Hepatic Flow
+Scaling Factor = ln((Target Flow * Target Ratio) / (Source Flow * Source Ratio)) / ln(Target Weight / Source Weight)
+```
+
 ### Calculation Steps
 1. Weight Ratio = Target Weight / Base Weight
 2. Scaled Factor = Weight Ratio ^ Scaling Factor
 3. Calculated Dose = Base Dose × Scaled Factor
 4. Final Dose = Calculated Dose × Dilution Factor (optional)
-
-### Animal Database
-| Species    | Weight (kg) | Brain Weight (g) | Life Span (years) | Hepatic Flow (ml/min/kg) | Hepatic Clearance | Renal Clearance |
-|------------|------------|------------------|-------------------|------------------------|------------------|----------------|
-| Mouse      | 0.02       | 0.4             | 2                 | 90                    | 85               | 15             |
-| Rat        | 0.15       | 2               | 3                 | 80                    | 70               | 12             |
-| Hamster    | 0.1        | 1               | 2.5               | 80                    | 70               | 12             |
-| Guinea Pig | 1.0        | 5               | 6                 | 70                    | 50               | 8              |
-| Ferret     | 1.2        | 6               | 7                 | 70                    | 50               | 10             |
-| Rabbit     | 2          | 10              | 9                 | 65                    | 60               | 10             |
-| Cat        | 4          | 28              | 15                | 60                    | 45               | 8              |
-| Monkey     | 5          | 85              | 25                | 55                    | 40               | 7              |
-| Dog        | 20         | 80              | 13                | 55                    | 35               | 6              |
-| Mini Pig   | 30         | 125             | 17                | 40                    | 25               | 4              |
-| Sheep      | 40         | 130             | 12                | 45                    | 30               | 5              |
-| Horse      | 500        | 600             | 28                | 25                    | 15               | 2.5            |
-| Cow        | 600        | 440             | 18                | 20                    | 12               | 2              |
-| Human      | 70         | 1350            | 80                | 22.5                  | 15               | 1.5            |
 
 ### Technical Details
 - Framework: Next.js 14
