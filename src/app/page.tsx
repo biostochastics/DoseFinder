@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -53,9 +53,8 @@ export default function Home() {
   const [calculationSteps, setCalculationSteps] = useState<CalculationSteps | null>(null);
   const [selectedTab, setSelectedTab] = useState('calculator');
 
-  // Predefined animals with average weights and physiological parameters
-  
-  const animals = {
+  // Memoize the animals object to prevent unnecessary rerenders
+  const animals = useMemo(() => ({
     mouse: {
       name: 'Mouse',
       weight: 0.02,
@@ -196,7 +195,7 @@ export default function Home() {
       hepaticClearance: 15,
       renalClearance: 1.5
     }
-  };
+  }), []);
 
   // Update dilution factor with validation
   const handleDilutionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -318,93 +317,45 @@ export default function Home() {
     let points: any[] = [];
     const animalEntries = Object.entries(animals);
     
-    // Filter animals based on required data for each scaling method
-    const validAnimals = animalEntries.filter(([_, data]) => {
-      switch (method) {
-        case 'allometric':
-          return true; // All animals are valid for allometric scaling
-        case 'brainWeight':
-          return data.brainWeight > 0; // Only include animals with brain weight data
-        case 'lifeSpan':
-          return data.lifeSpan > 0; // Only include animals with lifespan data
-        case 'hepaticFlow':
-          // Only include animals with both hepatic flow and clearance data
-          return data.hepaticFlow > 0 && data.hepaticClearance > 0;
-        default:
-          return true;
-      }
+    // Add points for each animal
+    animalEntries.forEach(([animalKey, animalData]) => {
+      const result = calculateDose(
+        baseWeight,
+        animalData.weight,
+        baseDose,
+        method,
+        sourceAnimal,
+        animalKey
+      );
+
+      points.push({
+        name: animalKey,
+        weight: animalData.weight,
+        dose: result.dose
+      });
     });
 
-    // Sort by weight to ensure proper line connection
-    validAnimals.sort((a, b) => a[1].weight - b[1].weight);
-
-    // Check if source animal has valid data for the selected method
-    const sourceAnimalData = animals[sourceAnimal as keyof typeof animals];
-    const isSourceAnimalValid = (() => {
-      switch (method) {
-        case 'allometric':
-          return true;
-        case 'brainWeight':
-          return sourceAnimalData.brainWeight > 0;
-        case 'lifeSpan':
-          return sourceAnimalData.lifeSpan > 0;
-        case 'hepaticFlow':
-          return sourceAnimalData.hepaticFlow > 0 && sourceAnimalData.hepaticClearance > 0;
-        default:
-          return true;
-      }
-    })();
-
-    if (!isSourceAnimalValid) {
-      // If source animal doesn't have required data, return empty dataset
-      return [];
-    }
-
-    validAnimals.forEach(([animalKey, animalData]) => {
-      const targetWeight = animalData.weight;
-      
-      // Skip if it's the same point
-      if (Math.abs(targetWeight - baseWeight) < 0.0001) return;
-
-      try {
-        const { dose } = calculateDose(
-          baseWeight,
-          targetWeight,
-          baseDose,
-          method,
-          sourceAnimal,
-          animalKey
-        );
-
-        if (!isNaN(dose) && isFinite(dose)) {
-          points.push({
-            weight: targetWeight,
-            dose: dose,
-            name: animalData.name
-          });
-        }
-      } catch (error) {
-        console.warn(`Failed to calculate dose for ${animalData.name}:`, error);
-      }
-    });
-
-    // Add source animal point
-    points.push({
-      weight: baseWeight,
-      dose: baseDose,
-      name: sourceAnimalData.name
-    });
-
-    // Sort points by weight to ensure proper line connection
+    // Sort points by weight
     points.sort((a, b) => a.weight - b.weight);
 
-    // Remove any duplicate points that might cause rendering issues
-    points = points.filter((point, index, self) =>
-      index === self.findIndex((p) => (
-        Math.abs(p.weight - point.weight) < 0.0001 && 
-        Math.abs(p.dose - point.dose) < 0.0001
-      ))
-    );
+    // Add interpolated points
+    const interpolatedPoints: any[] = [];
+    const minWeight = Math.min(...points.map(p => p.weight));
+    const maxWeight = Math.max(...points.map(p => p.weight));
+    const numInterpolatedPoints = 50;
+
+    for (let i = 0; i <= numInterpolatedPoints; i++) {
+      const weight = minWeight * Math.pow(maxWeight / minWeight, i / numInterpolatedPoints);
+      const result = calculateDose(baseWeight, weight, baseDose, method, sourceAnimal, "interpolated");
+      interpolatedPoints.push({
+        name: `interpolated_${i}`,
+        weight: weight,
+        dose: result.dose
+      });
+    }
+
+    // Combine and sort all points
+    points = [...points, ...interpolatedPoints].sort((a, b) => a.weight - b.weight);
 
     return points;
   }, [animals, calculateDose]);
@@ -544,11 +495,11 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                   </Popover>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     onClick={() => setIsDarkMode(!isDarkMode)}
                     className={cn(
                       "rounded-full",
-                      isDarkMode && "hover:bg-slate-800"
+                      isDarkMode && "bg-slate-800 text-slate-100 hover:bg-slate-700"
                     )}
                   >
                     {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
