@@ -752,7 +752,7 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                           placeholder="Enter molecular weight"
                         />
                         <p className="text-xs text-muted-foreground">
-                          Affects scaling exponent for molecules >400 g/mol
+                          Affects scaling exponent for molecules &gt;400 g/mol
                         </p>
 
                         <Label htmlFor="logP">Log P</Label>
