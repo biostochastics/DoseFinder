@@ -354,58 +354,39 @@ export default function Home() {
     method: string,
     sourceAnimal: string
   ) => {
-    let points: any[] = [];
+    // Create a continuous array of points for the smooth line
+    const numPoints = 200;
+    const allPoints: any[] = [];
     
-    // Add points for each animal with exact weights
-    Object.entries(animals).forEach(([animalKey, animalData]) => {
-      const weight = Number(animalData.weight);
-      const result = calculateDose(
-        baseWeight,
-        weight,
-        baseDose,
-        method,
-        sourceAnimal,
-        animalKey
-      );
-
-      points.push({
-        name: animalKey,
-        weight: weight,
-        dose: result.dose,
-        isAnimal: true,
-        label: animalData.name
-      });
-    });
-
-    // Sort points by weight
-    points.sort((a, b) => a.weight - b.weight);
-
-    // Add interpolated points for smoother curve
-    const interpolatedPoints: any[] = [];
-    const minWeight = Math.min(...points.map(p => p.weight));
-    const maxWeight = Math.max(...points.map(p => p.weight));
-    const numInterpolatedPoints = 200;
-
-    // Use logarithmic interpolation for better distribution of points
-    for (let i = 0; i <= numInterpolatedPoints; i++) {
+    // Find min and max weights from animals
+    const weights = Object.values(animals).map(animal => animal.weight);
+    const minWeight = Math.min(...weights);
+    const maxWeight = Math.max(...weights);
+    
+    // Generate smooth line points using logarithmic scale
+    for (let i = 0; i <= numPoints; i++) {
       const logMin = Math.log10(minWeight);
       const logMax = Math.log10(maxWeight);
-      const logWeight = logMin + (logMax - logMin) * (i / numInterpolatedPoints);
+      const logWeight = logMin + (logMax - logMin) * (i / numPoints);
       const weight = Math.pow(10, logWeight);
       
       const result = calculateDose(baseWeight, weight, baseDose, method, sourceAnimal, "interpolated");
-      interpolatedPoints.push({
-        name: `interpolated_${i}`,
+      
+      // Find if this weight matches an animal (within small epsilon)
+      const matchingAnimal = Object.entries(animals).find(([key, data]) => 
+        Math.abs(data.weight - weight) < (weight * 0.01) // 1% tolerance
+      );
+      
+      allPoints.push({
+        name: matchingAnimal ? matchingAnimal[0] : `interpolated_${i}`,
         weight: weight,
         dose: result.dose,
-        isAnimal: false,
-        label: ''
+        isAnimal: !!matchingAnimal,
+        label: matchingAnimal ? matchingAnimal[1].name : ''
       });
     }
-
-    // Combine and sort all points
-    points = [...points, ...interpolatedPoints].sort((a, b) => a.weight - b.weight);
-    return points;
+    
+    return allPoints;
   }, [calculateDose, animals]);
 
   const updateCalculationSteps = useCallback((
