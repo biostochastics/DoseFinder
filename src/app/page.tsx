@@ -354,46 +354,61 @@ export default function Home() {
     method: string,
     sourceAnimal: string
   ) => {
-    const numPoints = 200;
-    const allPoints: any[] = [];
-    
+    // First add all actual animal points
+    const allPoints: any[] = Object.entries(animals).map(([key, data]) => {
+      const result = calculateDose(baseWeight, data.weight, baseDose, method, sourceAnimal, key);
+      return {
+        name: key,
+        weight: data.weight,
+        dose: result.dose,
+        isAnimal: true,
+        label: data.name
+      };
+    });
+
+    // Sort points by weight for proper line rendering
+    allPoints.sort((a, b) => a.weight - b.weight);
+
     // Find min and max weights from animals
     const weights = Object.values(animals).map(animal => animal.weight);
     const minWeight = Math.min(...weights);
     const maxWeight = Math.max(...weights);
     
-    // Generate points using logarithmic scale
+    // Add interpolated points between animal points
+    const numPoints = 200;
     for (let i = 0; i <= numPoints; i++) {
       const logMin = Math.log10(minWeight);
       const logMax = Math.log10(maxWeight);
       const logWeight = logMin + (logMax - logMin) * (i / numPoints);
       const weight = Math.pow(10, logWeight);
       
-      // Find closest animal for this weight
-      let closestAnimal = Object.entries(animals).reduce((prev, curr) => {
-        return Math.abs(curr[1].weight - weight) < Math.abs(prev[1].weight - weight) ? curr : prev;
-      })[0];
+      // Skip if too close to an actual animal point
+      const tooCloseToAnimal = allPoints.some(point => 
+        Math.abs(point.weight - weight) < (weight * 0.01)
+      );
       
-      // Calculate dose for this weight
-      const result = calculateDose(baseWeight, weight, baseDose, method, sourceAnimal, closestAnimal);
-      
-      if (result && typeof result.dose === 'number' && !isNaN(result.dose)) {
-        // Find if this weight matches an actual animal point
-        const matchingAnimal = Object.entries(animals).find(([key, data]) => 
-          Math.abs(data.weight - weight) < (weight * 0.01) // 1% tolerance
-        );
+      if (!tooCloseToAnimal) {
+        // Find closest animal for interpolation
+        const closestAnimal = Object.entries(animals).reduce((prev, curr) => {
+          return Math.abs(curr[1].weight - weight) < Math.abs(prev[1].weight - weight) ? curr : prev;
+        })[0];
         
-        allPoints.push({
-          name: matchingAnimal ? matchingAnimal[0] : `interpolated_${i}`,
-          weight: weight,
-          dose: result.dose,
-          isAnimal: !!matchingAnimal,
-          label: matchingAnimal ? matchingAnimal[1].name : ''
-        });
+        const result = calculateDose(baseWeight, weight, baseDose, method, sourceAnimal, closestAnimal);
+        
+        if (result && typeof result.dose === 'number' && !isNaN(result.dose)) {
+          allPoints.push({
+            name: `interpolated_${i}`,
+            weight: weight,
+            dose: result.dose,
+            isAnimal: false,
+            label: ''
+          });
+        }
       }
     }
     
-    return allPoints;
+    // Final sort by weight to ensure proper line rendering
+    return allPoints.sort((a, b) => a.weight - b.weight);
   }, [calculateDose, animals]);
 
   const updateCalculationSteps = useCallback((
