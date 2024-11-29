@@ -354,7 +354,6 @@ export default function Home() {
     method: string,
     sourceAnimal: string
   ) => {
-    // Create a continuous array of points for the smooth line
     const numPoints = 200;
     const allPoints: any[] = [];
     
@@ -363,27 +362,31 @@ export default function Home() {
     const minWeight = Math.min(...weights);
     const maxWeight = Math.max(...weights);
     
-    // Generate smooth line points using logarithmic scale
+    // Generate points using logarithmic scale
     for (let i = 0; i <= numPoints; i++) {
       const logMin = Math.log10(minWeight);
       const logMax = Math.log10(maxWeight);
       const logWeight = logMin + (logMax - logMin) * (i / numPoints);
       const weight = Math.pow(10, logWeight);
       
+      // Calculate dose for this weight
       const result = calculateDose(baseWeight, weight, baseDose, method, sourceAnimal, "interpolated");
       
-      // Find if this weight matches an animal (within small epsilon)
-      const matchingAnimal = Object.entries(animals).find(([key, data]) => 
-        Math.abs(data.weight - weight) < (weight * 0.01) // 1% tolerance
-      );
-      
-      allPoints.push({
-        name: matchingAnimal ? matchingAnimal[0] : `interpolated_${i}`,
-        weight: weight,
-        dose: result.dose,
-        isAnimal: !!matchingAnimal,
-        label: matchingAnimal ? matchingAnimal[1].name : ''
-      });
+      // Only add point if we got a valid dose calculation
+      if (result && typeof result.dose === 'number' && !isNaN(result.dose)) {
+        // Find if this weight matches an animal (within small epsilon)
+        const matchingAnimal = Object.entries(animals).find(([key, data]) => 
+          Math.abs(data.weight - weight) < (weight * 0.01) // 1% tolerance
+        );
+        
+        allPoints.push({
+          name: matchingAnimal ? matchingAnimal[0] : `interpolated_${i}`,
+          weight: weight,
+          dose: result.dose,
+          isAnimal: !!matchingAnimal,
+          label: matchingAnimal ? matchingAnimal[1].name : ''
+        });
+      }
     }
     
     return allPoints;
@@ -1038,6 +1041,8 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                           );
                         }}
                         type="monotone"
+                        connectNulls={true}
+                        isAnimationActive={false}
                       />
                     </LineChart>
                   </ResponsiveContainer>
