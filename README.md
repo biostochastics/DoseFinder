@@ -1,6 +1,6 @@
 # DoseFinder: Simple Pharmacological Dose Scaling Calculator
 
-A simple web application for calculating and visualizing pharmacological dose scaling across different species.
+A simple web application for calculating and visualizing pharmacological dose scaling across different species. You can check out the functioning demo at https://dose-finder.vercel.app
 
 ## Disclaimer / Terms of Use
 DoseFinder is a Simple Allometric Scaling Calculator ("the Calculator") by BioStochastics and is not intended for clinical or therapeutic dosing. The Calculator is intended for informational and educational purposes only. This Calculator is not a substitute for professional medical, pharmacological, toxicological, or veterinary advice. Consult qualified professionals before making decisions based on its outputs.
