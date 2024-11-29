@@ -19,9 +19,10 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from 'recharts';
 import { Documentation } from "@/components/Documentation";
+import { v4 as uuidv4 } from 'uuid';
 
 interface CalculationSteps {
   weightRatio: number;
@@ -33,23 +34,22 @@ interface CalculationSteps {
 
 export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [sourceAnimal, setSourceAnimal] = useState<string>('mouse');
-  const [targetAnimal, setTargetAnimal] = useState<string>('rat');
-  const [sourceWeight, setSourceWeight] = useState<string>('0.02');
-  const [targetWeight, setTargetWeight] = useState<string>('0.2');
-  const [baseDose, setBaseDose] = useState<string>('10');
-  const [scalingMethod, setScalingMethod] = useState<string>('allometric');
-  const [scalingExponent, setScalingExponent] = useState<string>("0.75");
-  const [calculatedDose, setCalculatedDose] = useState<number | null>(null);
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [sourceAnimal, setSourceAnimal] = useState('mouse');
+  const [targetAnimal, setTargetAnimal] = useState('human');
+  const [sourceWeight, setSourceWeight] = useState(0.02);  // Initial mouse weight
+  const [targetWeight, setTargetWeight] = useState(70);    // Initial human weight
+  const [baseDose, setBaseDose] = useState(1);            // Initial dose of 1mg
+  const [scalingMethod, setScalingMethod] = useState('allometric');
+  const [scalingExponent, setScalingExponent] = useState('0.75');
+  const [showDilution, setShowDilution] = useState(false);
+  const [dilutionFactor, setDilutionFactor] = useState('1');
   const [proteinBinding, setProteinBinding] = useState(0);
   const [bioavailability, setBioavailability] = useState(100);
   const [kidneyFunction, setKidneyFunction] = useState(100);
   const [volumeDistribution, setVolumeDistribution] = useState(0);
   const [molecularWeight, setMolecularWeight] = useState(0);
   const [logP, setLogP] = useState(0);
-  const [showDilution, setShowDilution] = useState(false);
-  const [dilutionFactor, setDilutionFactor] = useState("1");
+  const [chartData, setChartData] = useState<any[]>([]);
   const [calculationSteps, setCalculationSteps] = useState<CalculationSteps | null>(null);
   const [selectedTab, setSelectedTab] = useState('calculator');
 
@@ -197,31 +197,6 @@ export default function Home() {
     }
   }), []);
 
-  // Update dilution factor with validation
-  const handleDilutionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Ensure value is not empty and is a positive number
-    if (value === '' || Number(value) <= 0) {
-      setDilutionFactor("1");
-    } else {
-      setDilutionFactor(value);
-    }
-  };
-
-  // Update source/target weights when animals change
-  useEffect(() => {
-    if (sourceAnimal) {
-      setSourceWeight(animals[sourceAnimal as keyof typeof animals].weight.toString());
-    }
-  }, [sourceAnimal, animals]);
-
-  useEffect(() => {
-    if (targetAnimal) {
-      setTargetWeight(animals[targetAnimal as keyof typeof animals].weight.toString());
-    }
-  }, [targetAnimal, animals]);
-
-  // Memoize calculation functions
   const calculateDose = useCallback((
     baseWeight: number,
     targetWeight: number,
@@ -321,11 +296,12 @@ export default function Home() {
     let points: any[] = [];
     const animalEntries = Object.entries(animals);
     
-    // Add points for each animal
+    // Add points for each animal with exact weights
     animalEntries.forEach(([animalKey, animalData]) => {
+      const weight = Number(animalData.weight); // Ensure it's a number
       const result = calculateDose(
         baseWeight,
-        animalData.weight,
+        weight,
         baseDose,
         method,
         sourceAnimal,
@@ -334,8 +310,10 @@ export default function Home() {
 
       points.push({
         name: animalKey,
-        weight: animalData.weight,
-        dose: result.dose
+        weight: weight,
+        dose: result.dose,
+        isAnimal: true,
+        label: animalData.name
       });
     });
 
@@ -354,13 +332,14 @@ export default function Home() {
       interpolatedPoints.push({
         name: `interpolated_${i}`,
         weight: weight,
-        dose: result.dose
+        dose: result.dose,
+        isAnimal: false,
+        label: ''
       });
     }
 
     // Combine and sort all points
     points = [...points, ...interpolatedPoints].sort((a, b) => a.weight - b.weight);
-
     return points;
   }, [animals, calculateDose]);
 
@@ -386,6 +365,30 @@ export default function Home() {
     return steps;
   }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose, animals]);
 
+  // Update dilution factor with validation
+  const handleDilutionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Ensure value is not empty and is a positive number
+    if (value === '' || Number(value) <= 0) {
+      setDilutionFactor("1");
+    } else {
+      setDilutionFactor(value);
+    }
+  };
+
+  // Update source/target weights when animals change
+  useEffect(() => {
+    if (sourceAnimal) {
+      setSourceWeight(animals[sourceAnimal as keyof typeof animals].weight);
+    }
+  }, [sourceAnimal, animals]);
+
+  useEffect(() => {
+    if (targetAnimal) {
+      setTargetWeight(animals[targetAnimal as keyof typeof animals].weight);
+    }
+  }, [targetAnimal, animals]);
+
   // Single useEffect for all calculations
   useEffect(() => {
     if (sourceWeight && targetWeight && baseDose) {
@@ -396,9 +399,6 @@ export default function Home() {
       if (sourceWeightNum > 0 && targetWeightNum > 0 && baseDoseNum > 0) {
         const result = calculateDose(sourceWeightNum, targetWeightNum, baseDoseNum, scalingMethod, sourceAnimal, targetAnimal);
         const newDose = result.dose;
-        setCalculatedDose(newDose);
-        
-        // Generate chart data
         const chartPoints = generateChartData(sourceWeightNum, baseDoseNum, scalingMethod, sourceAnimal);
         setChartData(chartPoints);
         
@@ -424,7 +424,7 @@ export default function Home() {
   ]);
 
   const exportCalculations = () => {
-    if (!calculatedDose) return;
+    if (!calculationSteps) return;
     
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const calculations = `DoseFinder Calculation Report
@@ -440,12 +440,12 @@ ${showDilution ? `Dilution Factor: ${dilutionFactor}` : ''}
 
 Calculation Steps:
 ----------------
-${calculationSteps?.steps.join('\n')}
+${calculationSteps.steps.join('\n')}
 ${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg` : ''}
 
 Results:
 --------
-Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg/kg` : ''}`;
+Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg/kg` : ''}`;
 
     const blob = new Blob([calculations], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -543,21 +543,19 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                         <Input
                           id="sourceWeight"
                           type="number"
-                          value={sourceWeight}
-                          onChange={(e) => setSourceWeight(e.target.value)}
-                          min="0.01"
+                          value={sourceWeight.toString()}
+                          onChange={(e) => setSourceWeight(Number(e.target.value) || 0)}
+                          className="w-24"
                           step="0.01"
-                          placeholder="Enter source weight"
                         />
                         <Label htmlFor="baseDose">Base Dose (mg)</Label>
                         <Input
                           id="baseDose"
                           type="number"
-                          value={baseDose}
-                          onChange={(e) => setBaseDose(e.target.value)}
-                          min="0"
+                          value={baseDose.toString()}
+                          onChange={(e) => setBaseDose(Number(e.target.value) || 0)}
+                          className="w-24"
                           step="0.1"
-                          placeholder="Enter base dose"
                         />
                       </div>
                       <div className="space-y-2">
@@ -578,18 +576,17 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                         <Input
                           id="targetWeight"
                           type="number"
-                          value={targetWeight}
-                          onChange={(e) => setTargetWeight(e.target.value)}
-                          min="0.01"
+                          value={targetWeight.toString()}
+                          onChange={(e) => setTargetWeight(Number(e.target.value) || 0)}
+                          className="w-24"
                           step="0.01"
-                          placeholder="Enter target weight"
                         />
                         <div className="pt-2">
                           <Label>Calculated Dose</Label>
                           <div className="flex items-center space-x-2">
                             <div>
                               <div className="text-2xl font-bold text-primary">
-                                {calculatedDose !== null ? `${calculatedDose.toFixed(2)} mg` : '-'}
+                                {calculationSteps?.calculatedDose !== undefined ? `${calculationSteps.calculatedDose.toFixed(2)} mg` : '-'}
                               </div>
                               {showDilution && Number(dilutionFactor) !== 1 && calculationSteps && (
                                 <div className="text-sm text-muted-foreground">
@@ -597,7 +594,7 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                                 </div>
                               )}
                             </div>
-                            {calculatedDose && (
+                            {calculationSteps && (
                               <Button 
                                 variant="outline"
                                 onClick={exportCalculations}
@@ -632,10 +629,10 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                             type="number"
                             value={scalingExponent}
                             onChange={(e) => setScalingExponent(e.target.value)}
+                            className="w-24"
+                            step="0.01"
                             min="0"
                             max="2"
-                            step="0.01"
-                            placeholder="Enter scaling exponent"
                           />
                           <p className="text-sm text-muted-foreground mt-1">
                             Standard value is 0.75 (3/4 power law)
@@ -653,12 +650,12 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                         <Input
                           id="proteinBinding"
                           type="number"
-                          value={proteinBinding}
-                          onChange={(e) => setProteinBinding(Number(e.target.value))}
+                          value={proteinBinding.toString()}
+                          onChange={(e) => setProteinBinding(Number(e.target.value) || 0)}
+                          className="w-24"
                           min="0"
                           max="100"
-                          step="0.1"
-                          placeholder="Enter protein binding percentage"
+                          step="1"
                         />
                         <p className="text-xs text-muted-foreground">
                           Percentage of drug bound to plasma proteins
@@ -668,12 +665,12 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                         <Input
                           id="bioavailability"
                           type="number"
-                          value={bioavailability}
-                          onChange={(e) => setBioavailability(Number(e.target.value))}
+                          value={bioavailability.toString()}
+                          onChange={(e) => setBioavailability(Number(e.target.value) || 0)}
+                          className="w-24"
                           min="0"
                           max="100"
-                          step="0.1"
-                          placeholder="Enter bioavailability percentage"
+                          step="1"
                         />
                         <p className="text-xs text-muted-foreground">
                           Fraction of drug reaching systemic circulation
@@ -683,12 +680,12 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                         <Input
                           id="kidneyFunction"
                           type="number"
-                          value={kidneyFunction}
-                          onChange={(e) => setKidneyFunction(Number(e.target.value))}
+                          value={kidneyFunction.toString()}
+                          onChange={(e) => setKidneyFunction(Number(e.target.value) || 0)}
+                          className="w-24"
                           min="0"
                           max="100"
                           step="1"
-                          placeholder="Enter kidney function percentage"
                         />
                         <p className="text-xs text-muted-foreground">
                           Percentage of normal kidney function
@@ -700,11 +697,11 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                         <Input
                           id="volumeDistribution"
                           type="number"
-                          value={volumeDistribution}
-                          onChange={(e) => setVolumeDistribution(Number(e.target.value))}
+                          value={volumeDistribution.toString()}
+                          onChange={(e) => setVolumeDistribution(Number(e.target.value) || 0)}
+                          className="w-24"
                           min="0"
-                          step="0.01"
-                          placeholder="Enter volume of distribution"
+                          step="0.1"
                         />
                         <p className="text-xs text-muted-foreground">
                           Apparent volume of distribution per kg body weight
@@ -714,11 +711,11 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                         <Input
                           id="molecularWeight"
                           type="number"
-                          value={molecularWeight}
-                          onChange={(e) => setMolecularWeight(Number(e.target.value))}
+                          value={molecularWeight.toString()}
+                          onChange={(e) => setMolecularWeight(Number(e.target.value) || 0)}
+                          className="w-24"
                           min="0"
-                          step="0.1"
-                          placeholder="Enter molecular weight"
+                          step="1"
                         />
                         <p className="text-xs text-muted-foreground">
                           Affects scaling exponent for molecules {'>'}400 g/mol
@@ -728,10 +725,10 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                         <Input
                           id="logP"
                           type="number"
-                          value={logP}
-                          onChange={(e) => setLogP(Number(e.target.value))}
+                          value={logP.toString()}
+                          onChange={(e) => setLogP(Number(e.target.value) || 0)}
+                          className="w-24"
                           step="0.1"
-                          placeholder="Enter Log P value"
                         />
                         <p className="text-xs text-muted-foreground">
                           Lipophilicity coefficient (negative for hydrophilic)
@@ -772,7 +769,7 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
           </Card>
 
           {/* Only show results and chart if not in documentation tab */}
-          {calculatedDose !== null && selectedTab !== 'documentation' && (
+          {calculationSteps && selectedTab !== 'documentation' && (
             <>
               {/* Dilution Control */}
               <Card className="bg-secondary mb-4">
@@ -797,13 +794,9 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                           value={dilutionFactor}
                           onChange={handleDilutionChange}
                           type="number"
-                          min="0.1"
+                          className="w-24"
                           step="0.1"
-                          placeholder="Enter dilution factor"
-                          className={cn(
-                            "max-w-[200px]",
-                            isDarkMode && "bg-slate-800 border-slate-700 focus-visible:ring-orange-500 focus-visible:ring-offset-orange-500 text-orange-400"
-                          )}
+                          min="0"
                         />
                       </div>
                     )}
@@ -843,9 +836,9 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                       </div>
                       <Label className="mt-4">Calculated Dose</Label>
                       <div className="text-2xl font-bold text-orange-500">
-                        {calculatedDose?.toFixed(4)} mg
+                        {calculationSteps.calculatedDose.toFixed(4)} mg
                       </div>
-                      {showDilution && Number(dilutionFactor) !== 1 && calculationSteps && (
+                      {showDilution && Number(dilutionFactor) !== 1 && (
                         <div className="text-2xl font-bold text-orange-500">
                           Final with dilution: {calculationSteps.finalDose.toFixed(4)} mg
                         </div>
@@ -862,10 +855,10 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm space-y-1">
-                    {calculationSteps?.steps?.map((step, index) => (
+                    {calculationSteps.steps.map((step, index) => (
                       <p key={index} className="ml-2 font-mono text-xs">{step}</p>
                     ))}
-                    {showDilution && Number(dilutionFactor) !== 1 && calculationSteps && (
+                    {showDilution && Number(dilutionFactor) !== 1 && (
                       <p className="ml-2 font-mono text-xs">
                         {`${calculationSteps.steps.length + 1}. Final Dose with Dilution: ${calculationSteps.calculatedDose.toFixed(4)} × ${dilutionFactor} = ${calculationSteps.finalDose.toFixed(4)} mg`}
                       </p>
@@ -885,81 +878,94 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                       data={chartData}
                       margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                     >
-                      <CartesianGrid 
-                        strokeDasharray="3 3" 
-                        stroke={isDarkMode ? '#333' : '#ccc'}
-                      />
+                      <CartesianGrid strokeDasharray="3 3" />
                       <XAxis
                         dataKey="weight"
                         type="number"
                         scale="log"
-                        domain={['auto', 'auto']}
-                        tick={(props: any) => {
-                          const { x, y, payload } = props;
-                          const animal = Object.values(animals).find(a => Math.abs(a.weight - payload.value) < 0.001);
-                          return (
-                            <text
-                              x={x}
-                              y={y + 10}
-                              textAnchor="middle"
-                              fill={isDarkMode ? "#e2e8f0" : "#1e293b"}
-                              fontSize={12}
-                              style={{ opacity: animal ? 1 : 0.6 }}
-                            >
-                              {animal ? animal.name : payload.value.toExponential(1)}
-                            </text>
+                        domain={[0.01, 1000]}
+                        allowDuplicatedCategory={true}
+                        ticks={chartData.filter(point => point.isAnimal).map(point => point.weight)}
+                        tickFormatter={(value) => {
+                          // First try to find the animal in the raw data
+                          const animal = Object.entries(animals).find(([_, data]) => 
+                            Math.abs(data.weight - value) < 1e-10
                           );
+                          if (animal) return animal[1].name;
+                          
+                          // Fallback to chart data
+                          const point = chartData.find(p => p.isAnimal && Math.abs(p.weight - value) < 1e-10);
+                          return point?.label || value.toExponential(1);
                         }}
+                        tick={{
+                          fill: isDarkMode ? "#e2e8f0" : "#1e293b",
+                          fontSize: 12,
+                          textAnchor: 'end',
+                          transform: 'rotate(-45)'
+                        }}
+                        angle={-45}
+                        dy={15}
+                        dx={-10}
+                        height={60}
+                        interval={0}
                       />
                       <YAxis
                         type="number"
                         domain={['auto', 'auto']}
-                        tick={{ fontSize: 12 }}
                         tickFormatter={(value) => `${value.toFixed(1)} mg`}
+                        tick={{
+                          fill: isDarkMode ? "#e2e8f0" : "#1e293b",
+                          fontSize: 12
+                        }}
+                        interval={0}
+                        minTickGap={30}
                       />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: isDarkMode ? '#1e293b' : 'white',
-                          border: isDarkMode ? '1px solid #334155' : '1px solid #e2e8f0',
-                          borderRadius: '0.5rem',
-                          color: isDarkMode ? '#e2e8f0' : '#1e293b',
+                          backgroundColor: isDarkMode ? "#1e293b" : "#ffffff",
+                          border: isDarkMode ? "1px solid #475569" : "1px solid #e2e8f0",
+                          borderRadius: "0.5rem",
+                          fontSize: "0.875rem"
                         }}
                         itemStyle={{
-                          color: isDarkMode ? '#e2e8f0' : '#1e293b',
-                        }}
-                        labelStyle={{
-                          color: isDarkMode ? '#94a3b8' : '#64748b',
-                          marginBottom: '5px',
+                          color: isDarkMode ? "#e2e8f0" : "#1e293b",
+                          fontSize: "0.875rem"
                         }}
                         formatter={(value: number) => [`${value.toFixed(2)} mg`, 'Dose']}
                         labelFormatter={(weight: number) => {
-                          const animal = Object.values(animals).find(a => Math.abs(a.weight - weight) < 0.001);
-                          return `Weight: ${weight.toFixed(2)} kg${animal ? ` (${animal.name})` : ''}`;
+                          const point = chartData.find(p => {
+                            // Debug log the comparison
+                            if (p.isAnimal) {
+                              console.log(`Comparing tick ${weight} with point ${p.weight} (${p.name})`);
+                            }
+                            return p.isAnimal && Math.abs(p.weight - weight) < 1e-10;
+                          });
+                          return `Weight: ${weight.toFixed(2)} kg${point?.label ? ` (${point.label})` : ''}`;
                         }}
                       />
                       <Legend 
-                        wrapperStyle={{ 
-                          fontSize: '11px',
-                          marginTop: '5px',
-                          color: isDarkMode ? '#e2e8f0' : '#1e293b',
+                        wrapperStyle={{
+                          paddingTop: "1rem"
                         }}
-                        verticalAlign="bottom"
-                        align="center"
-                        height={20}
+                        height={36}
+                        iconType="circle"
                         iconSize={8}
                       />
                       <Line
-                        type="monotone"
                         dataKey="dose"
                         stroke="#f97316"
                         name={`${scalingMethod.charAt(0).toUpperCase() + scalingMethod.slice(1)} Scaling`}
-                        dot={(props: any) => {
-                          const { payload, cx, cy } = props;
-                          const isAnimal = Object.values(animals).some(a => Math.abs(a.weight - payload.weight) < 0.001);
+                        dot={(props) => {
+                          const { cx, cy, payload } = props;
+                          if (!payload.isAnimal) return null;
                           return (
-                            <svg x={cx - 5} y={cy - 5} width={10} height={10} fill="red" viewBox="0 0 10 10">
-                              {isAnimal && <circle cx={5} cy={5} r={5} />}
-                            </svg>
+                            <circle
+                              key={`dot-${payload.name}`}
+                              cx={cx}
+                              cy={cy}
+                              r={4}
+                              fill="#f97316"
+                            />
                           );
                         }}
                       />
