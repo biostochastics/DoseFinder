@@ -210,80 +210,142 @@ export default function Home() {
     let dose = 0;
     let steps: string[] = [];
     
+    // Validate inputs
+    if (baseWeight <= 0 || targetWeight <= 0) {
+      return {
+        dose: 0,
+        scalingFactor: 0,
+        methodDescription: 'Invalid weights',
+        steps: ['Error: Source and target weights must be greater than 0']
+      };
+    }
+
     const sourceAnimalData = animals[sourceAnimal as keyof typeof animals];
     const targetAnimalData = animals[targetAnimal as keyof typeof animals];
+
+    // Validate animal data exists
+    if (!sourceAnimalData || !targetAnimalData) {
+      return {
+        dose: 0,
+        scalingFactor: 0,
+        methodDescription: 'Invalid animals',
+        steps: ['Error: Source or target animal data not found']
+      };
+    }
     
-    // Base scaling calculation
-    switch (method) {
-      case 'allometric':
-        if (molecularWeight > 0) {
-          scalingFactor = molecularWeight > 700 ? 0.7 : molecularWeight > 400 ? 0.75 : 0.8;
-          methodDescription = `Allometric scaling with MW adjustment (${molecularWeight} g/mol → ${scalingFactor})`;
-        } else {
-          scalingFactor = Number(scalingExponent);
-          methodDescription = `Allometric scaling (${scalingFactor})`;
-        }
-        break;
-      case 'brainWeight':
-        const sourceBrain = sourceAnimalData.brainWeight;
-        const targetBrain = targetAnimalData.brainWeight;
-        scalingFactor = (2/3) * Math.log(targetBrain / sourceBrain) / Math.log(weightRatio);
-        methodDescription = 'Brain weight scaling';
-        break;
-      case 'lifeSpan':
-        const sourceLife = sourceAnimalData.lifeSpan;
-        const targetLife = targetAnimalData.lifeSpan;
-        scalingFactor = Math.log(targetLife / sourceLife) / Math.log(weightRatio);
-        methodDescription = 'Life-span scaling';
-        break;
-      case 'hepaticFlow':
-        const sourceFlow = sourceAnimalData.hepaticFlow;
-        const targetFlow = targetAnimalData.hepaticFlow;
-        const sourceHepRatio = sourceAnimalData.hepaticClearance / sourceFlow;
-        const targetHepRatio = targetAnimalData.hepaticClearance / targetFlow;
-        scalingFactor = Math.log((targetFlow * targetHepRatio) / (sourceFlow * sourceHepRatio)) / Math.log(weightRatio);
-        methodDescription = 'Hepatic blood flow scaling';
-        break;
+    try {
+      // Base scaling calculation
+      switch (method) {
+        case 'allometric':
+          if (molecularWeight > 0) {
+            scalingFactor = molecularWeight > 700 ? 0.7 : molecularWeight > 400 ? 0.75 : 0.8;
+            methodDescription = `Allometric scaling with MW adjustment (${molecularWeight} g/mol → ${scalingFactor})`;
+          } else {
+            scalingFactor = Number(scalingExponent);
+            methodDescription = `Allometric scaling (${scalingFactor})`;
+          }
+          break;
+        case 'brainWeight':
+          const sourceBrain = sourceAnimalData.brainWeight;
+          const targetBrain = targetAnimalData.brainWeight;
+          if (sourceBrain <= 0 || targetBrain <= 0) {
+            return {
+              dose: 0,
+              scalingFactor: 0,
+              methodDescription: 'Invalid brain weights',
+              steps: ['Error: Brain weights must be greater than 0']
+            };
+          }
+          scalingFactor = (2/3) * Math.log(targetBrain / sourceBrain) / Math.log(weightRatio);
+          methodDescription = 'Brain weight scaling';
+          break;
+        case 'lifeSpan':
+          const sourceLife = sourceAnimalData.lifeSpan;
+          const targetLife = targetAnimalData.lifeSpan;
+          if (sourceLife <= 0 || targetLife <= 0) {
+            return {
+              dose: 0,
+              scalingFactor: 0,
+              methodDescription: 'Invalid life spans',
+              steps: ['Error: Life spans must be greater than 0']
+            };
+          }
+          scalingFactor = Math.log(targetLife / sourceLife) / Math.log(weightRatio);
+          methodDescription = 'Life-span scaling';
+          break;
+        case 'hepaticFlow':
+          const sourceFlow = sourceAnimalData.hepaticFlow;
+          const targetFlow = targetAnimalData.hepaticFlow;
+          const sourceHepRatio = sourceAnimalData.hepaticClearance / sourceFlow;
+          const targetHepRatio = targetAnimalData.hepaticClearance / targetFlow;
+          
+          if (sourceFlow <= 0 || targetFlow <= 0) {
+            return {
+              dose: 0,
+              scalingFactor: 0,
+              methodDescription: 'Invalid hepatic flow values',
+              steps: ['Error: Hepatic flow values must be greater than 0']
+            };
+          }
+          
+          scalingFactor = Math.log((targetFlow * targetHepRatio) / (sourceFlow * sourceHepRatio)) / Math.log(weightRatio);
+          methodDescription = 'Hepatic blood flow scaling';
+          break;
+        default:
+          return {
+            dose: 0,
+            scalingFactor: 0,
+            methodDescription: 'Invalid method',
+            steps: ['Error: Invalid scaling method selected']
+          };
+      }
+
+      // Calculate base scaled dose
+      dose = baseDose * Math.pow(weightRatio, scalingFactor);
+      steps.push(`Base scaling: ${baseDose} mg × (${weightRatio.toFixed(4)}^${scalingFactor.toFixed(4)}) = ${dose.toFixed(4)} mg`);
+
+      // Apply advanced parameter adjustments
+      if (proteinBinding > 0) {
+        const proteinBindingFactor = (100 - proteinBinding) / 100;
+        dose *= proteinBindingFactor;
+        steps.push(`Protein binding (${proteinBinding}%): × ${proteinBindingFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
+      }
+
+      if (bioavailability < 100) {
+        const bioavailabilityFactor = bioavailability / 100;
+        dose /= bioavailabilityFactor;
+        steps.push(`Bioavailability (${bioavailability}%): ÷ ${bioavailabilityFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
+      }
+
+      if (kidneyFunction < 100) {
+        const kidneyFactor = kidneyFunction / 100;
+        const renalClearanceRatio = targetAnimalData.renalClearance / 100;
+        const kidneyAdjustment = 1 + (1 - kidneyFactor) * renalClearanceRatio;
+        dose *= kidneyAdjustment;
+        steps.push(`Kidney function (${kidneyFunction}%): × ${kidneyAdjustment.toFixed(4)} = ${dose.toFixed(4)} mg`);
+      }
+
+      if (volumeDistribution > 0) {
+        const volumeFactor = volumeDistribution / targetAnimalData.weight;
+        dose *= volumeFactor;
+        steps.push(`Volume distribution (${volumeDistribution} L/kg): × ${volumeFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
+      }
+
+      if (logP !== 0) {
+        const lipophilicityFactor = 1 + (Math.abs(logP) * 0.1);
+        dose *= lipophilicityFactor;
+        steps.push(`Lipophilicity (LogP ${logP}): × ${lipophilicityFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
+      }
+
+      return { dose, scalingFactor, methodDescription, steps };
+    } catch (error) {
+      return {
+        dose: 0,
+        scalingFactor: 0,
+        methodDescription: 'Error',
+        steps: ['Error: An error occurred during calculation']
+      };
     }
-
-    // Calculate base scaled dose
-    dose = baseDose * Math.pow(weightRatio, scalingFactor);
-    steps.push(`Base scaling: ${baseDose} mg × (${weightRatio.toFixed(4)}^${scalingFactor.toFixed(4)}) = ${dose.toFixed(4)} mg`);
-
-    // Apply advanced parameter adjustments
-    if (proteinBinding > 0) {
-      const proteinBindingFactor = (100 - proteinBinding) / 100;
-      dose *= proteinBindingFactor;
-      steps.push(`Protein binding (${proteinBinding}%): × ${proteinBindingFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
-    }
-
-    if (bioavailability < 100) {
-      const bioavailabilityFactor = bioavailability / 100;
-      dose /= bioavailabilityFactor;
-      steps.push(`Bioavailability (${bioavailability}%): ÷ ${bioavailabilityFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
-    }
-
-    if (kidneyFunction < 100) {
-      const kidneyFactor = kidneyFunction / 100;
-      const renalClearanceRatio = targetAnimalData.renalClearance / 100;
-      const kidneyAdjustment = 1 + (1 - kidneyFactor) * renalClearanceRatio;
-      dose *= kidneyAdjustment;
-      steps.push(`Kidney function (${kidneyFunction}%): × ${kidneyAdjustment.toFixed(4)} = ${dose.toFixed(4)} mg`);
-    }
-
-    if (volumeDistribution > 0) {
-      const volumeFactor = volumeDistribution / targetAnimalData.weight;
-      dose *= volumeFactor;
-      steps.push(`Volume distribution (${volumeDistribution} L/kg): × ${volumeFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
-    }
-
-    if (logP !== 0) {
-      const lipophilicityFactor = 1 + (Math.abs(logP) * 0.1);
-      dose *= lipophilicityFactor;
-      steps.push(`Lipophilicity (LogP ${logP}): × ${lipophilicityFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
-    }
-
-    return { dose, scalingFactor, methodDescription, steps };
   }, [proteinBinding, bioavailability, kidneyFunction, volumeDistribution, molecularWeight, logP, scalingExponent]);
 
   const generateChartData = useCallback((
