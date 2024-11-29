@@ -894,7 +894,8 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                         type="number"
                         scale="log"
                         domain={['auto', 'auto']}
-                        tick={({ x, y, payload }: any) => {
+                        tick={(props: any) => {
+                          const { x, y, payload } = props;
                           const animal = Object.values(animals).find(a => Math.abs(a.weight - payload.value) < 0.001);
                           return (
                             <text
@@ -903,6 +904,7 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                               textAnchor="middle"
                               fill={isDarkMode ? "#e2e8f0" : "#1e293b"}
                               fontSize={12}
+                              style={{ opacity: animal ? 1 : 0.6 }}
                             >
                               {animal ? animal.name : payload.value.toExponential(1)}
                             </text>
@@ -952,20 +954,12 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                         stroke="#f97316"
                         name={`${scalingMethod.charAt(0).toUpperCase() + scalingMethod.slice(1)} Scaling`}
                         dot={(props: any) => {
-                          const { payload, cx, cy, index } = props;
+                          const { payload, cx, cy } = props;
                           const isAnimal = Object.values(animals).some(a => Math.abs(a.weight - payload.weight) < 0.001);
-                          if (!isAnimal) return null;
-                          const animal = Object.values(animals).find(a => Math.abs(a.weight - payload.weight) < 0.001);
                           return (
-                            <circle
-                              key={`dot-${animal?.name}-${payload.weight}-${index}`}
-                              cx={cx}
-                              cy={cy}
-                              r={4}
-                              fill="#f97316"
-                              stroke="white"
-                              strokeWidth={2}
-                            />
+                            <svg x={cx - 5} y={cy - 5} width={10} height={10} fill="red" viewBox="0 0 10 10">
+                              {isAnimal && <circle cx={5} cy={5} r={5} />}
+                            </svg>
                           );
                         }}
                       />
