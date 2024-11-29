@@ -364,45 +364,80 @@ export default function Home() {
         isAnimal: true,
         label: data.name
       };
-    });
+    }).filter(point => point.dose > 0); // Filter out any failed calculations
 
     // Sort points by weight for proper line rendering
     allPoints.sort((a, b) => a.weight - b.weight);
 
     // Find min and max weights from animals
-    const weights = Object.values(animals).map(animal => animal.weight);
+    const weights = allPoints.map(point => point.weight);
     const minWeight = Math.min(...weights);
     const maxWeight = Math.max(...weights);
     
     // Add interpolated points between animal points
     const numPoints = 200;
-    for (let i = 0; i <= numPoints; i++) {
-      const logMin = Math.log10(minWeight);
-      const logMax = Math.log10(maxWeight);
-      const logWeight = logMin + (logMax - logMin) * (i / numPoints);
-      const weight = Math.pow(10, logWeight);
+    
+    // For non-allometric scaling, we'll interpolate between each pair of animal points
+    if (method !== 'allometric') {
+      const interpolatedPoints: any[] = [];
       
-      // Skip if too close to an actual animal point
-      const tooCloseToAnimal = allPoints.some(point => 
-        Math.abs(point.weight - weight) < (weight * 0.01)
-      );
-      
-      if (!tooCloseToAnimal) {
-        // Find closest animal for interpolation
-        const closestAnimal = Object.entries(animals).reduce((prev, curr) => {
-          return Math.abs(curr[1].weight - weight) < Math.abs(prev[1].weight - weight) ? curr : prev;
-        })[0];
+      for (let i = 0; i < allPoints.length - 1; i++) {
+        const point1 = allPoints[i];
+        const point2 = allPoints[i + 1];
         
-        const result = calculateDose(baseWeight, weight, baseDose, method, sourceAnimal, closestAnimal);
+        // Add points between each pair of animals
+        const numSegmentPoints = Math.ceil(numPoints * (Math.log10(point2.weight) - Math.log10(point1.weight)) / (Math.log10(maxWeight) - Math.log10(minWeight)));
         
-        if (result && typeof result.dose === 'number' && !isNaN(result.dose)) {
-          allPoints.push({
-            name: `interpolated_${i}`,
+        for (let j = 1; j < numSegmentPoints; j++) {
+          const t = j / numSegmentPoints;
+          const logWeight = Math.log10(point1.weight) + t * (Math.log10(point2.weight) - Math.log10(point1.weight));
+          const weight = Math.pow(10, logWeight);
+          
+          // For non-allometric scaling, interpolate the dose linearly in log space
+          const logDose = Math.log10(point1.dose) + t * (Math.log10(point2.dose) - Math.log10(point1.dose));
+          const dose = Math.pow(10, logDose);
+          
+          interpolatedPoints.push({
+            name: `interpolated_${i}_${j}`,
             weight: weight,
-            dose: result.dose,
+            dose: dose,
             isAnimal: false,
             label: ''
           });
+        }
+      }
+      
+      allPoints.push(...interpolatedPoints);
+    } else {
+      // Original allometric scaling interpolation
+      for (let i = 0; i <= numPoints; i++) {
+        const logMin = Math.log10(minWeight);
+        const logMax = Math.log10(maxWeight);
+        const logWeight = logMin + (logMax - logMin) * (i / numPoints);
+        const weight = Math.pow(10, logWeight);
+        
+        // Skip if too close to an actual animal point
+        const tooCloseToAnimal = allPoints.some(point => 
+          Math.abs(point.weight - weight) < (weight * 0.01)
+        );
+        
+        if (!tooCloseToAnimal) {
+          // Find closest animal for interpolation
+          const closestAnimal = Object.entries(animals).reduce((prev, curr) => {
+            return Math.abs(curr[1].weight - weight) < Math.abs(prev[1].weight - weight) ? curr : prev;
+          })[0];
+          
+          const result = calculateDose(baseWeight, weight, baseDose, method, sourceAnimal, closestAnimal);
+          
+          if (result && typeof result.dose === 'number' && !isNaN(result.dose) && result.dose > 0) {
+            allPoints.push({
+              name: `interpolated_${i}`,
+              weight: weight,
+              dose: result.dose,
+              isAnimal: false,
+              label: ''
+            });
+          }
         }
       }
     }
