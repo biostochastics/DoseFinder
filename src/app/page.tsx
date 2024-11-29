@@ -22,7 +22,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Documentation } from "@/components/Documentation";
-import { v4 as uuidv4 } from 'uuid';
 
 interface CalculationSteps {
   weightRatio: number;
@@ -340,7 +339,7 @@ export default function Home() {
     // Combine and sort all points
     points = [...points, ...interpolatedPoints].sort((a, b) => a.weight - b.weight);
     return points;
-  }, [calculateDose]);
+  }, [calculateDose, animals]);
 
   const updateCalculationSteps = useCallback((
     baseWeight: number,
@@ -362,7 +361,7 @@ export default function Home() {
     }
 
     return steps;
-  }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose]);
+  }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose, animals]);
 
   // Update dilution factor with validation
   const handleDilutionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -954,16 +953,16 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                         dataKey="dose"
                         stroke="#f97316"
                         name={`${scalingMethod.charAt(0).toUpperCase() + scalingMethod.slice(1)} Scaling`}
-                        dot={(props: any): React.ReactElement<SVGElement> | null => {
+                        dot={(props: any): React.ReactElement<SVGElement> => {
                           const { cx, cy, payload } = props;
-                          if (!payload.isAnimal) return null;
                           return (
                             <circle
                               key={`dot-${payload.name}`}
                               cx={cx}
                               cy={cy}
-                              r={4}
+                              r={payload.isAnimal ? 4 : 0}
                               fill="#f97316"
+                              stroke="none"
                             />
                           );
                         }}
