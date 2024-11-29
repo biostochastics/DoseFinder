@@ -210,12 +210,16 @@ export default function Home() {
 
   // Update source/target weights when animals change
   useEffect(() => {
-    setSourceWeight(animals[sourceAnimal as keyof typeof animals].weight.toString());
-  }, [sourceAnimal]);
+    if (sourceAnimal) {
+      setSourceWeight(animals[sourceAnimal as keyof typeof animals].weight.toString());
+    }
+  }, [sourceAnimal, animals]);
 
   useEffect(() => {
-    setTargetWeight(animals[targetAnimal as keyof typeof animals].weight.toString());
-  }, [targetAnimal]);
+    if (targetAnimal) {
+      setTargetWeight(animals[targetAnimal as keyof typeof animals].weight.toString());
+    }
+  }, [targetAnimal, animals]);
 
   // Memoize calculation functions
   const calculateDose = useCallback((
@@ -380,7 +384,7 @@ export default function Home() {
     }
 
     return steps;
-  }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose]);
+  }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose, animals]);
 
   // Single useEffect for all calculations
   useEffect(() => {
@@ -890,28 +894,20 @@ Base Calculated Dose: ${calculatedDose.toFixed(4)} mg/kg${showDilution && Number
                         type="number"
                         scale="log"
                         domain={['auto', 'auto']}
-                        tick={({ x, y, payload }) => {
+                        tick={({ x, y, payload }: any) => {
                           const animal = Object.values(animals).find(a => Math.abs(a.weight - payload.value) < 0.001);
-                          if (!animal) return null;
                           return (
-                            <g transform={`translate(${x},${y})`}>
-                              <text
-                                x={0}
-                                y={0}
-                                dy={16}
-                                textAnchor="start"
-                                fill={isDarkMode ? '#e2e8f0' : '#1e293b'}
-                                transform="rotate(45)"
-                                fontSize={11}
-                              >
-                                {animal.name}
-                              </text>
-                            </g>
+                            <text
+                              x={x}
+                              y={y + 10}
+                              textAnchor="middle"
+                              fill={isDarkMode ? "#e2e8f0" : "#1e293b"}
+                              fontSize={12}
+                            >
+                              {animal ? animal.name : payload.value.toExponential(1)}
+                            </text>
                           );
                         }}
-                        height={80}
-                        interval={0}
-                        ticks={Object.values(animals).map(a => a.weight).sort((a, b) => a - b)}
                       />
                       <YAxis
                         type="number"
