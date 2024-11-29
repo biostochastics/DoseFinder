@@ -541,10 +541,23 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                         <Input
                           id="sourceWeight"
                           type="number"
-                          value={sourceWeight.toString()}
-                          onChange={(e) => setSourceWeight(Number(e.target.value) || 0)}
+                          value={sourceWeight}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Allow empty string for better UX while typing
+                            if (value === '') {
+                              setSourceWeight(0);
+                              return;
+                            }
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue) && numValue >= 0) {
+                              setSourceWeight(numValue);
+                            }
+                          }}
                           className="w-24"
-                          step="0.01"
+                          step="0.001"
+                          min="0.001"
+                          placeholder="0.020"
                         />
                         <Label htmlFor="baseDose">Base Dose (mg)</Label>
                         <Input
@@ -574,10 +587,23 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                         <Input
                           id="targetWeight"
                           type="number"
-                          value={targetWeight.toString()}
-                          onChange={(e) => setTargetWeight(Number(e.target.value) || 0)}
+                          value={targetWeight}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Allow empty string for better UX while typing
+                            if (value === '') {
+                              setTargetWeight(0);
+                              return;
+                            }
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue) && numValue >= 0) {
+                              setTargetWeight(numValue);
+                            }
+                          }}
                           className="w-24"
-                          step="0.01"
+                          step="0.001"
+                          min="0.001"
+                          placeholder="70.000"
                         />
                         <div className="pt-2">
                           <Label>Calculated Dose</Label>
@@ -976,7 +1002,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
         </div>
       </main>
       <footer className="py-4 text-center text-sm text-muted-foreground">
-        &copy; Biostochastics 2024
+        &copy; 2024 BioStochastics with 🖤 Built using Next.js and shadcn@, deployed on Vercel
       </footer>
     </div>
   )
