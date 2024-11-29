@@ -369,12 +369,16 @@ export default function Home() {
       const logWeight = logMin + (logMax - logMin) * (i / numPoints);
       const weight = Math.pow(10, logWeight);
       
-      // Calculate dose for this weight
-      const result = calculateDose(baseWeight, weight, baseDose, method, sourceAnimal, "interpolated");
+      // Find closest animal for this weight
+      let closestAnimal = Object.entries(animals).reduce((prev, curr) => {
+        return Math.abs(curr[1].weight - weight) < Math.abs(prev[1].weight - weight) ? curr : prev;
+      })[0];
       
-      // Only add point if we got a valid dose calculation
+      // Calculate dose for this weight
+      const result = calculateDose(baseWeight, weight, baseDose, method, sourceAnimal, closestAnimal);
+      
       if (result && typeof result.dose === 'number' && !isNaN(result.dose)) {
-        // Find if this weight matches an animal (within small epsilon)
+        // Find if this weight matches an actual animal point
         const matchingAnimal = Object.entries(animals).find(([key, data]) => 
           Math.abs(data.weight - weight) < (weight * 0.01) // 1% tolerance
         );
