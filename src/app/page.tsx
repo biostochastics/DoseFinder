@@ -380,14 +380,19 @@ export default function Home() {
     // Sort points by weight
     points.sort((a, b) => a.weight - b.weight);
 
-    // Add interpolated points
+    // Add interpolated points for smoother curve
     const interpolatedPoints: any[] = [];
     const minWeight = Math.min(...points.map(p => p.weight));
     const maxWeight = Math.max(...points.map(p => p.weight));
-    const numInterpolatedPoints = 50;
+    const numInterpolatedPoints = 200;
 
+    // Use logarithmic interpolation for better distribution of points
     for (let i = 0; i <= numInterpolatedPoints; i++) {
-      const weight = minWeight * Math.pow(maxWeight / minWeight, i / numInterpolatedPoints);
+      const logMin = Math.log10(minWeight);
+      const logMax = Math.log10(maxWeight);
+      const logWeight = logMin + (logMax - logMin) * (i / numInterpolatedPoints);
+      const weight = Math.pow(10, logWeight);
+      
       const result = calculateDose(baseWeight, weight, baseDose, method, sourceAnimal, "interpolated");
       interpolatedPoints.push({
         name: `interpolated_${i}`,
@@ -1020,10 +1025,6 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                         formatter={(value: number) => [`${value.toFixed(2)} mg`, 'Dose']}
                         labelFormatter={(weight: number) => {
                           const point = chartData.find(p => {
-                            // Debug log the comparison
-                            if (p.isAnimal) {
-                              console.log(`Comparing tick ${weight} with point ${p.weight} (${p.name})`);
-                            }
                             return p.isAnimal && Math.abs(p.weight - weight) < 1e-10;
                           });
                           return `Weight: ${weight.toFixed(2)} kg${point?.label ? ` (${point.label})` : ''}`;
@@ -1040,6 +1041,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                       <Line
                         dataKey="dose"
                         stroke="#f97316"
+                        strokeWidth={2}
                         name={`${scalingMethod.charAt(0).toUpperCase() + scalingMethod.slice(1)} Scaling`}
                         dot={(props: any): React.ReactElement<SVGElement> => {
                           const { cx, cy, payload } = props;
@@ -1054,6 +1056,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                             />
                           );
                         }}
+                        type="monotone"
                       />
                     </LineChart>
                   </ResponsiveContainer>
