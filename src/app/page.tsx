@@ -294,11 +294,10 @@ export default function Home() {
     sourceAnimal: string
   ) => {
     let points: any[] = [];
-    const animalEntries = Object.entries(animals);
     
     // Add points for each animal with exact weights
-    animalEntries.forEach(([animalKey, animalData]) => {
-      const weight = Number(animalData.weight); // Ensure it's a number
+    Object.entries(animals).forEach(([animalKey, animalData]) => {
+      const weight = Number(animalData.weight);
       const result = calculateDose(
         baseWeight,
         weight,
@@ -341,7 +340,7 @@ export default function Home() {
     // Combine and sort all points
     points = [...points, ...interpolatedPoints].sort((a, b) => a.weight - b.weight);
     return points;
-  }, [animals, calculateDose]);
+  }, [calculateDose]);
 
   const updateCalculationSteps = useCallback((
     baseWeight: number,
@@ -363,7 +362,7 @@ export default function Home() {
     }
 
     return steps;
-  }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose, animals]);
+  }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose]);
 
   // Update dilution factor with validation
   const handleDilutionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -888,7 +887,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                         ticks={chartData.filter(point => point.isAnimal).map(point => point.weight)}
                         tickFormatter={(value) => {
                           // First try to find the animal in the raw data
-                          const animal = Object.entries(animals).find(([_, data]) => 
+                          const animal = Object.entries(animals).find(([, data]) => 
                             Math.abs(data.weight - value) < 1e-10
                           );
                           if (animal) return animal[1].name;
@@ -955,7 +954,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                         dataKey="dose"
                         stroke="#f97316"
                         name={`${scalingMethod.charAt(0).toUpperCase() + scalingMethod.slice(1)} Scaling`}
-                        dot={(props) => {
+                        dot={(props: any): React.ReactElement<SVGElement> | null => {
                           const { cx, cy, payload } = props;
                           if (!payload.isAnimal) return null;
                           return (
