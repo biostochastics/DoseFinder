@@ -22,6 +22,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Documentation } from "@/components/Documentation";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface CalculationSteps {
   weightRatio: number;
@@ -44,7 +45,12 @@ export default function Home() {
   const [dilutionFactor, setDilutionFactor] = useState('1');
   const [proteinBinding, setProteinBinding] = useState(0);
   const [bioavailability, setBioavailability] = useState(100);
+  const [bioavailabilityMethod, setBioavailabilityMethod] = useState('manual');
+  const [kidneyFunctionMethod, setKidneyFunctionMethod] = useState('none');
   const [kidneyFunction, setKidneyFunction] = useState(100);
+  const [patientAge, setPatientAge] = useState(40);
+  const [patientCreatinine, setPatientCreatinine] = useState(1);
+  const [patientSex, setPatientSex] = useState('male');
   const [volumeDistribution, setVolumeDistribution] = useState(0);
   const [molecularWeight, setMolecularWeight] = useState(0);
   const [logP, setLogP] = useState(0);
@@ -62,7 +68,8 @@ export default function Home() {
       hepaticFlow: 131,
       allometricExponent: 0.75,
       hepaticClearance: 90,
-      renalClearance: 15
+      renalClearance: 15,
+      bsa: 0.006 // approximate BSA in m²
     },
     rat: {
       name: 'Rat',
@@ -72,7 +79,8 @@ export default function Home() {
       hepaticFlow: 85,
       allometricExponent: 0.75,
       hepaticClearance: 73,
-      renalClearance: 12
+      renalClearance: 12,
+      bsa: 0.025
     },
     rabbit: {
       name: 'Rabbit',
@@ -82,7 +90,8 @@ export default function Home() {
       hepaticFlow: 77,
       allometricExponent: 0.75,
       hepaticClearance: 65,
-      renalClearance: 10
+      renalClearance: 10,
+      bsa: 0.15
     },
     cat: {
       name: 'Cat',
@@ -92,7 +101,8 @@ export default function Home() {
       hepaticFlow: 65,
       allometricExponent: 0.75,
       hepaticClearance: 48,
-      renalClearance: 8
+      renalClearance: 8,
+      bsa: 0.25
     },
     ferret: {
       name: 'Ferret',
@@ -102,7 +112,8 @@ export default function Home() {
       hepaticFlow: 72,
       allometricExponent: 0.75,
       hepaticClearance: 52,
-      renalClearance: 10
+      renalClearance: 10,
+      bsa: 0.08
     },
     monkey: {
       name: 'Monkey',
@@ -112,7 +123,8 @@ export default function Home() {
       hepaticFlow: 58,
       allometricExponent: 0.75,
       hepaticClearance: 42,
-      renalClearance: 7
+      renalClearance: 7,
+      bsa: 0.3
     },
     dog: {
       name: 'Dog',
@@ -122,7 +134,8 @@ export default function Home() {
       hepaticFlow: 55,
       allometricExponent: 0.75,
       hepaticClearance: 38,
-      renalClearance: 6
+      renalClearance: 6,
+      bsa: 0.8
     },
     sheep: {
       name: 'Sheep',
@@ -132,7 +145,8 @@ export default function Home() {
       hepaticFlow: 47,
       allometricExponent: 0.75,
       hepaticClearance: 32,
-      renalClearance: 5
+      renalClearance: 5,
+      bsa: 1.2
     },
     guineaPig: {
       name: 'Guinea Pig',
@@ -142,7 +156,8 @@ export default function Home() {
       hepaticFlow: 75,
       allometricExponent: 0.75,
       hepaticClearance: 55,
-      renalClearance: 8
+      renalClearance: 8,
+      bsa: 0.06
     },
     hamster: {
       name: 'Hamster',
@@ -152,7 +167,8 @@ export default function Home() {
       hepaticFlow: 90,
       allometricExponent: 0.75,
       hepaticClearance: 75,
-      renalClearance: 12
+      renalClearance: 12,
+      bsa: 0.02
     },
     miniPig: {
       name: 'Mini Pig',
@@ -162,7 +178,8 @@ export default function Home() {
       hepaticFlow: 45,
       allometricExponent: 0.75,
       hepaticClearance: 28,
-      renalClearance: 4
+      renalClearance: 4,
+      bsa: 1.1
     },
     horse: {
       name: 'Horse',
@@ -172,7 +189,8 @@ export default function Home() {
       hepaticFlow: 28,
       allometricExponent: 0.75,
       hepaticClearance: 18,
-      renalClearance: 2.5
+      renalClearance: 2.5,
+      bsa: 2.5
     },
     cow: {
       name: 'Cow',
@@ -182,7 +200,8 @@ export default function Home() {
       hepaticFlow: 25,
       allometricExponent: 0.75,
       hepaticClearance: 15,
-      renalClearance: 2
+      renalClearance: 2,
+      bsa: 2.8
     },
     human: {
       name: 'Human',
@@ -192,9 +211,28 @@ export default function Home() {
       hepaticFlow: 20.7,
       allometricExponent: 0.75,
       hepaticClearance: 15,
-      renalClearance: 1.5
+      renalClearance: 1.5,
+      bsa: 1.9
     }
   }), []);
+
+  // Calculate GFR via Cockcroft-Gault
+  const calcCockcroftGFR = useCallback(() => {
+    const weightKg = targetWeight;
+    let gfr = ((140 - patientAge) * weightKg) / (72 * patientCreatinine);
+    if (patientSex === "female") {
+      gfr = gfr * 0.85;
+    }
+    return gfr;
+  }, [targetWeight, patientAge, patientCreatinine, patientSex]);
+
+  // Convert GFR to a dosage fraction
+  const kidneyDoseAdjustmentFromGFR = useCallback((gfr: number): number => {
+    if (gfr >= 60) return 1.0;
+    if (gfr >= 30) return 0.75;
+    if (gfr >= 15) return 0.5;
+    return 0.25;
+  }, []);
 
   const calculateDose = useCallback((
     baseWeight: number,
@@ -291,6 +329,21 @@ export default function Home() {
           scalingFactor = Math.log((targetFlow * targetHepRatio) / (sourceFlow * sourceHepRatio)) / Math.log(weightRatio);
           methodDescription = 'Hepatic blood flow scaling';
           break;
+        case 'bsa':
+          const sourceBSA = sourceAnimalData.bsa;
+          const targetBSA = targetAnimalData.bsa;
+          if (sourceBSA <= 0 || targetBSA <= 0) {
+            return {
+              dose: 0,
+              scalingFactor: 0,
+              methodDescription: 'Invalid BSA',
+              steps: ['Error: BSA must be > 0']
+            };
+          }
+          methodDescription = 'BSA-based scaling';
+          dose = baseDose * (targetBSA / sourceBSA);
+          steps.push(`Base scaling (BSA): baseDose * (${targetBSA.toFixed(3)} / ${sourceBSA.toFixed(3)}) = ${dose.toFixed(3)} mg`);
+          break;
         default:
           return {
             dose: 0,
@@ -301,8 +354,10 @@ export default function Home() {
       }
 
       // Calculate base scaled dose
-      dose = baseDose * Math.pow(weightRatio, scalingFactor);
-      steps.push(`Base scaling: ${baseDose} mg × (${weightRatio.toFixed(4)}^${scalingFactor.toFixed(4)}) = ${dose.toFixed(4)} mg`);
+      if (method !== 'bsa') {
+        dose = baseDose * Math.pow(weightRatio, scalingFactor);
+        steps.push(`Base scaling: ${baseDose} mg × (${weightRatio.toFixed(4)}^${scalingFactor.toFixed(4)}) = ${dose.toFixed(4)} mg`);
+      }
 
       // Apply advanced parameter adjustments
       if (proteinBinding > 0) {
@@ -311,18 +366,29 @@ export default function Home() {
         steps.push(`Protein binding (${proteinBinding}%): × ${proteinBindingFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
       }
 
-      if (bioavailability < 100) {
-        const bioavailabilityFactor = bioavailability / 100;
+      let actualBioavailability = bioavailability;
+      if (bioavailabilityMethod === "iv") {
+        actualBioavailability = 100;
+      } else if (bioavailabilityMethod === "oral") {
+        actualBioavailability = 50;
+      } else if (bioavailabilityMethod === "other") {
+        actualBioavailability = 75;
+      }
+      if (actualBioavailability < 100) {
+        const bioavailabilityFactor = actualBioavailability / 100;
         dose /= bioavailabilityFactor;
-        steps.push(`Bioavailability (${bioavailability}%): ÷ ${bioavailabilityFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
+        steps.push(`Bioavailability = ${actualBioavailability}%, so dose ÷ ${bioavailabilityFactor.toFixed(4)} => ${dose.toFixed(4)} mg`);
       }
 
-      if (kidneyFunction < 100) {
+      if (kidneyFunctionMethod === "manual") {
         const kidneyFactor = kidneyFunction / 100;
-        const renalClearanceRatio = targetAnimalData.renalClearance / 100;
-        const kidneyAdjustment = 1 + (1 - kidneyFactor) * renalClearanceRatio;
-        dose *= kidneyAdjustment;
-        steps.push(`Kidney function (${kidneyFunction}%): × ${kidneyAdjustment.toFixed(4)} = ${dose.toFixed(4)} mg`);
+        dose *= kidneyFactor;
+        steps.push(`Manual kidney function: × ${kidneyFactor.toFixed(4)} => ${dose.toFixed(4)} mg`);
+      } else if (kidneyFunctionMethod === "cockcroft") {
+        const gfr = calcCockcroftGFR();
+        const fraction = kidneyDoseAdjustmentFromGFR(gfr);
+        dose *= fraction;
+        steps.push(`Cockcroft-Gault GFR ~ ${gfr.toFixed(1)} mL/min => factor=${fraction.toFixed(2)} => ${dose.toFixed(4)} mg`);
       }
 
       if (volumeDistribution > 0) {
@@ -346,7 +412,7 @@ export default function Home() {
         steps: ['Error: An error occurred during calculation']
       };
     }
-  }, [proteinBinding, bioavailability, kidneyFunction, volumeDistribution, molecularWeight, logP, scalingExponent]);
+  }, [proteinBinding, bioavailability, bioavailabilityMethod, kidneyFunctionMethod, kidneyFunction, calcCockcroftGFR, kidneyDoseAdjustmentFromGFR, volumeDistribution, molecularWeight, logP, scalingExponent, animals]);
 
   const generateChartData = useCallback((
     baseWeight: number,
@@ -466,7 +532,7 @@ export default function Home() {
     }
 
     return steps;
-  }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose, animals]);
+  }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose]);
 
   // Update dilution factor with validation
   const handleDilutionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -569,6 +635,35 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
     }
   }, [isDarkMode]);
 
+  // Reset all fields
+  const resetAll = () => {
+    setSourceAnimal("mouse");
+    setTargetAnimal("human");
+    setBaseDose(1);
+    setSourceWeight(0.02);
+    setTargetWeight(70);
+    setScalingMethod("allometric");
+    setScalingExponent("0.75");
+    setShowDilution(false);
+    setDilutionFactor("1");
+    setProteinBinding(0);
+    setBioavailability(100);
+    setBioavailabilityMethod("manual");
+    setKidneyFunctionMethod("none");
+    setKidneyFunction(100);
+    setPatientAge(40);
+    setPatientCreatinine(1);
+    setPatientSex("male");
+    setVolumeDistribution(0);
+    setMolecularWeight(0);
+    setLogP(0);
+  };
+
+  // Calculate mg/kg values
+  const sourceDoseMgKg = baseDose && sourceWeight ? baseDose / sourceWeight : 0;
+  const finalTargetDose = calculationSteps?.finalDose ?? 0;
+  const targetDoseMgKg = targetWeight ? finalTargetDose / targetWeight : 0;
+
   return (
     <div className="flex flex-col min-h-screen">
       <main className="container mx-auto p-4 max-w-5xl flex-grow">
@@ -664,15 +759,20 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                           min="0.001"
                           placeholder="0.020"
                         />
-                        <Label htmlFor="baseDose">Base Dose (mg)</Label>
-                        <Input
-                          id="baseDose"
-                          type="number"
-                          value={baseDose.toString()}
-                          onChange={(e) => setBaseDose(Number(e.target.value) || 0)}
-                          className="w-24"
-                          step="0.1"
-                        />
+                        <Label htmlFor="baseDose">Base Dose</Label>
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            id="baseDose"
+                            type="number"
+                            value={baseDose.toString()}
+                            onChange={(e) => setBaseDose(Number(e.target.value) || 0)}
+                            className="w-24"
+                            step="0.1"
+                          />
+                          <div className="text-sm text-muted-foreground">
+                            {sourceDoseMgKg > 0 && `(${sourceDoseMgKg.toFixed(2)} mg/kg)`}
+                          </div>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="targetAnimal">Target Animal</Label>
@@ -717,9 +817,9 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                               <div className="text-2xl font-bold text-primary">
                                 {calculationSteps?.calculatedDose !== undefined ? `${calculationSteps.calculatedDose.toFixed(2)} mg` : '-'}
                               </div>
-                              {showDilution && Number(dilutionFactor) !== 1 && calculationSteps && (
+                              {calculationSteps && (
                                 <div className="text-sm text-muted-foreground">
-                                  Final with dilution: {calculationSteps.finalDose.toFixed(2)} mg
+                                  {targetDoseMgKg.toFixed(2)} mg/kg
                                 </div>
                               )}
                             </div>
@@ -748,6 +848,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                           <SelectItem value="brainWeight">Brain Weight</SelectItem>
                           <SelectItem value="lifeSpan">Life-Span</SelectItem>
                           <SelectItem value="hepaticFlow">Hepatic Blood Flow</SelectItem>
+                          <SelectItem value="bsa">BSA</SelectItem>
                         </SelectContent>
                       </Select>
                       {scalingMethod === 'allometric' && (
@@ -772,7 +873,133 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                   </div>
                 </TabsContent>
                 <TabsContent value="advanced">
+                  <div className="flex justify-between mb-4">
+                    <Button variant="outline" onClick={resetAll}>
+                      Reset All
+                    </Button>
+                  </div>
                   <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <Card className="p-2">
+                        <CardHeader>
+                          <CardTitle className="text-sm">Kidney Function</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <RadioGroup
+                            value={kidneyFunctionMethod}
+                            onValueChange={(v: any) => setKidneyFunctionMethod(v)}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="none" id="kf-none" />
+                              <Label htmlFor="kf-none" className="text-sm">None</Label>
+                            </div>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <RadioGroupItem value="manual" id="kf-manual" />
+                              <Label htmlFor="kf-manual" className="text-sm">Manual %</Label>
+                              {kidneyFunctionMethod === "manual" && (
+                                <Input
+                                  type="number"
+                                  value={kidneyFunction}
+                                  onChange={(e) => setKidneyFunction(Number(e.target.value) || 0)}
+                                  className="w-16 ml-2"
+                                  step="1"
+                                  min={0}
+                                  max={100}
+                                />
+                              )}
+                            </div>
+                            <div className="flex items-start mt-2">
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="cockcroft" id="kf-cg" />
+                                <Label htmlFor="kf-cg" className="text-sm">Cockcroft-Gault</Label>
+                              </div>
+                            </div>
+                          </RadioGroup>
+                          {kidneyFunctionMethod === "cockcroft" && (
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                              <div className="flex flex-col">
+                                <Label>Age</Label>
+                                <Input
+                                  type="number"
+                                  value={patientAge}
+                                  onChange={(e) => setPatientAge(Number(e.target.value))}
+                                  className="w-20"
+                                />
+                              </div>
+                              <div className="flex flex-col">
+                                <Label>S.Creatinine (mg/dL)</Label>
+                                <Input
+                                  type="number"
+                                  value={patientCreatinine}
+                                  onChange={(e) => setPatientCreatinine(Number(e.target.value))}
+                                  className="w-20"
+                                  step="0.1"
+                                />
+                              </div>
+                              <div className="flex items-center space-x-2 mt-2">
+                                <RadioGroupItem
+                                  value="male"
+                                  id="sex-male"
+                                  checked={patientSex==="male"}
+                                  onClick={() => setPatientSex("male")}
+                                />
+                                <Label htmlFor="sex-male" className="text-sm">Male</Label>
+                              </div>
+                              <div className="flex items-center space-x-2 mt-2">
+                                <RadioGroupItem
+                                  value="female"
+                                  id="sex-female"
+                                  checked={patientSex==="female"}
+                                  onClick={() => setPatientSex("female")}
+                                />
+                                <Label htmlFor="sex-female" className="text-sm">Female</Label>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="p-2">
+                        <CardHeader>
+                          <CardTitle className="text-sm">Bioavailability</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <RadioGroup
+                            value={bioavailabilityMethod}
+                            onValueChange={(v: any) => setBioavailabilityMethod(v)}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="manual" id="bio-manual" />
+                              <Label htmlFor="bio-manual" className="text-sm">Manual (%)</Label>
+                              {bioavailabilityMethod === "manual" && (
+                                <Input
+                                  type="number"
+                                  value={bioavailability}
+                                  onChange={(e) => setBioavailability(Number(e.target.value) || 0)}
+                                  className="w-16 ml-2"
+                                  step="1"
+                                  min={0}
+                                  max={100}
+                                />
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <RadioGroupItem value="iv" id="bio-iv" />
+                              <Label htmlFor="bio-iv" className="text-sm">IV (100%)</Label>
+                            </div>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <RadioGroupItem value="oral" id="bio-oral" />
+                              <Label htmlFor="bio-oral" className="text-sm">Oral (~50%)</Label>
+                            </div>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <RadioGroupItem value="other" id="bio-other" />
+                              <Label htmlFor="bio-other" className="text-sm">Other (~75%)</Label>
+                            </div>
+                          </RadioGroup>
+                        </CardContent>
+                      </Card>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="proteinBinding">Protein Binding (%)</Label>
@@ -790,38 +1017,6 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                           Percentage of drug bound to plasma proteins
                         </p>
 
-                        <Label htmlFor="bioavailability">Bioavailability (%)</Label>
-                        <Input
-                          id="bioavailability"
-                          type="number"
-                          value={bioavailability.toString()}
-                          onChange={(e) => setBioavailability(Number(e.target.value) || 0)}
-                          className="w-24"
-                          min="0"
-                          max="100"
-                          step="1"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Fraction of drug reaching systemic circulation
-                        </p>
-
-                        <Label htmlFor="kidneyFunction">Kidney Function (%)</Label>
-                        <Input
-                          id="kidneyFunction"
-                          type="number"
-                          value={kidneyFunction.toString()}
-                          onChange={(e) => setKidneyFunction(Number(e.target.value) || 0)}
-                          className="w-24"
-                          min="0"
-                          max="100"
-                          step="1"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Percentage of normal kidney function
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
                         <Label htmlFor="volumeDistribution">Volume of Distribution (L/kg)</Label>
                         <Input
                           id="volumeDistribution"
@@ -863,30 +1058,40 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                           Lipophilicity coefficient (negative for hydrophilic)
                         </p>
                       </div>
-                    </div>
-                    
-                    <div className="mt-4 p-4 bg-secondary rounded-lg">
-                      <h4 className="font-medium mb-2">Advanced Parameter Effects</h4>
-                      <ul className="text-sm space-y-1 list-disc pl-4">
-                        {proteinBinding > 0 && (
-                          <li>Protein binding reduces available drug by {proteinBinding}%</li>
-                        )}
-                        {bioavailability < 100 && (
-                          <li>Bioavailability adjustment factor: {(100/bioavailability).toFixed(2)}x</li>
-                        )}
-                        {kidneyFunction < 100 && (
-                          <li>Reduced kidney function ({kidneyFunction}%) affects clearance</li>
-                        )}
-                        {volumeDistribution > 0 && (
-                          <li>Volume of distribution: {volumeDistribution} L/kg</li>
-                        )}
-                        {molecularWeight > 0 && (
-                          <li>Molecular weight affects scaling: {molecularWeight > 700 ? "0.7" : molecularWeight > 400 ? "0.75" : "0.8"}</li>
-                        )}
-                        {logP !== 0 && (
-                          <li>LogP adjustment factor: {(1 + Math.abs(logP) * 0.1).toFixed(2)}x</li>
-                        )}
-                      </ul>
+                      <div className="space-y-2">
+                        <div className="mt-4 p-4 bg-secondary rounded-lg">
+                          <h4 className="font-medium mb-2">Advanced Parameter Effects</h4>
+                          <ul className="text-sm space-y-1 list-disc pl-4">
+                            {proteinBinding > 0 && (
+                              <li>Protein binding reduces available drug by {proteinBinding}%</li>
+                            )}
+                            {bioavailabilityMethod === "manual" && bioavailability < 100 && (
+                              <li>Bioavailability adjustment factor: {(100/bioavailability).toFixed(2)}x</li>
+                            )}
+                            {bioavailabilityMethod === "oral" && (
+                              <li>Bioavailability adjustment factor: 2x</li>
+                            )}
+                            {bioavailabilityMethod === "other" && (
+                              <li>Bioavailability adjustment factor: 1.33x</li>
+                            )}
+                            {kidneyFunctionMethod === "manual" && kidneyFunction < 100 && (
+                              <li>Reduced kidney function ({kidneyFunction}%) affects clearance</li>
+                            )}
+                            {kidneyFunctionMethod === "cockcroft" && (
+                              <li>Cockcroft-Gault GFR adjustment</li>
+                            )}
+                            {volumeDistribution > 0 && (
+                              <li>Volume of distribution: {volumeDistribution} L/kg</li>
+                            )}
+                            {molecularWeight > 0 && (
+                              <li>Molecular weight affects scaling: {molecularWeight > 700 ? "0.7" : molecularWeight > 400 ? "0.75" : "0.8"}</li>
+                            )}
+                            {logP !== 0 && (
+                              <li>LogP adjustment factor: {(1 + Math.abs(logP) * 0.1).toFixed(2)}x</li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
@@ -1107,7 +1312,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
         </div>
       </main>
       <footer className="py-4 text-center text-sm text-muted-foreground">
-        &copy; 2024 BioStochastics with 🖤 Built using Next.js and shadcn@, deployed on Vercel
+        &copy; 2024 BioStochastics with 🖤 Built using Next.js and shadcn, deployed on Vercel
       </footer>
     </div>
   )

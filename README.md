@@ -213,14 +213,6 @@ The easiest deployment option since it's built by the Next.js team:
 ### Environment Setup
 Create `.env.local` for local development and add variables to your deployment platform's settings.
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/YourFeature`)
-3. Commit your changes (`git commit -m 'Add YourFeature'`)
-4. Push to the branch (`git push origin feature/YourFeature`)
-5. Open a Pull Request
-
 ## Contact
 
 For inquiries: sergey.kornilov@biostochastics.com
