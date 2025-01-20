@@ -19,16 +19,21 @@ export function Documentation() {
                 
                 <h4 className="font-semibold mb-2">When to use?</h4>
                 <ul className="list-disc pl-6 mb-4">
-                  <li>Initial dose estimation</li>
-                  <li>When limited physiological data is available</li>
-                  <li>For drugs with simple metabolic pathways</li>
+                  <li>Most common scaling situations</li>
+                  <li>When dealing with metabolically active compounds</li>
+                  <li>For initial dose estimations</li>
                 </ul>
 
-                <h4 className="font-semibold mb-2">Key Features</h4>
+                <h4 className="font-semibold mb-2">Key Points</h4>
                 <ul className="list-disc pl-6">
-                  <li>Customizable scaling exponent (default: 0.75)</li>
-                  <li>Works well across wide weight ranges</li>
-                  <li>Generally produces smooth, predictable curves</li>
+                  <li>Uses the 3/4 power law by default (exponent = 0.75)</li>
+                  <li>Can be adjusted based on molecular weight:
+                    <ul className="list-disc pl-6 mt-2">
+                      <li>MW > 700 Da → exponent = 0.70</li>
+                      <li>400 &lt; MW ≤ 700 Da → exponent = 0.75</li>
+                      <li>MW ≤ 400 Da → exponent = 0.80</li>
+                    </ul>
+                  </li>
                 </ul>
               </CardContent>
             </Card>
@@ -39,20 +44,13 @@ export function Documentation() {
               </CardHeader>
               <CardContent>
                 <h4 className="font-semibold mb-2">What is it?</h4>
-                <p className="mb-4">Uses brain weight ratios to account for differences in neural tissue distribution.</p>
+                <p className="mb-4">Scaling based on brain weight differences between species, useful for certain types of drugs.</p>
                 
                 <h4 className="font-semibold mb-2">When to use?</h4>
                 <ul className="list-disc pl-6 mb-4">
-                  <li>CNS-active drugs</li>
-                  <li>Neurological therapeutics</li>
+                  <li>CNS-active compounds</li>
                   <li>Drugs that cross the blood-brain barrier</li>
-                </ul>
-
-                <h4 className="font-semibold mb-2">Key Features</h4>
-                <ul className="list-disc pl-6">
-                  <li>Uses 2/3 power law relationship</li>
-                  <li>Accounts for species-specific brain development</li>
-                  <li>More conservative for small animals compared to allometric scaling</li>
+                  <li>Neurological treatments</li>
                 </ul>
               </CardContent>
             </Card>
@@ -63,20 +61,13 @@ export function Documentation() {
               </CardHeader>
               <CardContent>
                 <h4 className="font-semibold mb-2">What is it?</h4>
-                <p className="mb-4">Incorporates maximum life span differences between species.</p>
+                <p className="mb-4">Scaling based on the maximum life span potential of different species.</p>
                 
                 <h4 className="font-semibold mb-2">When to use?</h4>
                 <ul className="list-disc pl-6 mb-4">
-                  <li>Chronic toxicity studies</li>
-                  <li>Long-term drug exposure assessment</li>
-                  <li>Age-related drug development</li>
-                </ul>
-
-                <h4 className="font-semibold mb-2">Key Features</h4>
-                <ul className="list-disc pl-6">
-                  <li>Considers species longevity</li>
-                  <li>Uses natural logarithm for better accuracy</li>
-                  <li>Particularly relevant for chronic studies</li>
+                  <li>Long-term toxicity studies</li>
+                  <li>Chronic exposure assessments</li>
+                  <li>Age-related treatments</li>
                 </ul>
               </CardContent>
             </Card>
@@ -87,21 +78,92 @@ export function Documentation() {
               </CardHeader>
               <CardContent>
                 <h4 className="font-semibold mb-2">What is it?</h4>
-                <p className="mb-4">Incorporates both hepatic blood flow and clearance data to estimate doses.</p>
+                <p className="mb-4">Scaling based on species differences in hepatic blood flow and clearance.</p>
                 
                 <h4 className="font-semibold mb-2">When to use?</h4>
                 <ul className="list-disc pl-6 mb-4">
-                  <li>Drugs with significant hepatic metabolism</li>
-                  <li>High extraction ratio compounds</li>
-                  <li>When first-pass effects are important</li>
+                  <li>Drugs with high hepatic extraction</li>
+                  <li>Compounds primarily metabolized by the liver</li>
+                  <li>Flow-limited drugs</li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>5. BSA-Based Scaling</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <h4 className="font-semibold mb-2">What is it?</h4>
+                <p className="mb-4">Scaling based on body surface area differences between species.</p>
+                
+                <h4 className="font-semibold mb-2">When to use?</h4>
+                <ul className="list-disc pl-6 mb-4">
+                  <li>Many anticancer drugs</li>
+                  <li>Initial human dose estimates</li>
+                  <li>When surface-dependent effects are important</li>
                 </ul>
 
-                <h4 className="font-semibold mb-2">Understanding the Pattern</h4>
+                <h4 className="font-semibold mb-2">Key Points</h4>
                 <ul className="list-disc pl-6">
-                  <li><strong>High Small Animal Doses:</strong> Small animals show higher relative doses due to higher hepatic blood flow per kg</li>
-                  <li><strong>Mid-Range Fluctuations:</strong> Variations between species reflect differences in hepatic flow/clearance ratios</li>
-                  <li><strong>Large Animal Plateau:</strong> Doses stabilize for larger animals due to similar hepatic flow/clearance ratios</li>
-                  <li><strong>Species-Specific Steps:</strong> Sharp changes between species reflect real physiological differences</li>
+                  <li>Uses built-in approximate BSA values for each species</li>
+                  <li>Direct ratio scaling of doses based on BSA</li>
+                  <li>Common in clinical settings</li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-bold mb-4">Advanced Features</h2>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Kidney Function Adjustment</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-4">Three modes available:</p>
+                <ul className="list-disc pl-6 mb-4">
+                  <li><strong>None:</strong> No kidney function adjustment</li>
+                  <li><strong>Manual:</strong> Enter a percentage directly</li>
+                  <li><strong>Cockcroft-Gault:</strong> Calculates estimated GFR and applies stage-based reductions:
+                    <ul className="list-disc pl-6 mt-2">
+                      <li>GFR ≥ 60 mL/min → 100% dose</li>
+                      <li>30 ≤ GFR < 60 mL/min → 75% dose</li>
+                      <li>15 ≤ GFR < 30 mL/min → 50% dose</li>
+                      <li>GFR < 15 mL/min → 25% dose</li>
+                    </ul>
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Bioavailability Options</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-4">Choose from preset values or enter manually:</p>
+                <ul className="list-disc pl-6">
+                  <li><strong>Manual:</strong> Enter any percentage</li>
+                  <li><strong>IV:</strong> 100% bioavailability</li>
+                  <li><strong>Oral:</strong> Assumes 50% bioavailability</li>
+                  <li><strong>Other:</strong> Assumes 75% bioavailability</li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Additional Parameters</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc pl-6">
+                  <li><strong>Volume of Distribution (Vd):</strong> Affects dose based on drug distribution in body compartments</li>
+                  <li><strong>Molecular Weight:</strong> Can affect allometric scaling exponent selection</li>
+                  <li><strong>LogP:</strong> Influences dose adjustments based on lipophilicity</li>
+                  <li><strong>Protein Binding:</strong> Adjusts for differences in free drug fraction</li>
                 </ul>
               </CardContent>
             </Card>
@@ -154,20 +216,6 @@ export function Documentation() {
                 <li>Consider all available data</li>
                 <li>Use for research/educational purposes only</li>
                 <li>Consult regulatory guidelines for clinical applications</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section>
-          <h2 className="text-2xl font-bold mb-4">Shortcuts</h2>
-          <Card>
-            <CardContent className="pt-6">
-              <ul className="space-y-2">
-                <li><kbd className="px-2 py-1 bg-muted rounded">Ctrl + H</kbd> Open Help/Documentation</li>
-                <li><kbd className="px-2 py-1 bg-muted rounded">Ctrl + D</kbd> Toggle Dark Mode</li>
-                <li><kbd className="px-2 py-1 bg-muted rounded">Ctrl + U</kbd> Switch Unit System</li>
-                <li><kbd className="px-2 py-1 bg-muted rounded">Ctrl + R</kbd> Reset All Inputs</li>
               </ul>
             </CardContent>
           </Card>
