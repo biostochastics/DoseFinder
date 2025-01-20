@@ -412,7 +412,7 @@ export default function Home() {
         steps: ['Error: An error occurred during calculation']
       };
     }
-  }, [proteinBinding, bioavailability, bioavailabilityMethod, kidneyFunctionMethod, kidneyFunction, calcCockcroftGFR, kidneyDoseAdjustmentFromGFR, volumeDistribution, molecularWeight, logP, scalingExponent]);
+  }, [proteinBinding, bioavailability, bioavailabilityMethod, kidneyFunctionMethod, kidneyFunction, calcCockcroftGFR, kidneyDoseAdjustmentFromGFR, volumeDistribution, molecularWeight, logP, scalingExponent, animals]);
 
   const generateChartData = useCallback((
     baseWeight: number,
@@ -532,7 +532,7 @@ export default function Home() {
     }
 
     return steps;
-  }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose, animals]);
+  }, [sourceAnimal, targetAnimal, showDilution, dilutionFactor, calculateDose]);
 
   // Update dilution factor with validation
   const handleDilutionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
