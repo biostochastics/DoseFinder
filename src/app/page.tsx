@@ -33,7 +33,7 @@ interface CalculationSteps {
 }
 
 export default function Home() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [sourceAnimal, setSourceAnimal] = useState('mouse');
   const [targetAnimal, setTargetAnimal] = useState('human');
   const [sourceWeight, setSourceWeight] = useState(0.02);  // Initial mouse weight
@@ -45,12 +45,12 @@ export default function Home() {
   const [dilutionFactor, setDilutionFactor] = useState('1');
   const [proteinBinding, setProteinBinding] = useState(0);
   const [bioavailability, setBioavailability] = useState(100);
-  const [bioavailabilityMethod, setBioavailabilityMethod] = useState('manual');
-  const [kidneyFunctionMethod, setKidneyFunctionMethod] = useState('none');
+  const [bioavailabilityMethod, setBioavailabilityMethod] = useState("manual");
+  const [kidneyFunctionMethod, setKidneyFunctionMethod] = useState("none");
   const [kidneyFunction, setKidneyFunction] = useState(100);
   const [patientAge, setPatientAge] = useState(40);
   const [patientCreatinine, setPatientCreatinine] = useState(1);
-  const [patientSex, setPatientSex] = useState('male');
+  const [patientSex, setPatientSex] = useState("male");
   const [volumeDistribution, setVolumeDistribution] = useState(0);
   const [molecularWeight, setMolecularWeight] = useState(0);
   const [logP, setLogP] = useState(0);
@@ -887,7 +887,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                         <CardContent>
                           <RadioGroup
                             value={kidneyFunctionMethod}
-                            onValueChange={(v: any) => setKidneyFunctionMethod(v)}
+                            onValueChange={setKidneyFunctionMethod}
                           >
                             <div className="flex items-center space-x-2">
                               <RadioGroupItem value="none" id="kf-none" />
@@ -896,64 +896,93 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                             <div className="flex items-center space-x-2 mt-2">
                               <RadioGroupItem value="manual" id="kf-manual" />
                               <Label htmlFor="kf-manual" className="text-sm">Manual %</Label>
-                              {kidneyFunctionMethod === "manual" && (
-                                <Input
-                                  type="number"
-                                  value={kidneyFunction}
-                                  onChange={(e) => setKidneyFunction(Number(e.target.value) || 0)}
-                                  className="w-16 ml-2"
-                                  step="1"
-                                  min={0}
-                                  max={100}
-                                />
-                              )}
                             </div>
-                            <div className="flex items-start mt-2">
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="cockcroft" id="kf-cg" />
-                                <Label htmlFor="kf-cg" className="text-sm">Cockcroft-Gault</Label>
-                              </div>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <RadioGroupItem value="cockcroft" id="kf-cockcroft" />
+                              <Label htmlFor="kf-cockcroft" className="text-sm">Cockcroft-Gault</Label>
                             </div>
                           </RadioGroup>
-                          {kidneyFunctionMethod === "cockcroft" && (
-                            <div className="mt-2 grid grid-cols-2 gap-2">
-                              <div className="flex flex-col">
-                                <Label>Age</Label>
+
+                          {kidneyFunctionMethod === 'manual' && (
+                            <div className="mt-2">
+                              <Input
+                                type="number"
+                                value={kidneyFunction}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  const numValue = parseFloat(value);
+                                  if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
+                                    setKidneyFunction(numValue);
+                                  }
+                                }}
+                                className="w-24"
+                                min="0"
+                                max="100"
+                                step="1"
+                              />
+                            </div>
+                          )}
+
+                          {kidneyFunctionMethod === 'cockcroft' && (
+                            <div className="space-y-2 mt-2">
+                              <div>
+                                <Label htmlFor="patientAge" className="text-sm">Age (years)</Label>
                                 <Input
+                                  id="patientAge"
                                   type="number"
                                   value={patientAge}
-                                  onChange={(e) => setPatientAge(Number(e.target.value))}
-                                  className="w-20"
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    const numValue = parseFloat(value);
+                                    if (!isNaN(numValue) && numValue >= 0) {
+                                      setPatientAge(numValue);
+                                    }
+                                  }}
+                                  className="w-24"
+                                  min="0"
+                                  step="1"
                                 />
                               </div>
-                              <div className="flex flex-col">
-                                <Label>S.Creatinine (mg/dL)</Label>
+                              <div>
+                                <Label htmlFor="patientCreatinine" className="text-sm">Creatinine (mg/dL)</Label>
                                 <Input
+                                  id="patientCreatinine"
                                   type="number"
                                   value={patientCreatinine}
-                                  onChange={(e) => setPatientCreatinine(Number(e.target.value))}
-                                  className="w-20"
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    const numValue = parseFloat(value);
+                                    if (!isNaN(numValue) && numValue > 0) {
+                                      setPatientCreatinine(numValue);
+                                    }
+                                  }}
+                                  className="w-24"
+                                  min="0.1"
                                   step="0.1"
                                 />
                               </div>
-                              <div className="flex items-center space-x-2 mt-2">
-                                <RadioGroupItem
-                                  value="male"
-                                  id="sex-male"
-                                  checked={patientSex==="male"}
-                                  onClick={() => setPatientSex("male")}
-                                />
-                                <Label htmlFor="sex-male" className="text-sm">Male</Label>
+                              <div>
+                                <Label className="text-sm">Sex</Label>
+                                <RadioGroup
+                                  value={patientSex}
+                                  onValueChange={setPatientSex}
+                                  className="flex space-x-4"
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="male" id="sex-male" />
+                                    <Label htmlFor="sex-male" className="text-sm">Male</Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="female" id="sex-female" />
+                                    <Label htmlFor="sex-female" className="text-sm">Female</Label>
+                                  </div>
+                                </RadioGroup>
                               </div>
-                              <div className="flex items-center space-x-2 mt-2">
-                                <RadioGroupItem
-                                  value="female"
-                                  id="sex-female"
-                                  checked={patientSex==="female"}
-                                  onClick={() => setPatientSex("female")}
-                                />
-                                <Label htmlFor="sex-female" className="text-sm">Female</Label>
-                              </div>
+                              {calcCockcroftGFR() > 0 && (
+                                <div className="text-sm">
+                                  Estimated GFR: {calcCockcroftGFR().toFixed(1)} mL/min
+                                </div>
+                              )}
                             </div>
                           )}
                         </CardContent>
@@ -966,7 +995,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                         <CardContent>
                           <RadioGroup
                             value={bioavailabilityMethod}
-                            onValueChange={(v: any) => setBioavailabilityMethod(v)}
+                            onValueChange={setBioavailabilityMethod}
                           >
                             <div className="flex items-center space-x-2">
                               <RadioGroupItem value="manual" id="bio-manual" />
