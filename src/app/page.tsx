@@ -23,7 +23,6 @@ import {
 } from 'recharts';
 import { Documentation } from "@/components/Documentation";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { motion } from "framer-motion";
 
 interface CalculationSteps {
   weightRatio: number;
@@ -46,12 +45,12 @@ export default function Home() {
   const [dilutionFactor, setDilutionFactor] = useState('1');
   const [proteinBinding, setProteinBinding] = useState(0);
   const [bioavailability, setBioavailability] = useState(100);
-  const [bioavailabilityMethod, setBioavailabilityMethod] = useState("manual");
-  const [kidneyFunctionMethod, setKidneyFunctionMethod] = useState("none");
+  const [bioavailabilityMethod, setBioavailabilityMethod] = useState('manual');
+  const [kidneyFunctionMethod, setKidneyFunctionMethod] = useState('none');
   const [kidneyFunction, setKidneyFunction] = useState(100);
   const [patientAge, setPatientAge] = useState(40);
   const [patientCreatinine, setPatientCreatinine] = useState(1);
-  const [patientSex, setPatientSex] = useState("male");
+  const [patientSex, setPatientSex] = useState('male');
   const [volumeDistribution, setVolumeDistribution] = useState(0);
   const [molecularWeight, setMolecularWeight] = useState(0);
   const [logP, setLogP] = useState(0);
@@ -665,507 +664,654 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
   const finalTargetDose = calculationSteps?.finalDose ?? 0;
   const targetDoseMgKg = targetWeight ? finalTargetDose / targetWeight : 0;
 
-  const cardVariants = {
-    hidden: { opacity: 0, y: -20 },
-    visible: (i: number) => ({
-      opacity: 1,
-      y: 0,
-      transition: {
-        delay: i * 0.1,
-        duration: 0.5,
-        type: "spring",
-        stiffness: 100,
-        damping: 10,
-      },
-    }),
-  };
-
   return (
-    <div className="flex flex-col min-h-screen">
-      <div className="px-6 py-4">
-        <h1 className="text-2xl font-bold mb-6">DoseFinder</h1>
-      </div>
-      <main className="px-6 py-4 flex-grow">
-        <div className="space-y-6">
-          {[...Array(4)].map((_, index) => (
-            <motion.div
-              key={index}
-              variants={cardVariants}
-              initial="hidden"
-              animate="visible"
-              custom={index}
-            >
-              {index === 0 && (
-                <div className="min-h-screen p-4 flex flex-col items-center">
-                  <h1 className="text-4xl font-bold mb-4">Dose Calculator (DoseFinder)</h1>
-                  <Card className="w-full max-w-4xl">
-                    <CardHeader className="space-y-1">
-                      <div className="flex justify-between items-center">
+    <div className="flex flex-col min-h-screen w-full">
+      <main className="w-full flex-grow p-2">
+        <div className="h-full">
+          <Card className="h-full">
+            <CardHeader className="space-y-1 py-2">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-2xl">DoseFinder</CardTitle>
+                <div className="flex items-center space-x-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="sm" className="rounded-full">
+                        <Info className="h-5 w-5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[450px] p-4" align="end">
+                      <div className="space-y-4 text-sm">
+                        <h4 className="font-medium leading-none">Disclaimer</h4>
+                        <p>DoseFinder is a Simple Allometric Scaling Calculator ("the Calculator") by BioStochastics and is not intended for clinical or therapeutic dosing. The Calculator is intended for informational and educational purposes only.</p>
+                        
+                        <p>This Calculator is not a substitute for professional medical, pharmacological, toxicological, or veterinary advice. Consult qualified professionals before making decisions based on its outputs.</p>
+                        
+                        <p>Calculations are for research purposes and should not be used for clinical or therapeutic dosing without professional oversight.</p>
+                        
+                        <p className="font-medium pt-2">Contact Information</p>
+                        <p>Email: sergey.kornilov@biostochastics.com</p>
+                        
+                        <p className="text-xs text-muted-foreground">By using this calculator, you agree to our terms and assume full responsibility for its use.</p>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsDarkMode(!isDarkMode)}
+                    className={cn(
+                      "rounded-full",
+                      isDarkMode && "bg-slate-800 text-slate-100 hover:bg-slate-700"
+                    )}
+                  >
+                    {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                  </Button>
+                </div>
+              </div>
+              <CardDescription>
+                Calculate and visualize pharmacological dose scaling across different species
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="calculator" className="w-full" onValueChange={setSelectedTab}>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="calculator">Calculator</TabsTrigger>
+                  <TabsTrigger value="advanced">Advanced</TabsTrigger>
+                  <TabsTrigger value="documentation">Documentation</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="calculator">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="sourceAnimal">Source Animal</Label>
+                        <Select value={sourceAnimal} onValueChange={setSourceAnimal}>
+                          <SelectTrigger id="sourceAnimal">
+                            <SelectValue placeholder="Select source animal" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(animals).map(([key, animal]) => (
+                              <SelectItem key={key} value={key}>
+                                {animal.name} ({animal.weight} kg)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Label htmlFor="sourceWeight">Source Weight (kg)</Label>
+                        <Input
+                          id="sourceWeight"
+                          type="number"
+                          value={sourceWeight}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Allow empty string for better UX while typing
+                            if (value === '') {
+                              setSourceWeight(0);
+                              return;
+                            }
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue) && numValue >= 0) {
+                              setSourceWeight(numValue);
+                            }
+                          }}
+                          className="w-24"
+                          step="0.001"
+                          min="0.001"
+                          placeholder="0.020"
+                        />
+                        <Label htmlFor="baseDose">Base Dose</Label>
                         <div className="flex items-center space-x-2">
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="ghost" size="sm" className="rounded-full">
-                                <Info className="h-5 w-5" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[450px] p-4" align="end">
-                              <div className="space-y-4 text-sm">
-                                <h4 className="font-medium leading-none">Disclaimer</h4>
-                                <p>DoseFinder is a Simple Allometric Scaling Calculator ("the Calculator") by BioStochastics and is not intended for clinical or therapeutic dosing. The Calculator is intended for informational and educational purposes only.</p>
-                                
-                                <p>This Calculator is not a substitute for professional medical, pharmacological, toxicological, or veterinary advice. Consult qualified professionals before making decisions based on its outputs.</p>
-                                
-                                <p>Calculations are for research purposes and should not be used for clinical or therapeutic dosing without professional oversight.</p>
-                                
-                                <p className="font-medium pt-2">Contact Information</p>
-                                <p>Email: sergey.kornilov@biostochastics.com</p>
-                                
-                                <p className="text-xs text-muted-foreground">By using this calculator, you agree to our terms and assume full responsibility for its use.</p>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setIsDarkMode(!isDarkMode)}
-                            className={cn(
-                              "rounded-full",
-                              isDarkMode && "bg-slate-800 text-slate-100 hover:bg-slate-700"
-                            )}
-                          >
-                            {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                          </Button>
+                          <Input
+                            id="baseDose"
+                            type="number"
+                            value={baseDose.toString()}
+                            onChange={(e) => setBaseDose(Number(e.target.value) || 0)}
+                            className="w-24"
+                            step="0.1"
+                          />
+                          <div className="text-sm text-muted-foreground">
+                            {sourceDoseMgKg > 0 && `(${sourceDoseMgKg.toFixed(2)} mg/kg)`}
+                          </div>
                         </div>
                       </div>
-                      <CardDescription>
-                        Calculate and visualize pharmacological dose scaling across different species
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Tabs defaultValue="calculator" className="w-full" onValueChange={setSelectedTab}>
-                        <TabsList className="grid w-full grid-cols-3">
-                          <TabsTrigger value="calculator">Calculator</TabsTrigger>
-                          <TabsTrigger value="advanced">Advanced</TabsTrigger>
-                          <TabsTrigger value="documentation">Documentation</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="calculator">
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="sourceAnimal">Source Animal</Label>
-                                <Select value={sourceAnimal} onValueChange={setSourceAnimal}>
-                                  <SelectTrigger id="sourceAnimal">
-                                    <SelectValue placeholder="Select source animal" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Object.entries(animals).map(([key, animal]) => (
-                                      <SelectItem key={key} value={key}>
-                                        {animal.name} ({animal.weight} kg)
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <Label htmlFor="sourceWeight">Source Weight (kg)</Label>
-                                <Input
-                                  id="sourceWeight"
-                                  type="number"
-                                  value={sourceWeight}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    // Allow empty string for better UX while typing
-                                    if (value === '') {
-                                      setSourceWeight(0);
-                                      return;
-                                    }
-                                    const numValue = parseFloat(value);
-                                    if (!isNaN(numValue) && numValue >= 0) {
-                                      setSourceWeight(numValue);
-                                    }
-                                  }}
-                                  className="w-24"
-                                  step="0.001"
-                                  min="0.001"
-                                  placeholder="0.020"
-                                />
-                                <Label htmlFor="baseDose">Base Dose</Label>
-                                <div className="flex items-center space-x-2">
-                                  <Input
-                                    id="baseDose"
-                                    type="number"
-                                    value={baseDose.toString()}
-                                    onChange={(e) => setBaseDose(Number(e.target.value) || 0)}
-                                    className="w-24"
-                                    step="0.1"
-                                  />
-                                  <div className="text-sm text-muted-foreground">
-                                    {sourceDoseMgKg > 0 && `(${sourceDoseMgKg.toFixed(2)} mg/kg)`}
-                                  </div>
-                                </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="targetAnimal">Target Animal</Label>
+                        <Select value={targetAnimal} onValueChange={setTargetAnimal}>
+                          <SelectTrigger id="targetAnimal">
+                            <SelectValue placeholder="Select target animal" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(animals).map(([key, animal]) => (
+                              <SelectItem key={key} value={key}>
+                                {animal.name} ({animal.weight} kg)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Label htmlFor="targetWeight">Target Weight (kg)</Label>
+                        <Input
+                          id="targetWeight"
+                          type="number"
+                          value={targetWeight}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Allow empty string for better UX while typing
+                            if (value === '') {
+                              setTargetWeight(0);
+                              return;
+                            }
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue) && numValue >= 0) {
+                              setTargetWeight(numValue);
+                            }
+                          }}
+                          className="w-24"
+                          step="0.001"
+                          min="0.001"
+                          placeholder="70.000"
+                        />
+                        <div className="pt-2">
+                          <Label>Calculated Dose</Label>
+                          <div className="flex items-center space-x-2">
+                            <div>
+                              <div className="text-2xl font-bold text-primary">
+                                {calculationSteps?.calculatedDose !== undefined ? `${calculationSteps.calculatedDose.toFixed(2)} mg` : '-'}
                               </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="targetAnimal">Target Animal</Label>
-                                <Select value={targetAnimal} onValueChange={setTargetAnimal}>
-                                  <SelectTrigger id="targetAnimal">
-                                    <SelectValue placeholder="Select target animal" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {Object.entries(animals).map(([key, animal]) => (
-                                      <SelectItem key={key} value={key}>
-                                        {animal.name} ({animal.weight} kg)
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <Label htmlFor="targetWeight">Target Weight (kg)</Label>
-                                <Input
-                                  id="targetWeight"
-                                  type="number"
-                                  value={targetWeight}
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    // Allow empty string for better UX while typing
-                                    if (value === '') {
-                                      setTargetWeight(0);
-                                      return;
-                                    }
-                                    const numValue = parseFloat(value);
-                                    if (!isNaN(numValue) && numValue >= 0) {
-                                      setTargetWeight(numValue);
-                                    }
-                                  }}
-                                  className="w-24"
-                                  step="0.001"
-                                  min="0.001"
-                                  placeholder="70.000"
-                                />
-                                <div className="pt-2">
-                                  <Label>Calculated Dose</Label>
-                                  <div className="flex items-center space-x-2">
-                                    <div>
-                                      <div className="text-2xl font-bold text-primary">
-                                        {calculationSteps?.calculatedDose !== undefined ? `${calculationSteps.calculatedDose.toFixed(2)} mg` : '-'}
-                                      </div>
-                                      {calculationSteps && (
-                                        <div className="text-sm text-muted-foreground">
-                                          {targetDoseMgKg.toFixed(2)} mg/kg
-                                        </div>
-                                      )}
-                                    </div>
-                                    {calculationSteps && (
-                                      <Button 
-                                        variant="outline"
-                                        onClick={exportCalculations}
-                                        size="sm"
-                                      >
-                                        Export
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="space-y-2 mt-4">
-                              <Label htmlFor="scalingMethod">Scaling Method</Label>
-                              <Select value={scalingMethod} onValueChange={setScalingMethod}>
-                                <SelectTrigger id="scalingMethod">
-                                  <SelectValue placeholder="Select scaling method" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="allometric">Allometric</SelectItem>
-                                  <SelectItem value="brainWeight">Brain Weight</SelectItem>
-                                  <SelectItem value="lifeSpan">Life-Span</SelectItem>
-                                  <SelectItem value="hepaticFlow">Hepatic Blood Flow</SelectItem>
-                                  <SelectItem value="bsa">BSA</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              {scalingMethod === 'allometric' && (
-                                <div className="mt-2">
-                                  <Label htmlFor="scalingExponent">Scaling Exponent</Label>
-                                  <Input
-                                    id="scalingExponent"
-                                    type="number"
-                                    value={scalingExponent}
-                                    onChange={(e) => setScalingExponent(e.target.value)}
-                                    className="w-24"
-                                    step="0.01"
-                                    min="0"
-                                    max="2"
-                                  />
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    Standard value is 0.75 (3/4 power law)
-                                  </p>
+                              {calculationSteps && (
+                                <div className="text-sm text-muted-foreground">
+                                  {targetDoseMgKg.toFixed(2)} mg/kg
                                 </div>
                               )}
                             </div>
+                            {calculationSteps && (
+                              <Button 
+                                variant="outline"
+                                onClick={exportCalculations}
+                                size="sm"
+                              >
+                                Export
+                              </Button>
+                            )}
                           </div>
-                        </TabsContent>
-                        <TabsContent value="advanced">
-                          <div className="flex justify-between mb-4">
-                            <Button variant="outline" onClick={resetAll}>
-                              Reset All
-                            </Button>
-                          </div>
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <Card className="p-2">
-                                <CardHeader>
-                                  <CardTitle className="text-sm">Kidney Function</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                  <RadioGroup
-                                    value={kidneyFunctionMethod}
-                                    onValueChange={setKidneyFunctionMethod}
-                                  >
-                                    <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="none" id="kf-none" />
-                                      <Label htmlFor="kf-none" className="text-sm">None</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2 mt-2">
-                                      <RadioGroupItem value="manual" id="kf-manual" />
-                                      <Label htmlFor="kf-manual" className="text-sm">Manual %</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2 mt-2">
-                                      <RadioGroupItem value="cockcroft" id="kf-cockcroft" />
-                                      <Label htmlFor="kf-cockcroft" className="text-sm">Cockcroft-Gault</Label>
-                                    </div>
-                                  </RadioGroup>
+                        </div>
+                      </div>
+                    </div>
 
-                                  {kidneyFunctionMethod === 'manual' && (
-                                    <div className="mt-2">
-                                      <Input
-                                        type="number"
-                                        value={kidneyFunction}
-                                        onChange={(e) => {
-                                          const value = e.target.value;
-                                          const numValue = parseFloat(value);
-                                          if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
-                                            setKidneyFunction(numValue);
-                                          }
-                                        }}
-                                        className="w-24"
-                                        min="0"
-                                        max="100"
-                                        step="1"
-                                      />
-                                    </div>
-                                  )}
-
-                                  {kidneyFunctionMethod === 'cockcroft' && (
-                                    <div className="space-y-2 mt-2">
-                                      <div>
-                                        <Label htmlFor="patientAge" className="text-sm">Age (years)</Label>
-                                        <Input
-                                          id="patientAge"
-                                          type="number"
-                                          value={patientAge}
-                                          onChange={(e) => {
-                                            const value = e.target.value;
-                                            const numValue = parseFloat(value);
-                                            if (!isNaN(numValue) && numValue >= 0) {
-                                              setPatientAge(numValue);
-                                            }
-                                          }}
-                                          className="w-24"
-                                          min="0"
-                                          step="1"
-                                        />
-                                      </div>
-                                      <div>
-                                        <Label htmlFor="patientCreatinine" className="text-sm">Creatinine (mg/dL)</Label>
-                                        <Input
-                                          id="patientCreatinine"
-                                          type="number"
-                                          value={patientCreatinine}
-                                          onChange={(e) => {
-                                            const value = e.target.value;
-                                            const numValue = parseFloat(value);
-                                            if (!isNaN(numValue) && numValue > 0) {
-                                              setPatientCreatinine(numValue);
-                                            }
-                                          }}
-                                          className="w-24"
-                                          min="0.1"
-                                          step="0.1"
-                                        />
-                                      </div>
-                                      <div>
-                                        <Label className="text-sm">Sex</Label>
-                                        <RadioGroup
-                                          value={patientSex}
-                                          onValueChange={setPatientSex}
-                                          className="flex space-x-4"
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <RadioGroupItem value="male" id="sex-male" />
-                                            <Label htmlFor="sex-male" className="text-sm">Male</Label>
-                                          </div>
-                                          <div className="flex items-center space-x-2">
-                                            <RadioGroupItem value="female" id="sex-female" />
-                                            <Label htmlFor="sex-female" className="text-sm">Female</Label>
-                                          </div>
-                                        </RadioGroup>
-                                      </div>
-                                      {calcCockcroftGFR() > 0 && (
-                                        <div className="text-sm">
-                                          Estimated GFR: {calcCockcroftGFR().toFixed(1)} mL/min
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </CardContent>
-                              </Card>
-
-                              <Card className="p-2">
-                                <CardHeader>
-                                  <CardTitle className="text-sm">Bioavailability</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                  <RadioGroup
-                                    value={bioavailabilityMethod}
-                                    onValueChange={setBioavailabilityMethod}
-                                  >
-                                    <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="manual" id="bio-manual" />
-                                      <Label htmlFor="bio-manual" className="text-sm">Manual (%)</Label>
-                                      {bioavailabilityMethod === "manual" && (
-                                        <Input
-                                          type="number"
-                                          value={bioavailability}
-                                          onChange={(e) => setBioavailability(Number(e.target.value) || 0)}
-                                          className="w-16 ml-2"
-                                          step="1"
-                                          min={0}
-                                          max={100}
-                                        />
-                                      )}
-                                    </div>
-                                    <div className="flex items-center space-x-2 mt-2">
-                                      <RadioGroupItem value="iv" id="bio-iv" />
-                                      <Label htmlFor="bio-iv" className="text-sm">IV (100%)</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2 mt-2">
-                                      <RadioGroupItem value="oral" id="bio-oral" />
-                                      <Label htmlFor="bio-oral" className="text-sm">Oral (~50%)</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2 mt-2">
-                                      <RadioGroupItem value="other" id="bio-other" />
-                                      <Label htmlFor="bio-other" className="text-sm">Other (~75%)</Label>
-                                    </div>
-                                  </RadioGroup>
-                                </CardContent>
-                              </Card>
+                    <div className="space-y-2 mt-4">
+                      <Label htmlFor="scalingMethod">Scaling Method</Label>
+                      <Select value={scalingMethod} onValueChange={setScalingMethod}>
+                        <SelectTrigger id="scalingMethod">
+                          <SelectValue placeholder="Select scaling method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="allometric">Allometric</SelectItem>
+                          <SelectItem value="brainWeight">Brain Weight</SelectItem>
+                          <SelectItem value="lifeSpan">Life-Span</SelectItem>
+                          <SelectItem value="hepaticFlow">Hepatic Blood Flow</SelectItem>
+                          <SelectItem value="bsa">BSA</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {scalingMethod === 'allometric' && (
+                        <div className="mt-2 space-y-2">
+                          <Label htmlFor="scalingExponent">Scaling Exponent</Label>
+                          <Input
+                            id="scalingExponent"
+                            type="number"
+                            value={scalingExponent}
+                            onChange={(e) => setScalingExponent(e.target.value)}
+                            className="w-24"
+                            step="0.01"
+                            min="0"
+                            max="2"
+                          />
+                          <p className="text-sm text-muted-foreground">
+                            Standard value is 0.75 (3/4 power law)
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="advanced">
+                  <div className="flex justify-between mb-4">
+                    <Button variant="outline" onClick={resetAll}>
+                      Reset All
+                    </Button>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <Card className="p-2">
+                        <CardHeader>
+                          <CardTitle className="text-sm">Kidney Function</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <RadioGroup
+                            value={kidneyFunctionMethod}
+                            onValueChange={(v: any) => setKidneyFunctionMethod(v)}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="none" id="kf-none" />
+                              <Label htmlFor="kf-none" className="text-sm">None</Label>
                             </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="proteinBinding">Protein Binding (%)</Label>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <RadioGroupItem value="manual" id="kf-manual" />
+                              <Label htmlFor="kf-manual" className="text-sm">Manual %</Label>
+                              {kidneyFunctionMethod === "manual" && (
                                 <Input
-                                  id="proteinBinding"
                                   type="number"
-                                  value={proteinBinding.toString()}
-                                  onChange={(e) => setProteinBinding(Number(e.target.value) || 0)}
-                                  className="w-24"
-                                  min="0"
-                                  max="100"
+                                  value={kidneyFunction}
+                                  onChange={(e) => setKidneyFunction(Number(e.target.value) || 0)}
+                                  className="w-16 ml-2"
                                   step="1"
+                                  min={0}
+                                  max={100}
                                 />
-                                <p className="text-xs text-muted-foreground">
-                                  Percentage of drug bound to plasma proteins
-                                </p>
-
-                                <Label htmlFor="volumeDistribution">Volume of Distribution (L/kg)</Label>
-                                <Input
-                                  id="volumeDistribution"
-                                  type="number"
-                                  value={volumeDistribution.toString()}
-                                  onChange={(e) => setVolumeDistribution(Number(e.target.value) || 0)}
-                                  className="w-24"
-                                  min="0"
-                                  step="0.1"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                  Apparent volume of distribution per kg body weight
-                                </p>
-
-                                <Label htmlFor="molecularWeight">Molecular Weight (g/mol)</Label>
-                                <Input
-                                  id="molecularWeight"
-                                  type="number"
-                                  value={molecularWeight.toString()}
-                                  onChange={(e) => setMolecularWeight(Number(e.target.value) || 0)}
-                                  className="w-24"
-                                  min="0"
-                                  step="1"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                  Affects scaling exponent for molecules {'>'}400 g/mol
-                                </p>
-
-                                <Label htmlFor="logP">Log P</Label>
-                                <Input
-                                  id="logP"
-                                  type="number"
-                                  value={logP.toString()}
-                                  onChange={(e) => setLogP(Number(e.target.value) || 0)}
-                                  className="w-24"
-                                  step="0.1"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                  Lipophilicity coefficient (negative for hydrophilic)
-                                </p>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="mt-4 p-4 bg-secondary rounded-lg">
-                                  <h4 className="font-medium mb-2">Advanced Parameter Effects</h4>
-                                  <ul className="text-sm space-y-1 list-disc pl-4">
-                                    {proteinBinding > 0 && (
-                                      <li>Protein binding reduces available drug by {proteinBinding}%</li>
-                                    )}
-                                    {bioavailabilityMethod === "manual" && bioavailability < 100 && (
-                                      <li>Bioavailability adjustment factor: {(100/bioavailability).toFixed(2)}x</li>
-                                    )}
-                                    {bioavailabilityMethod === "oral" && (
-                                      <li>Bioavailability adjustment factor: 2x</li>
-                                    )}
-                                    {bioavailabilityMethod === "other" && (
-                                      <li>Bioavailability adjustment factor: 1.33x</li>
-                                    )}
-                                    {kidneyFunctionMethod === "manual" && kidneyFunction < 100 && (
-                                      <li>Reduced kidney function ({kidneyFunction}%) affects clearance</li>
-                                    )}
-                                    {kidneyFunctionMethod === "cockcroft" && (
-                                      <li>Cockcroft-Gault GFR adjustment</li>
-                                    )}
-                                    {volumeDistribution > 0 && (
-                                      <li>Volume of distribution: {volumeDistribution} L/kg</li>
-                                    )}
-                                    {molecularWeight > 0 && (
-                                      <li>Molecular weight affects scaling: {molecularWeight > 700 ? "0.7" : molecularWeight > 400 ? "0.75" : "0.8"}</li>
-                                    )}
-                                    {logP !== 0 && (
-                                      <li>LogP adjustment factor: {(1 + Math.abs(logP) * 0.1).toFixed(2)}x</li>
-                                    )}
-                                  </ul>
-                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-start mt-2">
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="cockcroft" id="kf-cg" />
+                                <Label htmlFor="kf-cg" className="text-sm">Cockcroft-Gault</Label>
                               </div>
                             </div>
-                          </div>
-                        </TabsContent>
-                        <TabsContent value="documentation">
-                          <Documentation />
-                        </TabsContent>
-                      </Tabs>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-            </motion.div>
-          ))}
+                          </RadioGroup>
+                          {kidneyFunctionMethod === "cockcroft" && (
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                              <div className="flex flex-col">
+                                <Label>Age</Label>
+                                <Input
+                                  type="number"
+                                  value={patientAge}
+                                  onChange={(e) => setPatientAge(Number(e.target.value))}
+                                  className="w-20"
+                                />
+                              </div>
+                              <div className="flex flex-col">
+                                <Label>S.Creatinine (mg/dL)</Label>
+                                <Input
+                                  type="number"
+                                  value={patientCreatinine}
+                                  onChange={(e) => setPatientCreatinine(Number(e.target.value))}
+                                  className="w-20"
+                                  step="0.1"
+                                />
+                              </div>
+                              <div className="flex items-center space-x-2 mt-2">
+                                <RadioGroupItem
+                                  value="male"
+                                  id="sex-male"
+                                  checked={patientSex==="male"}
+                                  onClick={() => setPatientSex("male")}
+                                />
+                                <Label htmlFor="sex-male" className="text-sm">Male</Label>
+                              </div>
+                              <div className="flex items-center space-x-2 mt-2">
+                                <RadioGroupItem
+                                  value="female"
+                                  id="sex-female"
+                                  checked={patientSex==="female"}
+                                  onClick={() => setPatientSex("female")}
+                                />
+                                <Label htmlFor="sex-female" className="text-sm">Female</Label>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="p-2">
+                        <CardHeader>
+                          <CardTitle className="text-sm">Bioavailability</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <RadioGroup
+                            value={bioavailabilityMethod}
+                            onValueChange={(v: any) => setBioavailabilityMethod(v)}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="manual" id="bio-manual" />
+                              <Label htmlFor="bio-manual" className="text-sm">Manual (%)</Label>
+                              {bioavailabilityMethod === "manual" && (
+                                <Input
+                                  type="number"
+                                  value={bioavailability}
+                                  onChange={(e) => setBioavailability(Number(e.target.value) || 0)}
+                                  className="w-16 ml-2"
+                                  step="1"
+                                  min={0}
+                                  max={100}
+                                />
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <RadioGroupItem value="iv" id="bio-iv" />
+                              <Label htmlFor="bio-iv" className="text-sm">IV (100%)</Label>
+                            </div>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <RadioGroupItem value="oral" id="bio-oral" />
+                              <Label htmlFor="bio-oral" className="text-sm">Oral (~50%)</Label>
+                            </div>
+                            <div className="flex items-center space-x-2 mt-2">
+                              <RadioGroupItem value="other" id="bio-other" />
+                              <Label htmlFor="bio-other" className="text-sm">Other (~75%)</Label>
+                            </div>
+                          </RadioGroup>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="proteinBinding">Protein Binding (%)</Label>
+                        <Input
+                          id="proteinBinding"
+                          type="number"
+                          value={proteinBinding.toString()}
+                          onChange={(e) => setProteinBinding(Number(e.target.value) || 0)}
+                          className="w-24"
+                          min="0"
+                          max="100"
+                          step="1"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Percentage of drug bound to plasma proteins
+                        </p>
+
+                        <Label htmlFor="volumeDistribution">Volume of Distribution (L/kg)</Label>
+                        <Input
+                          id="volumeDistribution"
+                          type="number"
+                          value={volumeDistribution.toString()}
+                          onChange={(e) => setVolumeDistribution(Number(e.target.value) || 0)}
+                          className="w-24"
+                          min="0"
+                          step="0.1"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Apparent volume of distribution per kg body weight
+                        </p>
+
+                        <Label htmlFor="molecularWeight">Molecular Weight (g/mol)</Label>
+                        <Input
+                          id="molecularWeight"
+                          type="number"
+                          value={molecularWeight.toString()}
+                          onChange={(e) => setMolecularWeight(Number(e.target.value) || 0)}
+                          className="w-24"
+                          min="0"
+                          step="1"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Affects scaling exponent for molecules {'>'}400 g/mol
+                        </p>
+
+                        <Label htmlFor="logP">Log P</Label>
+                        <Input
+                          id="logP"
+                          type="number"
+                          value={logP.toString()}
+                          onChange={(e) => setLogP(Number(e.target.value) || 0)}
+                          className="w-24"
+                          step="0.1"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Lipophilicity coefficient (negative for hydrophilic)
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="mt-4 p-4 bg-secondary rounded-lg">
+                          <h4 className="font-medium mb-2">Advanced Parameter Effects</h4>
+                          <ul className="text-sm space-y-1 list-disc pl-4">
+                            {proteinBinding > 0 && (
+                              <li>Protein binding reduces available drug by {proteinBinding}%</li>
+                            )}
+                            {bioavailabilityMethod === "manual" && bioavailability < 100 && (
+                              <li>Bioavailability adjustment factor: {(100/bioavailability).toFixed(2)}x</li>
+                            )}
+                            {bioavailabilityMethod === "oral" && (
+                              <li>Bioavailability adjustment factor: 2x</li>
+                            )}
+                            {bioavailabilityMethod === "other" && (
+                              <li>Bioavailability adjustment factor: 1.33x</li>
+                            )}
+                            {kidneyFunctionMethod === "manual" && kidneyFunction < 100 && (
+                              <li>Reduced kidney function ({kidneyFunction}%) affects clearance</li>
+                            )}
+                            {kidneyFunctionMethod === "cockcroft" && (
+                              <li>Cockcroft-Gault GFR adjustment</li>
+                            )}
+                            {volumeDistribution > 0 && (
+                              <li>Volume of distribution: {volumeDistribution} L/kg</li>
+                            )}
+                            {molecularWeight > 0 && (
+                              <li>Molecular weight affects scaling: {molecularWeight > 700 ? "0.7" : molecularWeight > 400 ? "0.75" : "0.8"}</li>
+                            )}
+                            {logP !== 0 && (
+                              <li>LogP adjustment factor: {(1 + Math.abs(logP) * 0.1).toFixed(2)}x</li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="documentation">
+                  <Documentation />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Only show results and chart if not in documentation tab */}
+          {calculationSteps && selectedTab !== 'documentation' && (
+            <>
+              {/* Dilution Control */}
+              <Card className="bg-secondary mb-4">
+                <CardContent className="pt-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="dilution"
+                        checked={showDilution}
+                        onCheckedChange={setShowDilution}
+                        className={cn(
+                          "bg-primary",
+                          isDarkMode && "data-[state=unchecked]:bg-slate-700"
+                        )}
+                      />
+                      <Label htmlFor="dilution">Show Dilution</Label>
+                    </div>
+                    {showDilution && (
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          id="dilutionFactor"
+                          value={dilutionFactor}
+                          onChange={handleDilutionChange}
+                          type="number"
+                          className="w-24"
+                          step="0.1"
+                          min="0"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Results Card */}
+              <Card className="mb-4">
+                <CardHeader>
+                  <CardTitle>Results</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label>Source Animal</Label>
+                      <div className="text-2xl font-bold">
+                        {animals[sourceAnimal as keyof typeof animals].name}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {sourceWeight} kg
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Target Animal</Label>
+                      <div className="text-2xl font-bold">
+                        {animals[targetAnimal as keyof typeof animals].name}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {targetWeight} kg
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Base Dose</Label>
+                      <div className="text-2xl font-bold">
+                        {baseDose} mg
+                      </div>
+                      <Label className="mt-4">Calculated Dose</Label>
+                      <div className="text-2xl font-bold text-orange-500">
+                        {calculationSteps.calculatedDose.toFixed(4)} mg
+                      </div>
+                      {showDilution && Number(dilutionFactor) !== 1 && (
+                        <div className="text-2xl font-bold text-orange-500">
+                          Final with dilution: {calculationSteps.finalDose.toFixed(4)} mg
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Calculation Steps */}
+              <Card className="mb-4">
+                <CardHeader>
+                  <CardTitle>Calculation Steps</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm space-y-1">
+                    {calculationSteps.steps.map((step, index) => (
+                      <p key={index} className="ml-2 font-mono text-xs">{step}</p>
+                    ))}
+                    {showDilution && Number(dilutionFactor) !== 1 && (
+                      <p className="ml-2 font-mono text-xs">
+                        {`${calculationSteps.steps.length + 1}. Final Dose with Dilution: ${calculationSteps.calculatedDose.toFixed(4)} × ${dilutionFactor} = ${calculationSteps.finalDose.toFixed(4)} mg`}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Chart Card */}
+              <Card className="min-h-[700px] mb-6">
+                <CardHeader>
+                  <CardTitle>Dose Scaling Chart</CardTitle>
+                </CardHeader>
+                <CardContent className="w-full h-[600px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart 
+                      data={chartData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="weight"
+                        type="number"
+                        scale="log"
+                        domain={[0.01, 1000]}
+                        allowDuplicatedCategory={true}
+                        ticks={chartData.filter(point => point.isAnimal).map(point => point.weight)}
+                        tickFormatter={(value) => {
+                          // First try to find the animal in the raw data
+                          const animal = Object.entries(animals).find(([, data]) => 
+                            Math.abs(data.weight - value) < 1e-10
+                          );
+                          if (animal) return animal[1].name;
+                          
+                          // Fallback to chart data
+                          const point = chartData.find(p => p.isAnimal && Math.abs(p.weight - value) < 1e-10);
+                          return point?.label || value.toExponential(1);
+                        }}
+                        tick={{
+                          fill: isDarkMode ? "#e2e8f0" : "#1e293b",
+                          fontSize: 12,
+                          textAnchor: 'end',
+                          transform: 'rotate(-45)'
+                        }}
+                        angle={-45}
+                        dy={15}
+                        dx={-10}
+                        height={60}
+                        interval={0}
+                      />
+                      <YAxis
+                        type="number"
+                        domain={['auto', 'auto']}
+                        tickFormatter={(value) => `${value.toFixed(1)} mg`}
+                        tick={{
+                          fill: isDarkMode ? "#e2e8f0" : "#1e293b",
+                          fontSize: 12
+                        }}
+                        interval={0}
+                        minTickGap={30}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: isDarkMode ? "#1e293b" : "#ffffff",
+                          border: isDarkMode ? "1px solid #475569" : "1px solid #e2e8f0",
+                          borderRadius: "0.5rem",
+                          fontSize: "0.875rem"
+                        }}
+                        itemStyle={{
+                          color: isDarkMode ? "#e2e8f0" : "#1e293b",
+                          fontSize: "0.875rem"
+                        }}
+                        formatter={(value: number) => [`${value.toFixed(2)} mg`, 'Dose']}
+                        labelFormatter={(weight: number) => {
+                          const point = chartData.find(p => {
+                            return p.isAnimal && Math.abs(p.weight - weight) < 1e-10;
+                          });
+                          return `Weight: ${weight.toFixed(2)} kg${point?.label ? ` (${point.label})` : ''}`;
+                        }}
+                      />
+                      <Legend 
+                        wrapperStyle={{
+                          paddingTop: "1rem"
+                        }}
+                        height={36}
+                        iconType="circle"
+                        iconSize={8}
+                      />
+                      <Line
+                        dataKey="dose"
+                        stroke="#f97316"
+                        strokeWidth={2}
+                        name={`${scalingMethod.charAt(0).toUpperCase() + scalingMethod.slice(1)} Scaling`}
+                        dot={(props: any): React.ReactElement<SVGElement> => {
+                          const { cx, cy, payload } = props;
+                          return (
+                            <circle
+                              key={`dot-${payload.name}`}
+                              cx={cx}
+                              cy={cy}
+                              r={payload.isAnimal ? 4 : 0}
+                              fill="#f97316"
+                              stroke="none"
+                            />
+                          );
+                        }}
+                        type="monotone"
+                        connectNulls={true}
+                        isAnimationActive={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       </main>
-      <footer className="py-4 text-center text-sm text-muted-foreground">
+      <footer className="py-2 px-4 text-center text-sm text-muted-foreground">
         &copy; 2024 BioStochastics with 🖤 Built using Next.js and shadcn, deployed on Vercel
       </footer>
     </div>
