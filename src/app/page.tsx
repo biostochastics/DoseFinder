@@ -666,12 +666,14 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
 
   return (
     <div className="flex flex-col min-h-screen">
-      <main className="container mx-auto p-4 max-w-5xl flex-grow">
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-6">DoseFinder</h1>
+      </div>
+      <main className="container mx-auto p-4 flex-grow">
         <div className="space-y-6">
           <Card>
             <CardHeader className="space-y-1">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-2xl">DoseFinder</CardTitle>
                 <div className="flex items-center space-x-2">
                   <Popover>
                     <PopoverTrigger asChild>
