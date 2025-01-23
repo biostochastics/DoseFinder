@@ -218,20 +218,34 @@ export default function Home() {
 
   // Calculate GFR via Cockcroft-Gault
   const calcCockcroftGFR = useCallback(() => {
-    const weightKg = targetWeight;
-    let gfr = ((140 - patientAge) * weightKg) / (72 * patientCreatinine);
-    if (patientSex === "female") {
-      gfr = gfr * 0.85;
+    try {
+      const weightKg = targetWeight;
+      if (!weightKg || weightKg <= 0 || !patientAge || patientAge <= 0 || !patientCreatinine || patientCreatinine <= 0) {
+        return 0;
+      }
+      let gfr = ((140 - patientAge) * weightKg) / (72 * patientCreatinine);
+      if (patientSex === "female") {
+        gfr = gfr * 0.85;
+      }
+      return Math.max(0, gfr); // Ensure GFR is never negative
+    } catch (error) {
+      console.error('Error calculating GFR:', error);
+      return 0;
     }
-    return gfr;
   }, [targetWeight, patientAge, patientCreatinine, patientSex]);
 
   // Convert GFR to a dosage fraction
   const kidneyDoseAdjustmentFromGFR = useCallback((gfr: number): number => {
-    if (gfr >= 60) return 1.0;
-    if (gfr >= 30) return 0.75;
-    if (gfr >= 15) return 0.5;
-    return 0.25;
+    try {
+      if (gfr <= 0) return 0.25; // Minimum adjustment for severe impairment
+      if (gfr >= 60) return 1.0;
+      if (gfr >= 30) return 0.75;
+      if (gfr >= 15) return 0.5;
+      return 0.25;
+    } catch (error) {
+      console.error('Error adjusting dose from GFR:', error);
+      return 1.0; // Return no adjustment in case of error
+    }
   }, []);
 
   const calculateDose = useCallback((
@@ -381,14 +395,29 @@ export default function Home() {
       }
 
       if (kidneyFunctionMethod === "manual") {
-        const kidneyFactor = kidneyFunction / 100;
-        dose *= kidneyFactor;
-        steps.push(`Manual kidney function: × ${kidneyFactor.toFixed(4)} => ${dose.toFixed(4)} mg`);
+        try {
+          const kidneyFactor = Math.max(0, Math.min(100, kidneyFunction)) / 100;
+          dose *= kidneyFactor;
+          steps.push(`Manual kidney function: × ${kidneyFactor.toFixed(4)} => ${dose.toFixed(4)} mg`);
+        } catch (error) {
+          console.error('Error applying manual kidney function:', error);
+          steps.push('Warning: Error applying kidney function adjustment');
+        }
       } else if (kidneyFunctionMethod === "cockcroft") {
-        const gfr = calcCockcroftGFR();
-        const fraction = kidneyDoseAdjustmentFromGFR(gfr);
-        dose *= fraction;
-        steps.push(`Cockcroft-Gault GFR ~ ${gfr.toFixed(1)} mL/min => factor=${fraction.toFixed(2)} => ${dose.toFixed(4)} mg`);
+        try {
+          const gfr = calcCockcroftGFR();
+          if (gfr <= 0) {
+            steps.push('Warning: Invalid GFR calculation inputs');
+            // Don't modify the dose if GFR calculation failed
+          } else {
+            const fraction = kidneyDoseAdjustmentFromGFR(gfr);
+            dose *= fraction;
+            steps.push(`Cockcroft-Gault GFR ~ ${gfr.toFixed(1)} mL/min => factor=${fraction.toFixed(2)} => ${dose.toFixed(4)} mg`);
+          }
+        } catch (error) {
+          console.error('Error applying Cockcroft-Gault adjustment:', error);
+          steps.push('Warning: Error applying kidney function adjustment');
+        }
       }
 
       if (volumeDistribution > 0) {
@@ -922,8 +951,14 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                                 <Input
                                   type="number"
                                   value={patientAge}
-                                  onChange={(e) => setPatientAge(Number(e.target.value))}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    if (!isNaN(val) && val >= 0) {
+                                      setPatientAge(val);
+                                    }
+                                  }}
                                   className="w-20"
+                                  min="0"
                                 />
                               </div>
                               <div className="flex flex-col">
@@ -931,28 +966,33 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                                 <Input
                                   type="number"
                                   value={patientCreatinine}
-                                  onChange={(e) => setPatientCreatinine(Number(e.target.value))}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    if (!isNaN(val) && val > 0) {
+                                      setPatientCreatinine(val);
+                                    }
+                                  }}
                                   className="w-20"
                                   step="0.1"
+                                  min="0.1"
                                 />
                               </div>
-                              <div className="flex items-center space-x-2 mt-2">
-                                <RadioGroupItem
-                                  value="male"
-                                  id="sex-male"
-                                  checked={patientSex==="male"}
-                                  onClick={() => setPatientSex("male")}
-                                />
-                                <Label htmlFor="sex-male" className="text-sm">Male</Label>
-                              </div>
-                              <div className="flex items-center space-x-2 mt-2">
-                                <RadioGroupItem
-                                  value="female"
-                                  id="sex-female"
-                                  checked={patientSex==="female"}
-                                  onClick={() => setPatientSex("female")}
-                                />
-                                <Label htmlFor="sex-female" className="text-sm">Female</Label>
+                              <div className="col-span-2">
+                                <Label className="mb-2 block">Sex</Label>
+                                <RadioGroup
+                                  value={patientSex}
+                                  onValueChange={setPatientSex}
+                                  className="flex space-x-4"
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="male" id="sex-male" />
+                                    <Label htmlFor="sex-male" className="text-sm">Male</Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="female" id="sex-female" />
+                                    <Label htmlFor="sex-female" className="text-sm">Female</Label>
+                                  </div>
+                                </RadioGroup>
                               </div>
                             </div>
                           )}
