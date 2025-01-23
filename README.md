@@ -13,10 +13,25 @@ By using this Calculator, you agree to these terms and assume full responsibilit
 #### Core Functionality
 - Interactive dose scaling calculator
 - Real-time calculation updates
-- Logarithmic scaling visualization
 - Dark/light mode support
 - Export calculation reports
-- Dilution factor adjustment
+- Multiple scaling methods
+- Advanced physiological parameters
+
+#### Advanced Parameters
+- Protein Binding (%)
+- Bioavailability adjustments:
+  - Manual percentage input
+  - IV (100%)
+  - Oral (~50%)
+  - Other (~75%)
+- Kidney Function:
+  - Manual percentage
+  - Cockcroft-Gault calculator
+  - None (default)
+- Volume Distribution (L/kg)
+- Molecular Weight (g/mol)
+- Log P (lipophilicity coefficient)
 
 #### Visualization
 - Interactive scaling chart
@@ -25,14 +40,6 @@ By using this Calculator, you agree to these terms and assume full responsibilit
 - Customizable display
 - Responsive design
 - Tooltip information
-
-#### Advanced Parameters
-- Protein Binding (%)
-- Bioavailability (%)
-- Kidney Function (%)
-- Volume Distribution (L/kg)
-- Molecular Weight (g/mol)
-- Log P
 
 ### Species Coverage
 - Small Laboratory Animals: Mouse, Rat, Hamster, Guinea Pig
@@ -49,6 +56,7 @@ By using this Calculator, you agree to these terms and assume full responsibilit
    - Based on standard metabolic scaling principles
    - Uses the widely accepted 3/4 power law
    - Suitable for initial dose estimation
+   - Molecular weight affects scaling: >700 Da uses 0.7, >400 Da uses 0.75, else 0.8
    - Reference: West GB, Brown JH, Enquist BJ. Science. 1997
 
 2. Brain Weight Scaling
@@ -72,6 +80,12 @@ By using this Calculator, you agree to these terms and assume full responsibilit
    - Considers first-pass metabolism
    - Reference: Davies B, Morris T. Pharm Res. 1993
 
+5. Body Surface Area (BSA)
+   - Uses species-specific BSA values
+   - Particularly useful for oncology drugs
+   - Accounts for surface area differences
+   - Common in clinical practice
+
 ### Physiological Parameters
 Each species entry includes:
 - Average adult weight (kg)
@@ -80,24 +94,25 @@ Each species entry includes:
 - Hepatic blood flow (mL/min/kg)
 - Hepatic clearance (mL/min/kg)
 - Renal clearance (mL/min/kg)
+- Body surface area (m²)
 
 ### Animal Database
-| Species    | Weight (kg) | Brain (g) | Life Span (y) | Hepatic Flow (mL/min/kg) | Hep. Clear. | Renal Clear. |
-|------------|------------|-----------|---------------|-------------------------|-------------|--------------|
-| Mouse      | 0.02       | 0.4       | 2             | 131                     | 90          | 15           |
-| Rat        | 0.15       | 2.0       | 3             | 85                      | 73          | 12           |
-| Hamster    | 0.1        | 1.0       | 2.5           | 90                      | 75          | 12           |
-| Guinea Pig | 1.0        | 4.8       | 6             | 75                      | 55          | 8            |
-| Ferret     | 1.2        | 7.2       | 7             | 72                      | 52          | 10           |
-| Rabbit     | 2.0        | 9.1       | 9             | 77                      | 65          | 10           |
-| Cat        | 4.0        | 28.4      | 15            | 65                      | 48          | 8            |
-| Monkey     | 5.0        | 95.0      | 25            | 58                      | 42          | 7            |
-| Dog        | 20.0       | 85.0      | 13            | 55                      | 38          | 6            |
-| Mini Pig   | 30.0       | 125.0     | 17            | 45                      | 28          | 4            |
-| Sheep      | 40.0       | 130.0     | 12            | 47                      | 32          | 5            |
-| Horse      | 500.0      | 620.0     | 28            | 28                      | 18          | 2.5          |
-| Cow        | 600.0      | 445.0     | 18            | 25                      | 15          | 2            |
-| Human      | 70.0       | 1350.0    | 80            | 20.7                    | 15          | 1.5          |
+| Species    | Weight (kg) | Brain (g) | Life Span (y) | Hepatic Flow (mL/min/kg) | Hep. Clear. | Renal Clear. | Body Surface Area (m²) |
+|------------|------------|-----------|---------------|-------------------------|-------------|--------------|------------------------|
+| Mouse      | 0.02       | 0.4       | 2             | 131                     | 90          | 15           | 0.007                   |
+| Rat        | 0.15       | 2.0       | 3             | 85                      | 73          | 12           | 0.025                   |
+| Hamster    | 0.1        | 1.0       | 2.5           | 90                      | 75          | 12           | 0.02                    |
+| Guinea Pig | 1.0        | 4.8       | 6             | 75                      | 55          | 8            | 0.09                    |
+| Ferret     | 1.2        | 7.2       | 7             | 72                      | 52          | 10           | 0.12                    |
+| Rabbit     | 2.0        | 9.1       | 9             | 77                      | 65          | 10           | 0.17                    |
+| Cat        | 4.0        | 28.4      | 15            | 65                      | 48          | 8            | 0.25                    |
+| Monkey     | 5.0        | 95.0      | 25            | 58                      | 42          | 7            | 0.3                     |
+| Dog        | 20.0       | 85.0      | 13            | 55                      | 38          | 6            | 0.7                     |
+| Mini Pig   | 30.0       | 125.0     | 17            | 45                      | 28          | 4            | 0.9                     |
+| Sheep      | 40.0       | 130.0     | 12            | 47                      | 32          | 5            | 1.1                     |
+| Horse      | 500.0      | 620.0     | 28            | 28                      | 18          | 2.5          | 2.5                     |
+| Cow        | 600.0      | 445.0     | 18            | 25                      | 15          | 2            | 3.0                     |
+| Human      | 70.0       | 1350.0    | 80            | 20.7                    | 15          | 1.5          | 1.7                     |
 
 ### Important Notes
 1. Brain weight values are based on adult animals and may vary by strain/breed
@@ -133,6 +148,11 @@ Scaling Factor = ln(Target Life / Source Life) / ln(Target Weight / Source Weigh
 ```
 Clearance Ratio = Hepatic Clearance / Hepatic Flow
 Scaling Factor = ln((Target Flow * Target Ratio) / (Source Flow * Source Ratio)) / ln(Target Weight / Source Weight)
+```
+
+#### Body Surface Area Scaling
+```
+Scaling Factor = (Target BSA / Source BSA) ^ 0.67
 ```
 
 ### Calculation Steps
