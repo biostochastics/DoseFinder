@@ -34,7 +34,7 @@ interface CalculationSteps {
 
 export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [sourceAnimal, setSourceAnimal] = useState('mouse');
+  const [sourceAnimal, setSourceAnimal] = useState('human');
   const [targetAnimal, setTargetAnimal] = useState('human');
   const [sourceWeight, setSourceWeight] = useState(0.02);  // Initial mouse weight
   const [targetWeight, setTargetWeight] = useState(70);    // Initial human weight
@@ -630,20 +630,20 @@ Generated: ${new Date().toLocaleString()}
 
 Parameters:
 -----------
-Source Animal: ${sourceAnimal} (${sourceWeight} kg)
-Target Animal: ${targetAnimal} (${targetWeight} kg)
-Base Dose: ${baseDose} mg/kg
+Source Animal: ${animals[sourceAnimal as keyof typeof animals].name} (${sourceWeight} kg)
+Target Animal: ${animals[targetAnimal as keyof typeof animals].name} (${targetWeight} kg)
+Base Dose: ${baseDose} mg (${(baseDose / sourceWeight).toFixed(4)} mg/kg)
 Scaling Method: ${scalingMethod}
 ${showDilution ? `Dilution Factor: ${dilutionFactor}` : ''}
 
 Calculation Steps:
 ----------------
 ${calculationSteps.steps.join('\n')}
-${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg` : ''}
+${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg (${(calculationSteps.finalDose / targetWeight).toFixed(4)} mg/kg)` : ''}
 
 Results:
 --------
-Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg/kg` : ''}`;
+Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calculationSteps.calculatedDose / targetWeight).toFixed(4)} mg/kg)${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg (${(calculationSteps.finalDose / targetWeight).toFixed(4)} mg/kg)` : ''}`;
 
     const blob = new Blob([calculations], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -844,22 +844,36 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                           <div className="flex items-center space-x-2">
                             <div>
                               <div className="text-2xl font-bold text-primary">
-                                {calculationSteps?.calculatedDose !== undefined ? `${calculationSteps.calculatedDose.toFixed(2)} mg` : '-'}
+                                {calculationSteps?.calculatedDose !== undefined ? (
+                                  <>
+                                    {calculationSteps.calculatedDose.toFixed(2)} mg
+                                    <div className="text-sm text-muted-foreground">
+                                      {(calculationSteps.calculatedDose / targetWeight).toFixed(2)} mg/kg
+                                    </div>
+                                  </>
+                                ) : '-'}
                               </div>
                               {calculationSteps && (
-                                <div className="text-sm text-muted-foreground">
-                                  {targetDoseMgKg.toFixed(2)} mg/kg
-                                </div>
+                                <Button 
+                                  variant="outline"
+                                  onClick={exportCalculations}
+                                  size="sm"
+                                >
+                                  Export
+                                </Button>
                               )}
                             </div>
                             {calculationSteps && (
-                              <Button 
-                                variant="outline"
-                                onClick={exportCalculations}
-                                size="sm"
-                              >
-                                Export
-                              </Button>
+                              <div className="text-2xl font-bold text-orange-500">
+                                {showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? (
+                                  <>
+                                    Final with dilution: {calculationSteps.finalDose.toFixed(4)} mg
+                                    <div className="text-sm text-muted-foreground">
+                                      {(calculationSteps.finalDose / targetWeight).toFixed(4)} mg/kg
+                                    </div>
+                                  </>
+                                ) : ''}
+                              </div>
                             )}
                           </div>
                         </div>
