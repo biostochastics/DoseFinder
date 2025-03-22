@@ -4,7 +4,8 @@
 [![Framework: Next.js](https://img.shields.io/badge/Framework-Next.js%2014-black)](https://nextjs.org/)
 [![Language: TypeScript](https://img.shields.io/badge/Language-TypeScript-blue)](https://www.typescriptlang.org/)
 [![Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://dose-finder.vercel.app)
-![Version](<../../../Library/Group Containers/group.com.apple.notes/Accounts/DA7BE12C-FD75-409A-B5DB-1B3ADC5848F3/Media/CE238EC0-A3A0-4911-8091-A12C48084E9A/1_FFFA7A33-30DA-40CC-ACE1-700C9CD367DF/Version-1.0.0-brightgreen.svg>)
+[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/biostochastics/dosefinder/)
+
 
 ## Overview
 
