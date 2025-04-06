@@ -33,8 +33,8 @@ interface CalculationSteps {
 }
 
 export default function Home() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [sourceAnimal, setSourceAnimal] = useState('mouse');
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [sourceAnimal, setSourceAnimal] = useState('human');
   const [targetAnimal, setTargetAnimal] = useState('human');
   const [sourceWeight, setSourceWeight] = useState(0.02);  // Initial mouse weight
   const [targetWeight, setTargetWeight] = useState(70);    // Initial human weight
@@ -218,20 +218,34 @@ export default function Home() {
 
   // Calculate GFR via Cockcroft-Gault
   const calcCockcroftGFR = useCallback(() => {
-    const weightKg = targetWeight;
-    let gfr = ((140 - patientAge) * weightKg) / (72 * patientCreatinine);
-    if (patientSex === "female") {
-      gfr = gfr * 0.85;
+    try {
+      const weightKg = targetWeight;
+      if (!weightKg || weightKg <= 0 || !patientAge || patientAge <= 0 || !patientCreatinine || patientCreatinine <= 0) {
+        return 0;
+      }
+      let gfr = ((140 - patientAge) * weightKg) / (72 * patientCreatinine);
+      if (patientSex === "female") {
+        gfr = gfr * 0.85;
+      }
+      return Math.max(0, gfr); // Ensure GFR is never negative
+    } catch (error) {
+      console.error('Error calculating GFR:', error);
+      return 0;
     }
-    return gfr;
   }, [targetWeight, patientAge, patientCreatinine, patientSex]);
 
   // Convert GFR to a dosage fraction
   const kidneyDoseAdjustmentFromGFR = useCallback((gfr: number): number => {
-    if (gfr >= 60) return 1.0;
-    if (gfr >= 30) return 0.75;
-    if (gfr >= 15) return 0.5;
-    return 0.25;
+    try {
+      if (gfr <= 0) return 0.25; // Minimum adjustment for severe impairment
+      if (gfr >= 60) return 1.0;
+      if (gfr >= 30) return 0.75;
+      if (gfr >= 15) return 0.5;
+      return 0.25;
+    } catch (error) {
+      console.error('Error adjusting dose from GFR:', error);
+      return 1.0; // Return no adjustment in case of error
+    }
   }, []);
 
   const calculateDose = useCallback((
@@ -381,14 +395,29 @@ export default function Home() {
       }
 
       if (kidneyFunctionMethod === "manual") {
-        const kidneyFactor = kidneyFunction / 100;
-        dose *= kidneyFactor;
-        steps.push(`Manual kidney function: × ${kidneyFactor.toFixed(4)} => ${dose.toFixed(4)} mg`);
+        try {
+          const kidneyFactor = Math.max(0, Math.min(100, kidneyFunction)) / 100;
+          dose *= kidneyFactor;
+          steps.push(`Manual kidney function: × ${kidneyFactor.toFixed(4)} => ${dose.toFixed(4)} mg`);
+        } catch (error) {
+          console.error('Error applying manual kidney function:', error);
+          steps.push('Warning: Error applying kidney function adjustment');
+        }
       } else if (kidneyFunctionMethod === "cockcroft") {
-        const gfr = calcCockcroftGFR();
-        const fraction = kidneyDoseAdjustmentFromGFR(gfr);
-        dose *= fraction;
-        steps.push(`Cockcroft-Gault GFR ~ ${gfr.toFixed(1)} mL/min => factor=${fraction.toFixed(2)} => ${dose.toFixed(4)} mg`);
+        try {
+          const gfr = calcCockcroftGFR();
+          if (gfr <= 0) {
+            steps.push('Warning: Invalid GFR calculation inputs');
+            // Don't modify the dose if GFR calculation failed
+          } else {
+            const fraction = kidneyDoseAdjustmentFromGFR(gfr);
+            dose *= fraction;
+            steps.push(`Cockcroft-Gault GFR ~ ${gfr.toFixed(1)} mL/min => factor=${fraction.toFixed(2)} => ${dose.toFixed(4)} mg`);
+          }
+        } catch (error) {
+          console.error('Error applying Cockcroft-Gault adjustment:', error);
+          steps.push('Warning: Error applying kidney function adjustment');
+        }
       }
 
       if (volumeDistribution > 0) {
@@ -601,20 +630,20 @@ Generated: ${new Date().toLocaleString()}
 
 Parameters:
 -----------
-Source Animal: ${sourceAnimal} (${sourceWeight} kg)
-Target Animal: ${targetAnimal} (${targetWeight} kg)
-Base Dose: ${baseDose} mg/kg
+Source Animal: ${animals[sourceAnimal as keyof typeof animals].name} (${sourceWeight} kg)
+Target Animal: ${animals[targetAnimal as keyof typeof animals].name} (${targetWeight} kg)
+Base Dose: ${baseDose} mg (${(baseDose / sourceWeight).toFixed(4)} mg/kg)
 Scaling Method: ${scalingMethod}
 ${showDilution ? `Dilution Factor: ${dilutionFactor}` : ''}
 
 Calculation Steps:
 ----------------
 ${calculationSteps.steps.join('\n')}
-${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg` : ''}
+${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg (${(calculationSteps.finalDose / targetWeight).toFixed(4)} mg/kg)` : ''}
 
 Results:
 --------
-Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg/kg` : ''}`;
+Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calculationSteps.calculatedDose / targetWeight).toFixed(4)} mg/kg)${showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? `\nFinal Dose with Dilution: ${calculationSteps.finalDose.toFixed(4)} mg (${(calculationSteps.finalDose / targetWeight).toFixed(4)} mg/kg)` : ''}`;
 
     const blob = new Blob([calculations], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -665,11 +694,11 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
   const targetDoseMgKg = targetWeight ? finalTargetDose / targetWeight : 0;
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <main className="container mx-auto p-4 max-w-5xl flex-grow">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="space-y-1">
+    <div className="flex flex-col min-h-screen w-full">
+      <main className="w-full flex-grow p-2">
+        <div className="h-full">
+          <Card className="h-full">
+            <CardHeader className="space-y-1 py-2">
               <div className="flex justify-between items-center">
                 <CardTitle className="text-2xl">DoseFinder</CardTitle>
                 <div className="flex items-center space-x-2">
@@ -815,22 +844,36 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                           <div className="flex items-center space-x-2">
                             <div>
                               <div className="text-2xl font-bold text-primary">
-                                {calculationSteps?.calculatedDose !== undefined ? `${calculationSteps.calculatedDose.toFixed(2)} mg` : '-'}
+                                {calculationSteps?.calculatedDose !== undefined ? (
+                                  <>
+                                    {calculationSteps.calculatedDose.toFixed(2)} mg
+                                    <div className="text-sm text-muted-foreground">
+                                      {(calculationSteps.calculatedDose / targetWeight).toFixed(2)} mg/kg
+                                    </div>
+                                  </>
+                                ) : '-'}
                               </div>
                               {calculationSteps && (
-                                <div className="text-sm text-muted-foreground">
-                                  {targetDoseMgKg.toFixed(2)} mg/kg
-                                </div>
+                                <Button 
+                                  variant="outline"
+                                  onClick={exportCalculations}
+                                  size="sm"
+                                >
+                                  Export
+                                </Button>
                               )}
                             </div>
                             {calculationSteps && (
-                              <Button 
-                                variant="outline"
-                                onClick={exportCalculations}
-                                size="sm"
-                              >
-                                Export
-                              </Button>
+                              <div className="text-2xl font-bold text-orange-500">
+                                {showDilution && Number(dilutionFactor) !== 1 && calculationSteps ? (
+                                  <>
+                                    Final with dilution: {calculationSteps.finalDose.toFixed(4)} mg
+                                    <div className="text-sm text-muted-foreground">
+                                      {(calculationSteps.finalDose / targetWeight).toFixed(4)} mg/kg
+                                    </div>
+                                  </>
+                                ) : ''}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -852,7 +895,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                         </SelectContent>
                       </Select>
                       {scalingMethod === 'allometric' && (
-                        <div className="mt-2">
+                        <div className="mt-2 space-y-2">
                           <Label htmlFor="scalingExponent">Scaling Exponent</Label>
                           <Input
                             id="scalingExponent"
@@ -864,7 +907,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                             min="0"
                             max="2"
                           />
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-sm text-muted-foreground">
                             Standard value is 0.75 (3/4 power law)
                           </p>
                         </div>
@@ -922,8 +965,14 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                                 <Input
                                   type="number"
                                   value={patientAge}
-                                  onChange={(e) => setPatientAge(Number(e.target.value))}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    if (!isNaN(val) && val >= 0) {
+                                      setPatientAge(val);
+                                    }
+                                  }}
                                   className="w-20"
+                                  min="0"
                                 />
                               </div>
                               <div className="flex flex-col">
@@ -931,28 +980,33 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
                                 <Input
                                   type="number"
                                   value={patientCreatinine}
-                                  onChange={(e) => setPatientCreatinine(Number(e.target.value))}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    if (!isNaN(val) && val > 0) {
+                                      setPatientCreatinine(val);
+                                    }
+                                  }}
                                   className="w-20"
                                   step="0.1"
+                                  min="0.1"
                                 />
                               </div>
-                              <div className="flex items-center space-x-2 mt-2">
-                                <RadioGroupItem
-                                  value="male"
-                                  id="sex-male"
-                                  checked={patientSex==="male"}
-                                  onClick={() => setPatientSex("male")}
-                                />
-                                <Label htmlFor="sex-male" className="text-sm">Male</Label>
-                              </div>
-                              <div className="flex items-center space-x-2 mt-2">
-                                <RadioGroupItem
-                                  value="female"
-                                  id="sex-female"
-                                  checked={patientSex==="female"}
-                                  onClick={() => setPatientSex("female")}
-                                />
-                                <Label htmlFor="sex-female" className="text-sm">Female</Label>
+                              <div className="col-span-2">
+                                <Label className="mb-2 block">Sex</Label>
+                                <RadioGroup
+                                  value={patientSex}
+                                  onValueChange={setPatientSex}
+                                  className="flex space-x-4"
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="male" id="sex-male" />
+                                    <Label htmlFor="sex-male" className="text-sm">Male</Label>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <RadioGroupItem value="female" id="sex-female" />
+                                    <Label htmlFor="sex-female" className="text-sm">Female</Label>
+                                  </div>
+                                </RadioGroup>
                               </div>
                             </div>
                           )}
@@ -1311,7 +1365,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg${showD
           )}
         </div>
       </main>
-      <footer className="py-4 text-center text-sm text-muted-foreground">
+      <footer className="py-2 px-4 text-center text-sm text-muted-foreground">
         &copy; 2024 BioStochastics with 🖤 Built using Next.js and shadcn, deployed on Vercel
       </footer>
     </div>
