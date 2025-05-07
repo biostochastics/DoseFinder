@@ -47,6 +47,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
   * Calculate total product requirements for studies
   * Support for multiple study arms with independent durations
   * Treatment, placebo, and comparator arm types
+  * Copy doses directly from calculator tab
   * Flexible dosing schedules (daily, weekly, custom)
   * Dilution sequence calculations
   * Color-coded study planning reports
@@ -69,10 +70,11 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 1. Navigate to the Study Planner tab
 2. Configure study parameters (type, number of arms, overage factor)
 3. Add treatment, placebo, or comparator arms as needed
-4. Set up dose groups with species, subjects, dose levels and custom schedules
-5. Define formulation details and optional dilution sequences
-6. Click Calculate Requirements to generate complete study material estimates
-7. Export the comprehensive study plan for documentation
+4. Copy doses directly from Calculator tab results or create new arms from calculator
+5. Set up dose groups with species, subjects, dose levels and custom schedules
+6. Define formulation details and optional dilution sequences
+7. Click Calculate Requirements to generate complete study material estimates
+8. Export the comprehensive study plan for documentation
 
 ## Documentation
 

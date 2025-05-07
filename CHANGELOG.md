@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comparator arms with separate product tracking
 - Independent duration settings for each study arm
 - Flexible dosing schedules (once/twice/thrice daily, weekly, biweekly, monthly, custom)
+- Integration between calculator and study planner:
+  - Copy calculated doses to existing arms
+  - Create new arms directly from calculator results
+  - Detailed popover with dose information
 - Dilution sequence calculations for dose preparation
 - Comprehensive study plan exports including breakdown by arm type
 - Visual distinguishing of different arm types in reports
