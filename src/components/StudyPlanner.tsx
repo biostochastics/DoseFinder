@@ -92,7 +92,15 @@ export function StudyPlanner({ animals }: { animals: any }) {
   const [totalDoses, setTotalDoses] = useState<number | null>(null);
   
   // Update species weight when species changes
+  // We use a ref to avoid infinite loops
+  const firstRender = React.useRef(true);
   useEffect(() => {
+    // Skip on first render to avoid overriding initial state
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    
     const updatedArms = arms.map(arm => {
       if (animals[arm.species]) {
         return {
@@ -140,16 +148,20 @@ export function StudyPlanner({ animals }: { animals: any }) {
   // Update arm properties
   const updateArm = (index: number, property: keyof ArmConfig, value: any) => {
     const updatedArms = [...arms];
-    updatedArms[index] = {
+    
+    // Create updated arm object
+    const updatedArm = {
       ...updatedArms[index],
       [property]: value
     };
     
     // If species changes, update weight
     if (property === 'species' && animals[value]) {
-      updatedArms[index].weight = animals[value].weight;
+      updatedArm.weight = animals[value].weight;
     }
     
+    // Update the array
+    updatedArms[index] = updatedArm;
     setArms(updatedArms);
   };
   
@@ -717,7 +729,12 @@ Total Active Compound Required: ${totalProductRequired?.toFixed(3)} ${totalProdu
                           <Input 
                             type="number" 
                             value={dilution.factor}
-                            onChange={(e) => updateDilution(dIndex, "factor", Number(e.target.value))}
+                            onChange={(e) => {
+                              const value = Number(e.target.value);
+                              if (!isNaN(value) && value >= 1) {
+                                updateDilution(dIndex, "factor", value);
+                              }
+                            }}
                             min={1}
                             step="0.01"
                             className="w-24"
