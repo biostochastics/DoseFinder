@@ -14,6 +14,7 @@ interface ArmConfig {
   species: string;
   subjects: number;
   weight: number;
+  armType: 'treatment' | 'placebo' | 'comparator'; 
   doseLevel: number;
   doseUnit: 'mg' | 'mg/kg' | 'mcg' | 'mcg/kg';
   duration: number;
@@ -23,6 +24,12 @@ interface ArmConfig {
     doses: number;
     period: number;
     unit: 'days' | 'weeks' | 'months';
+  };
+  // For comparator arms
+  comparatorDetails?: {
+    name: string;
+    concentration: number;
+    concentrationUnit: string;
   };
 }
 
@@ -63,6 +70,7 @@ export function StudyPlanner({ animals }: { animals: any }) {
     species: 'mouse',
     subjects: 10,
     weight: 0.02,
+    armType: 'treatment',
     doseLevel: 10,
     doseUnit: 'mg/kg',
     duration: 14,
@@ -114,13 +122,31 @@ export function StudyPlanner({ animals }: { animals: any }) {
   }, [animals]);
   
   // Add a new arm
-  const addArm = () => {
+  const addArm = (type: 'treatment' | 'placebo' | 'comparator' = 'treatment') => {
+    let name = type === 'treatment' 
+      ? `Dose Group ${arms.length + 1}`
+      : type === 'placebo' 
+        ? 'Placebo'
+        : 'Comparator';
+    
+    // Check if we already have an arm with this name
+    let counter = 1;
+    while (arms.some(arm => arm.name === name)) {
+      name = type === 'treatment' 
+        ? `Dose Group ${arms.length + 1} (${counter})`
+        : type === 'placebo' 
+          ? `Placebo (${counter})`
+          : `Comparator (${counter})`;
+      counter++;
+    }
+    
     const newArm: ArmConfig = {
-      name: `Dose Group ${arms.length + 1}`,
+      name: name,
       species: 'mouse',
       subjects: 10,
       weight: animals['mouse'].weight,
-      doseLevel: 10,
+      armType: type,
+      doseLevel: type === 'placebo' ? 0 : 10,
       doseUnit: 'mg/kg',
       duration: 14,
       durationUnit: 'days',
@@ -131,6 +157,16 @@ export function StudyPlanner({ animals }: { animals: any }) {
         unit: 'days'
       }
     };
+    
+    // Add comparator details if it's a comparator arm
+    if (type === 'comparator') {
+      newArm.comparatorDetails = {
+        name: 'Standard Comparator',
+        concentration: 10,
+        concentrationUnit: 'mg/ml'
+      };
+    }
+    
     setArms([...arms, newArm]);
     setNumArms(numArms + 1);
   };
@@ -158,6 +194,23 @@ export function StudyPlanner({ animals }: { animals: any }) {
     // If species changes, update weight
     if (property === 'species' && animals[value]) {
       updatedArm.weight = animals[value].weight;
+    }
+    
+    // If armType changes, handle special cases
+    if (property === 'armType') {
+      // Set dose to 0 for placebo
+      if (value === 'placebo') {
+        updatedArm.doseLevel = 0;
+      }
+      
+      // Add comparator details if changing to comparator
+      if (value === 'comparator' && !updatedArm.comparatorDetails) {
+        updatedArm.comparatorDetails = {
+          name: 'Standard Comparator',
+          concentration: 10,
+          concentrationUnit: 'mg/ml'
+        };
+      }
     }
     
     // Update the array
@@ -242,13 +295,59 @@ export function StudyPlanner({ animals }: { animals: any }) {
     stockConcUnit: string,
     dilutionSteps: DilutionStep[]
   ): ArmRequirement => {
+    const totalDoses = calculateTotalDoses(arm);
+    
+    // Special handling for placebo and comparator arms
+    if (arm.armType === 'placebo') {
+      // Placebo arms don't require active product
+      return {
+        name: arm.name,
+        subjects: arm.subjects,
+        dosePerSubject: 0,
+        doseUnit: 'mg',
+        totalDoses,
+        productRequired: 0,
+        productUnit: 'mg',
+        adminVolume: 0, // This will be calculated based on matched treatment arm
+        dilutionSteps: []
+      };
+    }
+    
+    if (arm.armType === 'comparator' && arm.comparatorDetails) {
+      // For comparator arms, we use the provided comparator details
+      // but still calculate the volumes
+      let comparatorConcMg = arm.comparatorDetails.concentration;
+      if (arm.comparatorDetails.concentrationUnit === 'mcg/ml') comparatorConcMg /= 1000;
+      else if (arm.comparatorDetails.concentrationUnit === 'percent') comparatorConcMg = arm.comparatorDetails.concentration * 10;
+      
+      // Convert dose to mg
+      let dosePerSubjectMg = arm.doseLevel;
+      if (arm.doseUnit === 'mg/kg') dosePerSubjectMg *= arm.weight;
+      else if (arm.doseUnit === 'mcg') dosePerSubjectMg /= 1000;
+      else if (arm.doseUnit === 'mcg/kg') dosePerSubjectMg = (arm.doseLevel * arm.weight) / 1000;
+      
+      // Calculate administration volume per dose
+      const adminVolume = dosePerSubjectMg / comparatorConcMg;
+      
+      return {
+        name: `${arm.name} (${arm.comparatorDetails.name})`,
+        subjects: arm.subjects,
+        dosePerSubject: dosePerSubjectMg,
+        doseUnit: 'mg',
+        totalDoses,
+        productRequired: 0, // We don't track the comparator in the main product calculation
+        productUnit: 'mg',
+        adminVolume,
+        dilutionSteps: []
+      };
+    }
+    
+    // Normal treatment arm calculation
     // Convert dose to mg
     let dosePerSubjectMg = arm.doseLevel;
     if (arm.doseUnit === 'mg/kg') dosePerSubjectMg *= arm.weight;
     else if (arm.doseUnit === 'mcg') dosePerSubjectMg /= 1000;
     else if (arm.doseUnit === 'mcg/kg') dosePerSubjectMg = (arm.doseLevel * arm.weight) / 1000;
-    
-    const totalDoses = calculateTotalDoses(arm);
     
     // Basic product calculation
     let productRequired = dosePerSubjectMg * totalDoses;
@@ -300,7 +399,11 @@ export function StudyPlanner({ animals }: { animals: any }) {
       calculateArmRequirement(arm, stockConcentration, stockConcentrationUnit, dilutions)
     );
     
-    const totalProduct = armReqs.reduce((sum, req) => sum + req.productRequired, 0);
+    // Only include treatment arms in total product calculation
+    const totalProduct = armReqs.reduce((sum, req, index) => {
+      return sum + (arms[index].armType === 'treatment' ? req.productRequired : 0);
+    }, 0);
+    
     // Convert to appropriate units
     let finalTotal = totalProduct;
     let finalUnit = 'mg';
@@ -341,23 +444,46 @@ ${useDilutions ? `Dilution Steps: ${dilutions.length}` : ''}
 
 Arm Requirements:
 ----------------
-${armRequirements.map(arm => `
-Arm: ${arm.name}
+${armRequirements.map((arm, index) => {
+  const armType = arms[index].armType;
+  let details = `
+Arm: ${arm.name} (${armType === 'treatment' ? 'Treatment' : armType === 'placebo' ? 'Placebo' : 'Comparator'})
 Subjects: ${arm.subjects}
-Dose per Subject: ${arm.dosePerSubject.toFixed(3)} ${arm.doseUnit}
+`;
+
+  if (armType === 'placebo') {
+    details += `Dose per Subject: N/A (Placebo)
+Total Doses: ${arm.totalDoses}
+Product Required: N/A (Placebo)
+`;
+  } else if (armType === 'comparator') {
+    details += `Dose per Subject: ${arm.dosePerSubject.toFixed(3)} ${arm.doseUnit}
+Total Doses: ${arm.totalDoses}
+Product: ${arms[index].comparatorDetails?.name || 'Comparator'} (${arms[index].comparatorDetails?.concentration || 0} ${arms[index].comparatorDetails?.concentrationUnit || ''})
+Administration Volume: ${arm.adminVolume.toFixed(2)} mL
+`;
+  } else {
+    details += `Dose per Subject: ${arm.dosePerSubject.toFixed(3)} ${arm.doseUnit}
 Total Doses: ${arm.totalDoses}
 Product Required: ${arm.productRequired.toFixed(3)} ${arm.productUnit}
 Administration Volume: ${arm.adminVolume.toFixed(2)} mL
 
-${useDilutions ? `Dilution Steps:
+${useDilutions && arm.dilutionSteps.length > 0 ? `Dilution Steps:
 ${arm.dilutionSteps.map((step, i) => `  ${i+1}. Start with ${step.startVolume.toFixed(2)} mL, add ${step.addedVolume.toFixed(2)} mL of ${step.vehicle}
      Final concentration: ${step.finalConcentration.toFixed(3)} ${step.concentrationUnit}`).join('\n')}` : ''}
-`).join('\n')}
+`;
+  }
+  
+  return details;
+}).join('\n')}
 
 Summary:
 --------
 Total Doses to Prepare: ${totalDoses}
-Total Active Compound Required: ${totalProductRequired?.toFixed(3)} ${totalProductUnit}`;
+Total Active Compound Required: ${totalProductRequired?.toFixed(3)} ${totalProductUnit}
+Treatment Arms: ${arms.filter(arm => arm.armType === 'treatment').length}
+Placebo Arms: ${arms.filter(arm => arm.armType === 'placebo').length}
+Comparator Arms: ${arms.filter(arm => arm.armType === 'comparator').length}`;
 
     const blob = new Blob([studyPlan], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -398,18 +524,30 @@ Total Active Compound Required: ${totalProductRequired?.toFixed(3)} ${totalProdu
             {/* Number of Arms */}
             <div>
               <Label>Number of Arms</Label>
-              <div className="flex items-center space-x-2">
-                <Input 
-                  type="number" 
-                  value={numArms} 
-                  onChange={(e) => setNumArms(Number(e.target.value))} 
-                  min={1} 
-                  className="w-20" 
-                />
-                <Button variant="outline" size="sm" onClick={addArm}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Arm
-                </Button>
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Input 
+                    type="number" 
+                    value={numArms} 
+                    onChange={(e) => setNumArms(Number(e.target.value))} 
+                    min={1} 
+                    className="w-20" 
+                  />
+                  <Button variant="outline" size="sm" onClick={() => addArm('treatment')}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Treatment Arm
+                  </Button>
+                </div>
+                <div className="flex space-x-2">
+                  <Button variant="outline" size="sm" onClick={() => addArm('placebo')}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Placebo
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => addArm('comparator')}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Comparator
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -457,7 +595,13 @@ Total Active Compound Required: ${totalProductRequired?.toFixed(3)} ${totalProdu
         <Card key={index} className="mt-4">
           <CardHeader className="py-3">
             <div className="flex justify-between items-center">
-              <CardTitle className="text-md">Arm {index + 1}: {arm.name}</CardTitle>
+              <div>
+                <CardTitle className="text-md">Arm {index + 1}: {arm.name}</CardTitle>
+                <CardDescription>
+                  {arm.armType === 'treatment' ? 'Treatment' : 
+                   arm.armType === 'placebo' ? 'Placebo' : 'Comparator'}
+                </CardDescription>
+              </div>
               <div className="flex">
                 <Button 
                   variant="ghost" 
@@ -480,6 +624,24 @@ Total Active Compound Required: ${totalProductRequired?.toFixed(3)} ${totalProdu
                   onChange={(e) => updateArm(index, "name", e.target.value)} 
                   placeholder="e.g., Low Dose"
                 />
+              </div>
+              
+              {/* Arm Type */}
+              <div>
+                <Label>Arm Type</Label>
+                <Select 
+                  value={arm.armType} 
+                  onValueChange={(val) => updateArm(index, "armType", val as ArmConfig['armType'])}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select arm type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="treatment">Treatment</SelectItem>
+                    <SelectItem value="placebo">Placebo</SelectItem>
+                    <SelectItem value="comparator">Comparator</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               {/* Species/Population */}
@@ -526,34 +688,36 @@ Total Active Compound Required: ${totalProductRequired?.toFixed(3)} ${totalProdu
                 />
               </div>
               
-              {/* Dose Level */}
-              <div>
-                <Label>Dose Level</Label>
-                <div className="flex items-center space-x-2">
-                  <Input 
-                    type="number" 
-                    value={arm.doseLevel}
-                    onChange={(e) => updateArm(index, "doseLevel", Number(e.target.value))}
-                    min={0}
-                    step="0.01"
-                    className="w-24"
-                  />
-                  <Select 
-                    value={arm.doseUnit} 
-                    onValueChange={(val) => updateArm(index, "doseUnit", val as ArmConfig['doseUnit'])}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mg">mg</SelectItem>
-                      <SelectItem value="mg/kg">mg/kg</SelectItem>
-                      <SelectItem value="mcg">mcg</SelectItem>
-                      <SelectItem value="mcg/kg">mcg/kg</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {/* Dose Level - not shown for placebo */}
+              {arm.armType !== 'placebo' && (
+                <div>
+                  <Label>Dose Level</Label>
+                  <div className="flex items-center space-x-2">
+                    <Input 
+                      type="number" 
+                      value={arm.doseLevel}
+                      onChange={(e) => updateArm(index, "doseLevel", Number(e.target.value))}
+                      min={0}
+                      step="0.01"
+                      className="w-24"
+                    />
+                    <Select 
+                      value={arm.doseUnit} 
+                      onValueChange={(val) => updateArm(index, "doseUnit", val as ArmConfig['doseUnit'])}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mg">mg</SelectItem>
+                        <SelectItem value="mg/kg">mg/kg</SelectItem>
+                        <SelectItem value="mcg">mcg</SelectItem>
+                        <SelectItem value="mcg/kg">mcg/kg</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
+              )}
               
               {/* Treatment Duration */}
               <div>
@@ -582,6 +746,76 @@ Total Active Compound Required: ${totalProductRequired?.toFixed(3)} ${totalProdu
                 </div>
               </div>
             </div>
+            
+            {/* Comparator Details - Only shown for comparator arms */}
+            {arm.armType === 'comparator' && arm.comparatorDetails && (
+              <div className="mt-4 p-4 border rounded-md">
+                <h4 className="font-medium mb-3">Comparator Details</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Comparator Name</Label>
+                    <Input 
+                      value={arm.comparatorDetails.name} 
+                      onChange={(e) => {
+                        const updatedArms = [...arms];
+                        updatedArms[index] = {
+                          ...updatedArms[index],
+                          comparatorDetails: {
+                            ...updatedArms[index].comparatorDetails!,
+                            name: e.target.value
+                          }
+                        };
+                        setArms(updatedArms);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label>Concentration</Label>
+                    <div className="flex items-center space-x-2">
+                      <Input 
+                        type="number" 
+                        value={arm.comparatorDetails.concentration}
+                        onChange={(e) => {
+                          const updatedArms = [...arms];
+                          updatedArms[index] = {
+                            ...updatedArms[index],
+                            comparatorDetails: {
+                              ...updatedArms[index].comparatorDetails!,
+                              concentration: Number(e.target.value)
+                            }
+                          };
+                          setArms(updatedArms);
+                        }}
+                        className="w-24"
+                      />
+                      <Select 
+                        value={arm.comparatorDetails.concentrationUnit}
+                        onValueChange={(val) => {
+                          const updatedArms = [...arms];
+                          updatedArms[index] = {
+                            ...updatedArms[index],
+                            comparatorDetails: {
+                              ...updatedArms[index].comparatorDetails!,
+                              concentrationUnit: val
+                            }
+                          };
+                          setArms(updatedArms);
+                        }}
+                      >
+                        <SelectTrigger className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="mg/ml">mg/mL</SelectItem>
+                          <SelectItem value="mcg/ml">μg/mL</SelectItem>
+                          <SelectItem value="percent">% (w/v)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Dosing Schedule */}
             <div className="mt-4">
@@ -830,6 +1064,7 @@ Total Active Compound Required: ${totalProductRequired?.toFixed(3)} ${totalProdu
                 <TableHeader>
                   <TableRow>
                     <TableHead>Arm</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Subjects</TableHead>
                     <TableHead>Dose per Subject</TableHead>
                     <TableHead>Total Doses</TableHead>
@@ -837,15 +1072,35 @@ Total Active Compound Required: ${totalProductRequired?.toFixed(3)} ${totalProdu
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {armRequirements.map((req, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{req.name}</TableCell>
-                      <TableCell>{req.subjects}</TableCell>
-                      <TableCell>{req.dosePerSubject.toFixed(3)} {req.doseUnit}</TableCell>
-                      <TableCell>{req.totalDoses}</TableCell>
-                      <TableCell>{req.productRequired.toFixed(3)} {req.productUnit}</TableCell>
-                    </TableRow>
-                  ))}
+                  {armRequirements.map((req, index) => {
+                    const armType = arms[index].armType;
+                    
+                    return (
+                      <TableRow key={index} className={
+                        armType === 'placebo' ? 'bg-secondary/30' : 
+                        armType === 'comparator' ? 'bg-muted/30' : ''
+                      }>
+                        <TableCell>{req.name}</TableCell>
+                        <TableCell>
+                          {armType === 'treatment' ? 'Treatment' : 
+                           armType === 'placebo' ? 'Placebo' : 'Comparator'}
+                        </TableCell>
+                        <TableCell>{req.subjects}</TableCell>
+                        <TableCell>
+                          {armType === 'placebo' ? 'N/A' : `${req.dosePerSubject.toFixed(3)} ${req.doseUnit}`}
+                        </TableCell>
+                        <TableCell>{req.totalDoses}</TableCell>
+                        <TableCell>
+                          {armType === 'treatment' 
+                            ? `${req.productRequired.toFixed(3)} ${req.productUnit}`
+                            : armType === 'placebo' 
+                              ? 'N/A' 
+                              : `Separate from main product`
+                          }
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
