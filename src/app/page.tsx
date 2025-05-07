@@ -22,6 +22,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Documentation } from "@/components/Documentation";
+import { StudyPlanner } from "@/components/StudyPlanner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface CalculationSteps {
@@ -743,9 +744,10 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="calculator" className="w-full" onValueChange={setSelectedTab}>
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="calculator">Calculator</TabsTrigger>
                   <TabsTrigger value="advanced">Advanced</TabsTrigger>
+                  <TabsTrigger value="studyplanner">Study Planner</TabsTrigger>
                   <TabsTrigger value="documentation">Documentation</TabsTrigger>
                 </TabsList>
 
@@ -1149,6 +1151,10 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
                     </div>
                   </div>
                 </TabsContent>
+                <TabsContent value="studyplanner">
+                  <StudyPlanner animals={animals} />
+                </TabsContent>
+                
                 <TabsContent value="documentation">
                   <Documentation />
                 </TabsContent>
@@ -1156,8 +1162,8 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
             </CardContent>
           </Card>
 
-          {/* Only show results and chart if not in documentation tab */}
-          {calculationSteps && selectedTab !== 'documentation' && (
+          {/* Only show results and chart if in calculator or advanced tabs */}
+          {calculationSteps && (selectedTab === 'calculator' || selectedTab === 'advanced') && (
             <>
               {/* Dilution Control */}
               <Card className="bg-secondary mb-4">
