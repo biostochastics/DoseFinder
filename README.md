@@ -4,7 +4,7 @@
 [![Framework: Next.js](https://img.shields.io/badge/Framework-Next.js%2014-black)](https://nextjs.org/)
 [![Language: TypeScript](https://img.shields.io/badge/Language-TypeScript-blue)](https://www.typescriptlang.org/)
 [![Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://dose-finder.vercel.app)
-[![Version](https://img.shields.io/badge/version-0.8.0-blue.svg)](https://github.com/biostochastics/dosefinder/)
+[![Version](https://img.shields.io/badge/version-0.7.2-blue.svg)](https://github.com/biostochastics/dosefinder/)
 
 
 ## Overview
