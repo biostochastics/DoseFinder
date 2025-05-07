@@ -1152,7 +1152,13 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
                   </div>
                 </TabsContent>
                 <TabsContent value="studyplanner">
-                  <StudyPlanner animals={animals} />
+                  <StudyPlanner 
+                    animals={animals} 
+                    calculationSteps={calculationSteps}
+                    targetAnimal={targetAnimal}
+                    targetWeight={targetWeight}
+                    baseDose={baseDose}
+                  />
                 </TabsContent>
                 
                 <TabsContent value="documentation">

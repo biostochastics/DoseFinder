@@ -57,7 +57,21 @@ interface ArmRequirement {
   }[];
 }
 
-export function StudyPlanner({ animals }: { animals: any }) {
+interface StudyPlannerProps {
+  animals: any;
+  calculationSteps: any | null;
+  targetAnimal: string;
+  targetWeight: number;
+  baseDose: number;
+}
+
+export function StudyPlanner({ 
+  animals, 
+  calculationSteps, 
+  targetAnimal, 
+  targetWeight, 
+  baseDose 
+}: StudyPlannerProps) {
   // Study Design State
   const [studyType, setStudyType] = useState<string>('preclinical');
   const [numArms, setNumArms] = useState<number>(1);
@@ -313,12 +327,18 @@ export function StudyPlanner({ animals }: { animals: any }) {
       };
     }
     
-    if (arm.armType === 'comparator' && arm.comparatorDetails) {
+    if (arm.armType === 'comparator') {
+      // Default values if comparatorDetails is missing
+      const comparatorDetails = arm.comparatorDetails || {
+        name: 'Standard Comparator',
+        concentration: 10,
+        concentrationUnit: 'mg/ml'
+      };
       // For comparator arms, we use the provided comparator details
       // but still calculate the volumes
-      let comparatorConcMg = arm.comparatorDetails.concentration;
-      if (arm.comparatorDetails.concentrationUnit === 'mcg/ml') comparatorConcMg /= 1000;
-      else if (arm.comparatorDetails.concentrationUnit === 'percent') comparatorConcMg = arm.comparatorDetails.concentration * 10;
+      let comparatorConcMg = comparatorDetails.concentration;
+      if (comparatorDetails.concentrationUnit === 'mcg/ml') comparatorConcMg /= 1000;
+      else if (comparatorDetails.concentrationUnit === 'percent') comparatorConcMg = comparatorDetails.concentration * 10;
       
       // Convert dose to mg
       let dosePerSubjectMg = arm.doseLevel;
@@ -330,7 +350,7 @@ export function StudyPlanner({ animals }: { animals: any }) {
       const adminVolume = dosePerSubjectMg / comparatorConcMg;
       
       return {
-        name: `${arm.name} (${arm.comparatorDetails.name})`,
+        name: `${arm.name} (${comparatorDetails.name})`,
         subjects: arm.subjects,
         dosePerSubject: dosePerSubjectMg,
         doseUnit: 'mg',
@@ -417,6 +437,58 @@ export function StudyPlanner({ animals }: { animals: any }) {
     setTotalProductRequired(finalTotal);
     setTotalProductUnit(finalUnit);
     setTotalDoses(armReqs.reduce((sum, req) => sum + req.totalDoses, 0));
+  };
+  
+  // Copy dose from calculator
+  const copyDoseFromCalculator = (index: number) => {
+    if (!calculationSteps) {
+      return; // No calculator data to copy
+    }
+    
+    const updatedArms = [...arms];
+    const targetDose = calculationSteps.calculatedDose;
+    
+    // Update the arm with the calculated dose
+    updatedArms[index] = {
+      ...updatedArms[index],
+      species: targetAnimal,
+      weight: targetWeight,
+      doseLevel: targetDose,
+      doseUnit: 'mg'
+    };
+    
+    setArms(updatedArms);
+  };
+  
+  // Create a new arm with calculator dose
+  const createArmWithCalculatorDose = () => {
+    if (!calculationSteps) {
+      return; // No calculator data to copy
+    }
+    
+    const targetDose = calculationSteps.calculatedDose;
+    
+    // Create a new arm with the calculator dose
+    const newArm: ArmConfig = {
+      name: `${animals[targetAnimal]?.name || targetAnimal} Dose`,
+      species: targetAnimal,
+      subjects: 10,
+      weight: targetWeight,
+      armType: 'treatment',
+      doseLevel: targetDose,
+      doseUnit: 'mg',
+      duration: 14,
+      durationUnit: 'days',
+      frequency: 'once',
+      customFrequency: {
+        doses: 1,
+        period: 1,
+        unit: 'days'
+      }
+    };
+    
+    setArms([...arms, newArm]);
+    setNumArms(numArms + 1);
   };
   
   // Handle export function
@@ -547,6 +619,17 @@ Comparator Arms: ${arms.filter(arm => arm.armType === 'comparator').length}`;
                     <Plus className="h-4 w-4 mr-1" />
                     Add Comparator
                   </Button>
+                  {calculationSteps && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={createArmWithCalculatorDose}
+                      className="bg-primary/10"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      From Calculator
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -602,7 +685,40 @@ Comparator Arms: ${arms.filter(arm => arm.armType === 'comparator').length}`;
                    arm.armType === 'placebo' ? 'Placebo' : 'Comparator'}
                 </CardDescription>
               </div>
-              <div className="flex">
+              <div className="flex space-x-2">
+                {calculationSteps && arm.armType !== 'placebo' && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                      >
+                        Copy Calc. Dose
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-3">
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Calculator Dose</h4>
+                        <p className="text-sm">
+                          Species: {animals[targetAnimal]?.name || targetAnimal}, {targetWeight} kg
+                        </p>
+                        <p className="text-sm">
+                          Calculated dose: {calculationSteps?.calculatedDose.toFixed(3)} mg ({(calculationSteps?.calculatedDose / targetWeight).toFixed(3)} mg/kg)
+                        </p>
+                        <Button 
+                          size="sm" 
+                          className="w-full mt-2"
+                          onClick={() => {
+                            copyDoseFromCalculator(index);
+                            document.body.click(); // Close popover
+                          }}
+                        >
+                          Apply to this arm
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -748,20 +864,26 @@ Comparator Arms: ${arms.filter(arm => arm.armType === 'comparator').length}`;
             </div>
             
             {/* Comparator Details - Only shown for comparator arms */}
-            {arm.armType === 'comparator' && arm.comparatorDetails && (
+            {arm.armType === 'comparator' && (
               <div className="mt-4 p-4 border rounded-md">
                 <h4 className="font-medium mb-3">Comparator Details</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Comparator Name</Label>
                     <Input 
-                      value={arm.comparatorDetails.name} 
+                      value={arm.comparatorDetails?.name || 'Standard Comparator'} 
                       onChange={(e) => {
                         const updatedArms = [...arms];
+                        const details = arm.comparatorDetails || {
+                          name: 'Standard Comparator',
+                          concentration: 10,
+                          concentrationUnit: 'mg/ml'
+                        };
+                        
                         updatedArms[index] = {
                           ...updatedArms[index],
                           comparatorDetails: {
-                            ...updatedArms[index].comparatorDetails!,
+                            ...details,
                             name: e.target.value
                           }
                         };
@@ -774,13 +896,19 @@ Comparator Arms: ${arms.filter(arm => arm.armType === 'comparator').length}`;
                     <div className="flex items-center space-x-2">
                       <Input 
                         type="number" 
-                        value={arm.comparatorDetails.concentration}
+                        value={arm.comparatorDetails?.concentration || 10}
                         onChange={(e) => {
                           const updatedArms = [...arms];
+                          const details = arm.comparatorDetails || {
+                            name: 'Standard Comparator',
+                            concentration: 10,
+                            concentrationUnit: 'mg/ml'
+                          };
+                          
                           updatedArms[index] = {
                             ...updatedArms[index],
                             comparatorDetails: {
-                              ...updatedArms[index].comparatorDetails!,
+                              ...details,
                               concentration: Number(e.target.value)
                             }
                           };
@@ -789,13 +917,19 @@ Comparator Arms: ${arms.filter(arm => arm.armType === 'comparator').length}`;
                         className="w-24"
                       />
                       <Select 
-                        value={arm.comparatorDetails.concentrationUnit}
+                        value={arm.comparatorDetails?.concentrationUnit || 'mg/ml'}
                         onValueChange={(val) => {
                           const updatedArms = [...arms];
+                          const details = arm.comparatorDetails || {
+                            name: 'Standard Comparator',
+                            concentration: 10,
+                            concentrationUnit: 'mg/ml'
+                          };
+                          
                           updatedArms[index] = {
                             ...updatedArms[index],
                             comparatorDetails: {
-                              ...updatedArms[index].comparatorDetails!,
+                              ...details,
                               concentrationUnit: val
                             }
                           };
