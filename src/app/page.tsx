@@ -691,8 +691,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
 
   // Calculate mg/kg values
   const sourceDoseMgKg = baseDose && sourceWeight ? baseDose / sourceWeight : 0;
-  const finalTargetDose = calculationSteps?.finalDose ?? 0;
-  const targetDoseMgKg = targetWeight ? finalTargetDose / targetWeight : 0;
+  // Final target dose is available from calculationSteps if needed
 
   return (
     <div className="flex flex-col min-h-screen w-full">
@@ -1153,11 +1152,10 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
                 </TabsContent>
                 <TabsContent value="studyplanner">
                   <StudyPlanner 
-                    animals={animals} 
+                    animals={animals}
                     calculationSteps={calculationSteps}
                     targetAnimal={targetAnimal}
                     targetWeight={targetWeight}
-                    baseDose={baseDose}
                   />
                 </TabsContent>
                 

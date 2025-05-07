@@ -4,7 +4,7 @@
 [![Framework: Next.js](https://img.shields.io/badge/Framework-Next.js%2014-black)](https://nextjs.org/)
 [![Language: TypeScript](https://img.shields.io/badge/Language-TypeScript-blue)](https://www.typescriptlang.org/)
 [![Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://dose-finder.vercel.app)
-[![Version](https://img.shields.io/badge/version-0.7.0-blue.svg)](https://github.com/biostochastics/dosefinder/)
+[![Version](https://img.shields.io/badge/version-0.8.0-blue.svg)](https://github.com/biostochastics/dosefinder/)
 
 
 ## Overview
@@ -47,8 +47,11 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
   * Calculate total product requirements for studies
   * Support for multiple study arms with independent durations
   * Treatment, placebo, and comparator arm types
-  * Copy doses directly from calculator tab
   * Flexible dosing schedules (daily, weekly, custom)
+  * Accurate month-based calculations using average month length
+  * Enforced limits on dilution factors for practical dilution steps
+  * Precise percentage to mg/mL conversion with density factor support
+  * Optimized performance for large study designs
   * Dilution sequence calculations
   * Color-coded study planning reports
   * Comprehensive export of study plans
