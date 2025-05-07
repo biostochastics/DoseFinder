@@ -22,6 +22,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Documentation } from "@/components/Documentation";
+import { StudyPlanner } from "@/components/StudyPlanner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface CalculationSteps {
@@ -690,8 +691,7 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
 
   // Calculate mg/kg values
   const sourceDoseMgKg = baseDose && sourceWeight ? baseDose / sourceWeight : 0;
-  const finalTargetDose = calculationSteps?.finalDose ?? 0;
-  const targetDoseMgKg = targetWeight ? finalTargetDose / targetWeight : 0;
+  // Final target dose is available from calculationSteps if needed
 
   return (
     <div className="flex flex-col min-h-screen w-full">
@@ -743,9 +743,10 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="calculator" className="w-full" onValueChange={setSelectedTab}>
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="calculator">Calculator</TabsTrigger>
                   <TabsTrigger value="advanced">Advanced</TabsTrigger>
+                  <TabsTrigger value="studyplanner">Study Planner</TabsTrigger>
                   <TabsTrigger value="documentation">Documentation</TabsTrigger>
                 </TabsList>
 
@@ -1149,6 +1150,15 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
                     </div>
                   </div>
                 </TabsContent>
+                <TabsContent value="studyplanner">
+                  <StudyPlanner 
+                    animals={animals}
+                    calculationSteps={calculationSteps}
+                    targetAnimal={targetAnimal}
+                    targetWeight={targetWeight}
+                  />
+                </TabsContent>
+                
                 <TabsContent value="documentation">
                   <Documentation />
                 </TabsContent>
@@ -1156,8 +1166,8 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
             </CardContent>
           </Card>
 
-          {/* Only show results and chart if not in documentation tab */}
-          {calculationSteps && selectedTab !== 'documentation' && (
+          {/* Only show results and chart if in calculator or advanced tabs */}
+          {calculationSteps && (selectedTab === 'calculator' || selectedTab === 'advanced') && (
             <>
               {/* Dilution Control */}
               <Card className="bg-secondary mb-4">

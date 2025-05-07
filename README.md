@@ -4,7 +4,7 @@
 [![Framework: Next.js](https://img.shields.io/badge/Framework-Next.js%2014-black)](https://nextjs.org/)
 [![Language: TypeScript](https://img.shields.io/badge/Language-TypeScript-blue)](https://www.typescriptlang.org/)
 [![Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://dose-finder.vercel.app)
-[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/biostochastics/dosefinder/)
+[![Version](https://img.shields.io/badge/version-0.8.0-blue.svg)](https://github.com/biostochastics/dosefinder/)
 
 
 ## Overview
@@ -43,6 +43,18 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
   * Kidney Function calculations
   * Volume Distribution (L/kg)
   * Molecular Weight and Log P inputs
+* **Study Planner:**
+  * Calculate total product requirements for studies
+  * Support for multiple study arms with independent durations
+  * Treatment, placebo, and comparator arm types
+  * Flexible dosing schedules (daily, weekly, custom)
+  * Accurate month-based calculations using average month length
+  * Enforced limits on dilution factors for practical dilution steps
+  * Precise percentage to mg/mL conversion with density factor support
+  * Optimized performance for large study designs
+  * Dilution sequence calculations
+  * Color-coded study planning reports
+  * Comprehensive export of study plans
 * **Interactive Visualization:** Scaling charts with species-specific data points
 * **User Experience:** Dark/light mode support and responsive design
 * **Export Functionality:** Generate calculation reports
@@ -55,6 +67,17 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 2. Choose target animal
 3. Select scaling method (e.g., Allometric Scaling with default 0.75 exponent)
 4. View calculated dose and visualization
+
+### Study Planning
+
+1. Navigate to the Study Planner tab
+2. Configure study parameters (type, number of arms, overage factor)
+3. Add treatment, placebo, or comparator arms as needed
+4. Copy doses directly from Calculator tab results or create new arms from calculator
+5. Set up dose groups with species, subjects, dose levels and custom schedules
+6. Define formulation details and optional dilution sequences
+7. Click Calculate Requirements to generate complete study material estimates
+8. Export the comprehensive study plan for documentation
 
 ## Documentation
 
