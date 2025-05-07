@@ -4,7 +4,7 @@
 [![Framework: Next.js](https://img.shields.io/badge/Framework-Next.js%2014-black)](https://nextjs.org/)
 [![Language: TypeScript](https://img.shields.io/badge/Language-TypeScript-blue)](https://www.typescriptlang.org/)
 [![Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://dose-finder.vercel.app)
-[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/biostochastics/dosefinder/)
+[![Version](https://img.shields.io/badge/version-0.7.0-blue.svg)](https://github.com/biostochastics/dosefinder/)
 
 
 ## Overview
@@ -43,6 +43,12 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
   * Kidney Function calculations
   * Volume Distribution (L/kg)
   * Molecular Weight and Log P inputs
+* **Study Planner:**
+  * Calculate total product requirements for studies
+  * Support for multiple study arms/dose groups
+  * Flexible dosing schedules (daily, weekly, etc.)
+  * Dilution sequence calculations
+  * Comprehensive export of study plans
 * **Interactive Visualization:** Scaling charts with species-specific data points
 * **User Experience:** Dark/light mode support and responsive design
 * **Export Functionality:** Generate calculation reports
@@ -55,6 +61,15 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 2. Choose target animal
 3. Select scaling method (e.g., Allometric Scaling with default 0.75 exponent)
 4. View calculated dose and visualization
+
+### Study Planning
+
+1. Navigate to the Study Planner tab
+2. Configure study parameters (type, number of arms, overage factor)
+3. Set up dose groups with species, subjects, dose levels and schedules
+4. Define formulation details and optional dilution sequences
+5. Click Calculate Requirements to generate complete study material estimates
+6. Export the study plan for documentation
 
 ## Documentation
 
