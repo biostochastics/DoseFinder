@@ -45,9 +45,11 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
   * Molecular Weight and Log P inputs
 * **Study Planner:**
   * Calculate total product requirements for studies
-  * Support for multiple study arms/dose groups
-  * Flexible dosing schedules (daily, weekly, etc.)
+  * Support for multiple study arms with independent durations
+  * Treatment, placebo, and comparator arm types
+  * Flexible dosing schedules (daily, weekly, custom)
   * Dilution sequence calculations
+  * Color-coded study planning reports
   * Comprehensive export of study plans
 * **Interactive Visualization:** Scaling charts with species-specific data points
 * **User Experience:** Dark/light mode support and responsive design
@@ -66,10 +68,11 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 1. Navigate to the Study Planner tab
 2. Configure study parameters (type, number of arms, overage factor)
-3. Set up dose groups with species, subjects, dose levels and schedules
-4. Define formulation details and optional dilution sequences
-5. Click Calculate Requirements to generate complete study material estimates
-6. Export the study plan for documentation
+3. Add treatment, placebo, or comparator arms as needed
+4. Set up dose groups with species, subjects, dose levels and custom schedules
+5. Define formulation details and optional dilution sequences
+6. Click Calculate Requirements to generate complete study material estimates
+7. Export the comprehensive study plan for documentation
 
 ## Documentation
 
