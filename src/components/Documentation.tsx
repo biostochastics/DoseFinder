@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormulaDocumentation } from "./FormulaDocumentation";
 
 export function Documentation() {
   return React.createElement(
@@ -788,6 +789,16 @@ export function Documentation() {
               )
             )
           )
+        ),
+        React.createElement(
+          'section',
+          { className: "mt-8" },
+          React.createElement(
+            'h2',
+            { className: "text-2xl font-bold mb-4" },
+            'Detailed Formula Documentation'
+          ),
+          React.createElement(FormulaDocumentation)
         )
       )
     )
