@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.4] - 2025-09-23
+
+### Added
+- Modular component architecture with separate calculator, chart, and parameter components
+- Custom React hook for centralized state management using useReducer pattern
+- Comprehensive test suite with 33 passing tests for core calculations
+- Type-safe interfaces for all pharmacological data structures
+
+### Changed
+- **Major Refactoring**: Decomposed 1478-line monolithic page.tsx into modular components:
+  - `DoseCalculator.tsx` (367 lines) - Main calculator UI
+  - `DoseChart.tsx` (155 lines) - Visualization component
+  - `AdvancedParameters.tsx` (298 lines) - Advanced settings panel
+  - `ResultsDisplay.tsx` (149 lines) - Results presentation
+  - `useCalculatorState.ts` (241 lines) - State management hook
+  - Reduced main page.tsx to 314 lines (78% reduction)
+- Migrated from 36 separate useState hooks to centralized useReducer pattern
+- Improved type safety with proper Animal/Species interface separation
+- Enhanced performance with memoized calculations and optimized re-renders
+
+### Fixed
+- TypeScript integration issues between components
+- Circular dependency in Cockroft-Gault calculation
+- Import/export consistency across pharmacology modules
+- StudyPlanner prop mismatches with calculator integration
+
+### Technical
+- Implemented proper separation of concerns following React best practices
+- Added comprehensive type definitions for all data structures
+- Removed code duplication and improved maintainability
+- All linting warnings resolved
+- Full build successful with zero TypeScript errors
+
 ## [0.7.3] - 2025-09-23
 
 ### Added

@@ -4,48 +4,87 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    /* Light Theme - Premium Medical/Scientific */
+    --background: 0 0% 99%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 47% 11%;
+    --card-elevated: 0 0% 99%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 211 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-subtle: 211 92% 95%;
+    --secondary: 215 20% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 215 20% 96%;
+    --muted-foreground: 215 14% 45%;
+    --accent: 183 64% 45%;
+    --accent-foreground: 0 0% 100%;
+    --accent-amber: 38 92% 50%;
+    --accent-amber-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 211 100% 50%;
     --radius: 0.5rem;
+    --surface-elevated: 0 0% 99%;
+    --text-secondary: 215 14% 45%;
+
+    /* Shadows and Elevation */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    /* Dark Theme - Rich Navy Medical/Scientific */
+    --background: 222 47% 11%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 6.9%;
+    --card: 222 41% 15%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --card-elevated: 222 35% 18%;
+    --popover: 222 41% 15%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+    --primary: 211 100% 65%;
+    --primary-foreground: 222 47% 11%;
+    --primary-subtle: 211 100% 15%;
+    --secondary: 217 33% 22%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --muted: 217 33% 22%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 183 64% 55%;
+    --accent-foreground: 222 47% 11%;
+    --accent-amber: 38 92% 60%;
+    --accent-amber-foreground: 222 47% 11%;
+    --destructive: 0 72% 45%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --success: 142 70% 45%;
+    --success-foreground: 222 47% 11%;
+    --warning: 38 92% 60%;
+    --warning-foreground: 222 47% 11%;
+    --info: 199 89% 62%;
+    --info-foreground: 222 47% 11%;
+    --border: 217 33% 20%;
+    --input: 217 33% 22%;
+    --ring: 211 100% 65%;
+    --surface: 222 41% 15%;
+    --surface-elevated: 222 35% 18%;
+    --text-secondary: 215 20% 65%;
+
+    /* Dark mode shadows with subtle glow */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
   }
 }
 
@@ -75,4 +114,74 @@ body {
   flex: 1 1 0%;
   min-width: 0;
   min-height: 0;
+}
+
+/* Smooth transitions for theme changes */
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Interactive card hover states */
+.card-interactive {
+  @apply transition-all duration-150 ease-out;
+}
+
+.card-interactive:hover {
+  @apply -translate-y-0.5 shadow-lg;
+}
+
+/* Button hover refinements */
+button {
+  @apply transition-all duration-150;
+}
+
+/* Input focus states */
+input:focus,
+textarea:focus,
+select:focus {
+  @apply outline-none ring-2 ring-primary/20;
+}
+
+/* Smooth number transitions */
+.animate-count-up {
+  @apply transition-all duration-300;
+}
+
+/* Single pulse animation for calculations */
+@keyframes pulse-once {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+.animate-pulse-once {
+  animation: pulse-once 0.5s ease-in-out;
+}
+
+/* Subtle shimmer for loading states */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted) / 0.5) 50%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

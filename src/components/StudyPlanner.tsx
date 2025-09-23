@@ -37,6 +37,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Trash, Plus, Calculator } from "lucide-react";
+import { Species } from "@/lib/pharmacology/types";
 
 interface ArmConfig {
   name: string;
@@ -93,41 +94,22 @@ interface ArmRequirement {
   }[];
 }
 
-interface Animal {
-  name: string;
-  weight: number;
-  brainWeight: number;
-  lifeSpan: number;
-  hepaticFlow: number;
-  allometricExponent: number;
-  hepaticClearance: number;
-  renalClearance: number;
-  bsa: number;
-}
 
-interface CalculationStep {
-  weightRatio: number;
-  scaledFactor: number;
-  calculatedDose: number;
-  finalDose: number;
-  steps: string[];
-}
 
 interface StudyPlannerProps {
-  animals: Record<string, Animal>;
-  calculationSteps: CalculationStep | null;
+  animals: Record<string, Species>;
+  currentDose: number;
+  sourceAnimal: string;
   targetAnimal: string;
-  targetWeight: number;
-  densityFactor?: number; // g/mL for percentage conversions
 }
 
 export function StudyPlanner({
   animals,
-  calculationSteps,
+  currentDose,
+  sourceAnimal, // eslint-disable-line @typescript-eslint/no-unused-vars
   targetAnimal,
-  targetWeight,
-  densityFactor = 1, // Default density factor to 1 g/mL
 }: StudyPlannerProps) {
+
   // Study Design State
   const [studyType, setStudyType] = useState<string>("preclinical");
   const [numArms, setNumArms] = useState<number>(1);
@@ -483,7 +465,7 @@ export function StudyPlanner({
       stockConcMg /= 1000;
     } else if (stockConcUnit === "percent") {
       // Use density factor for percentage conversions
-      stockConcMg = stockConc * 10 * densityFactor; // Convert % to mg/mL using density
+      stockConcMg = stockConc * 10; // Convert % to mg/mL using default density of 1 g/mL
     } else if (stockConcUnit === "g/ml") {
       stockConcMg = stockConc * 1000;
     }
@@ -564,23 +546,15 @@ export function StudyPlanner({
 
   // Copy dose from calculator
   const copyDoseFromCalculator = (index: number) => {
-    if (!calculationSteps) {
-      // Show error message to user
-      alert(
-        "No calculator data available to copy. Please calculate a dose first.",
-      );
-      return;
-    }
-
     const updatedArms = [...arms];
-    const targetDose = calculationSteps.calculatedDose;
+    const targetWeight = animals[targetAnimal]?.weight || 70;
 
-    // Update the arm with the calculated dose
+    // Update the arm with the current dose
     updatedArms[index] = {
       ...updatedArms[index],
       species: targetAnimal,
       weight: targetWeight,
-      doseLevel: targetDose,
+      doseLevel: currentDose,
       doseUnit: "mg",
     };
 
@@ -589,22 +563,16 @@ export function StudyPlanner({
 
   // Create a new arm with calculator dose
   const createArmWithCalculatorDose = () => {
-    if (!calculationSteps) {
-      // Show error message to user
-      alert("No calculator data available. Please calculate a dose first.");
-      return;
-    }
+    const targetWeight = animals[targetAnimal]?.weight || 70;
 
-    const targetDose = calculationSteps.calculatedDose;
-
-    // Create a new arm with the calculator dose
+    // Create a new arm with the current dose
     const newArm: ArmConfig = {
       name: `${animals[targetAnimal]?.name || targetAnimal} Dose`,
       species: targetAnimal,
       subjects: 10,
       weight: targetWeight,
       armType: "treatment",
-      doseLevel: targetDose,
+      doseLevel: currentDose,
       doseUnit: "mg",
       duration: 14,
       durationUnit: "days",
@@ -773,17 +741,15 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                     <Plus className="h-4 w-4 mr-1" />
                     Add Comparator
                   </Button>
-                  {calculationSteps && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={createArmWithCalculatorDose}
-                      className="bg-primary/10"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      From Calculator
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={createArmWithCalculatorDose}
+                    className="bg-primary/10"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    From Calculator
+                  </Button>
                 </div>
               </div>
             </div>
@@ -845,7 +811,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                 </CardDescription>
               </div>
               <div className="flex space-x-2">
-                {calculationSteps && arm.armType !== "placebo" && (
+{arm.armType !== "placebo" && (
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" size="sm">
@@ -857,15 +823,11 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                         <h4 className="font-medium">Calculator Dose</h4>
                         <p className="text-sm">
                           Species: {animals[targetAnimal]?.name || targetAnimal}
-                          , {targetWeight} kg
+                          , {animals[targetAnimal]?.weight || 70} kg
                         </p>
                         <p className="text-sm">
-                          Calculated dose:{" "}
-                          {calculationSteps?.calculatedDose.toFixed(3)} mg (
-                          {(
-                            calculationSteps?.calculatedDose / targetWeight
-                          ).toFixed(3)}{" "}
-                          mg/kg)
+                          Current dose: {currentDose.toFixed(3)} mg (
+                          {(currentDose / (animals[targetAnimal]?.weight || 70)).toFixed(3)} mg/kg)
                         </p>
                         <Button
                           size="sm"
