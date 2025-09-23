@@ -125,7 +125,7 @@ export default function Home() {
             <CardHeader className="space-y-1 py-2 bg-gradient-to-r from-primary/5 to-accent/5 rounded-t-lg">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  DoseFinder Pro
+                  DoseFinder
                 </CardTitle>
                 <Button
                   variant="ghost"
@@ -286,7 +286,7 @@ export default function Home() {
       <footer className="py-4 px-4 bg-muted/50 border-t">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-sm text-muted-foreground text-center sm:text-left">
-            <p>© 2024 DoseFinder Pro. For research use only.</p>
+            <p>© 2024 DoseFinder. For research use only.</p>
             <p className="text-xs mt-1">
               Always validate calculations with experimental data
             </p>
@@ -301,7 +301,7 @@ export default function Home() {
               <IconBrandGithub className="h-5 w-5" />
             </a>
             <a
-              href="mailto:support@dosefinder.pro"
+              href="mailto:sergey.kornilov@biostochastics.com"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               <IconMail className="h-5 w-5" />
