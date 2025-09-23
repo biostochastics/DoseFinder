@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Sun, Moon, Info } from "lucide-react";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sun, Moon, Info, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   LineChart,
@@ -24,6 +25,7 @@ import {
 import { Documentation } from "@/components/Documentation";
 import { StudyPlanner } from "@/components/StudyPlanner";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ScientificLimitations } from "@/components/ScientificLimitations";
 
 interface CalculationSteps {
   weightRatio: number;
@@ -743,10 +745,11 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="calculator" className="w-full" onValueChange={setSelectedTab}>
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="calculator">Calculator</TabsTrigger>
                   <TabsTrigger value="advanced">Advanced</TabsTrigger>
                   <TabsTrigger value="studyplanner">Study Planner</TabsTrigger>
+                  <TabsTrigger value="limitations">Limitations</TabsTrigger>
                   <TabsTrigger value="documentation">Documentation</TabsTrigger>
                 </TabsList>
 
@@ -767,7 +770,20 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
                             ))}
                           </SelectContent>
                         </Select>
-                        <Label htmlFor="sourceWeight">Source Weight (kg)</Label>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="sourceWeight">Source Weight (kg)</Label>
+                          <TooltipProvider>
+                            <UITooltip>
+                              <TooltipTrigger asChild>
+                                <AlertCircle className="h-3 w-3 text-orange-500" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-xs">Species average ±30% variation</p>
+                                <p className="text-xs">Consider strain/breed differences</p>
+                              </TooltipContent>
+                            </UITooltip>
+                          </TooltipProvider>
+                        </div>
                         <Input
                           id="sourceWeight"
                           type="number"
@@ -818,7 +834,20 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
                             ))}
                           </SelectContent>
                         </Select>
-                        <Label htmlFor="targetWeight">Target Weight (kg)</Label>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="targetWeight">Target Weight (kg)</Label>
+                          <TooltipProvider>
+                            <UITooltip>
+                              <TooltipTrigger asChild>
+                                <AlertCircle className="h-3 w-3 text-orange-500" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-xs">Species average ±30% variation</p>
+                                <p className="text-xs">Consider strain/breed differences</p>
+                              </TooltipContent>
+                            </UITooltip>
+                          </TooltipProvider>
+                        </div>
                         <Input
                           id="targetWeight"
                           type="number"
@@ -850,6 +879,9 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
                                     {calculationSteps.calculatedDose.toFixed(2)} mg
                                     <div className="text-sm text-muted-foreground">
                                       {(calculationSteps.calculatedDose / targetWeight).toFixed(2)} mg/kg
+                                    </div>
+                                    <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                                      ⚠️ Estimate only - see Limitations tab
                                     </div>
                                   </>
                                 ) : '-'}
@@ -1158,7 +1190,11 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
                     targetWeight={targetWeight}
                   />
                 </TabsContent>
-                
+
+                <TabsContent value="limitations">
+                  <ScientificLimitations />
+                </TabsContent>
+
                 <TabsContent value="documentation">
                   <Documentation />
                 </TabsContent>
@@ -1252,6 +1288,14 @@ Base Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg (${(calcu
                   <CardTitle>Calculation Steps</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <div className="p-2 mb-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5" />
+                      <p className="text-xs text-orange-700 dark:text-orange-300">
+                        Values use species averages with ±30% typical variation. Individual animals may differ significantly.
+                      </p>
+                    </div>
+                  </div>
                   <div className="text-sm space-y-1">
                     {calculationSteps.steps.map((step, index) => (
                       <p key={index} className="ml-2 font-mono text-xs">{step}</p>

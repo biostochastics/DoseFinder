@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2025-09-23
+
+### Added
+- Comprehensive "Limitations" tab with detailed scientific disclaimers
+- Formula documentation with peer-reviewed literature references
+- Uncertainty indicators showing ±30% variation for physiological parameters
+- Visual warnings throughout the interface for parameter uncertainty
+- FDA guidance references for scaling methods
+- Method-specific limitations and best practices documentation
+
+### Changed
+- Enhanced user awareness of tool limitations with warning messages on calculated doses
+- Improved scientific transparency with detailed assumptions documentation
+
+### Fixed
+- Removed duplicate Next.js configuration files (kept `.mjs` version)
+- Fixed version control to properly ignore build artifacts (`dosefinder/.next/`)
+- Resolved import naming conflicts between UI tooltip and Recharts tooltip components
+
+### Technical
+- Added `ScientificLimitations.tsx` component for comprehensive limitations documentation
+- Added `FormulaDocumentation.tsx` component with detailed formula explanations
+- Created `IMPROVEMENTS.md` documenting all changes made
+
 ## [0.7.2] - 2025-05-07
 
 ### Added

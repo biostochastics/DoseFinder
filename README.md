@@ -4,12 +4,16 @@
 [![Framework: Next.js](https://img.shields.io/badge/Framework-Next.js%2014-black)](https://nextjs.org/)
 [![Language: TypeScript](https://img.shields.io/badge/Language-TypeScript-blue)](https://www.typescriptlang.org/)
 [![Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://dose-finder.vercel.app)
-[![Version](https://img.shields.io/badge/version-0.7.2-blue.svg)](https://github.com/biostochastics/dosefinder/)
+[![Version](https://img.shields.io/badge/version-0.7.3-blue.svg)](https://github.com/biostochastics/dosefinder/)
 
 
 ## Overview
 
 DoseFinder is an interactive web-based calculator for pharmacological dose scaling that supports multiple scaling methods and species. It provides real-time calculation updates with visualization tools and considers additional physiological parameters for more accurate dose estimation in drug development and research.
+
+### ⚠️ Important Notice
+
+DoseFinder implements classical allometric scaling approaches for **educational and initial estimation purposes only**. Results should be validated with modern pharmacokinetic modeling and professional consultation before any clinical or research application. See the comprehensive "Limitations" tab in the application for detailed information about assumptions and uncertainties.
 
 
 ## Installation
@@ -55,6 +59,12 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
   * Dilution sequence calculations
   * Color-coded study planning reports
   * Comprehensive export of study plans
+* **Scientific Documentation (v0.7.3):**
+  * Comprehensive limitations and assumptions documentation
+  * Detailed formula documentation with peer-reviewed references
+  * Uncertainty indicators for physiological parameters (±30% variation)
+  * Method-specific guidance and best practices
+  * FDA guidance integration
 * **Interactive Visualization:** Scaling charts with species-specific data points
 * **User Experience:** Dark/light mode support and responsive design
 * **Export Functionality:** Generate calculation reports
