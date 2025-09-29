@@ -1,24 +1,24 @@
-import React from 'react';
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormulaDocumentation } from "./FormulaDocumentation";
 
 export function Documentation() {
   return React.createElement(
-    'div',
+    "div",
     { className: "h-[calc(100vh-200px)] w-full overflow-y-auto" },
     React.createElement(
-      'div',
+      "div",
       { className: "space-y-6 p-4" },
       React.createElement(
-        'section',
+        "section",
         null,
         React.createElement(
-          'h2',
+          "h2",
           { className: "text-2xl font-bold mb-4" },
-          'Understanding Dose Scaling Methods'
+          "Understanding Dose Scaling Methods",
         ),
         React.createElement(
-          'div',
+          "div",
           { className: "space-y-6" },
           React.createElement(
             Card,
@@ -29,85 +29,155 @@ export function Documentation() {
               React.createElement(
                 CardTitle,
                 null,
-                '1. Allometric Scaling (Default Method)'
-              )
+                "1. Allometric Scaling (Default Method)",
+              ),
             ),
             React.createElement(
               CardContent,
               null,
               React.createElement(
-                'h4',
+                "h4",
                 { className: "font-semibold mb-2" },
-                'What is it?'
+                "What is it?",
               ),
               React.createElement(
-                'p',
+                "p",
                 { className: "mb-4" },
-                'The simplest and most widely used scaling method, based on the relationship between body mass and metabolic rate.'
+                "The simplest and most widely used scaling method, based on the relationship between body mass and metabolic rate.",
               ),
               React.createElement(
-                'h4',
+                "h4",
                 { className: "font-semibold mb-2" },
-                'When to use?'
+                "When to use?",
               ),
               React.createElement(
-                'ul',
+                "ul",
                 { className: "list-disc pl-6 mb-4" },
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  'Most common scaling situations'
+                  "Most common scaling situations",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  'When dealing with metabolically active compounds'
+                  "When dealing with metabolically active compounds",
                 ),
-                React.createElement(
-                  'li',
-                  null,
-                  'For initial dose estimations'
-                )
+                React.createElement("li", null, "For initial dose estimations"),
               ),
               React.createElement(
-                'h4',
+                "h4",
                 { className: "font-semibold mb-2" },
-                'Key Points'
+                "Key Points",
               ),
               React.createElement(
-                'ul',
+                "ul",
                 { className: "list-disc pl-6" },
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  'Uses the 3/4 power law by default (exponent = 0.75)'
+                  "Uses the 3/4 power law by default (exponent = 0.75)",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  'Can be adjusted based on molecular weight:',
+                  "Can be adjusted based on molecular weight:",
                   React.createElement(
-                    'ul',
+                    "ul",
                     { className: "list-disc pl-6 mt-2" },
                     React.createElement(
-                      'li',
+                      "li",
                       null,
-                      'MW > 700 Da → exponent = 0.70'
+                      "MW > 700 Da → exponent = 0.70",
                     ),
                     React.createElement(
-                      'li',
+                      "li",
                       null,
-                      '400 < MW ≤ 700 Da → exponent = 0.75'
+                      "400 < MW ≤ 700 Da → exponent = 0.75",
                     ),
                     React.createElement(
-                      'li',
+                      "li",
                       null,
-                      'MW ≤ 400 Da → exponent = 0.80'
-                    )
-                  )
-                )
-              )
-            )
+                      "MW ≤ 400 Da → exponent = 0.80",
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          React.createElement(
+            Card,
+            null,
+            React.createElement(
+              CardHeader,
+              null,
+              React.createElement(CardTitle, null, "2. Brain Weight Scaling"),
+            ),
+            React.createElement(
+              CardContent,
+              null,
+              React.createElement(
+                "h4",
+                { className: "font-semibold mb-2" },
+                "What is it?",
+              ),
+              React.createElement(
+                "p",
+                { className: "mb-4" },
+                "Scaling based on brain weight differences between species, useful for certain types of drugs.",
+              ),
+              React.createElement(
+                "h4",
+                { className: "font-semibold mb-2" },
+                "When to use?",
+              ),
+              React.createElement(
+                "ul",
+                { className: "list-disc pl-6 mb-4" },
+                React.createElement("li", null, "CNS-active compounds"),
+                React.createElement(
+                  "li",
+                  null,
+                  "Drugs that cross the blood-brain barrier",
+                ),
+                React.createElement("li", null, "Neurological treatments"),
+              ),
+            ),
+          ),
+          React.createElement(
+            Card,
+            null,
+            React.createElement(
+              CardHeader,
+              null,
+              React.createElement(CardTitle, null, "3. Life-Span Scaling"),
+            ),
+            React.createElement(
+              CardContent,
+              null,
+              React.createElement(
+                "h4",
+                { className: "font-semibold mb-2" },
+                "What is it?",
+              ),
+              React.createElement(
+                "p",
+                { className: "mb-4" },
+                "Scaling based on the maximum life span potential of different species.",
+              ),
+              React.createElement(
+                "h4",
+                { className: "font-semibold mb-2" },
+                "When to use?",
+              ),
+              React.createElement(
+                "ul",
+                { className: "list-disc pl-6 mb-4" },
+                React.createElement("li", null, "Long-term toxicity studies"),
+                React.createElement("li", null, "Chronic exposure assessments"),
+                React.createElement("li", null, "Age-related treatments"),
+              ),
+            ),
           ),
           React.createElement(
             Card,
@@ -118,47 +188,43 @@ export function Documentation() {
               React.createElement(
                 CardTitle,
                 null,
-                '2. Brain Weight Scaling'
-              )
+                "4. Hepatic Blood Flow Scaling",
+              ),
             ),
             React.createElement(
               CardContent,
               null,
               React.createElement(
-                'h4',
+                "h4",
                 { className: "font-semibold mb-2" },
-                'What is it?'
+                "What is it?",
               ),
               React.createElement(
-                'p',
+                "p",
                 { className: "mb-4" },
-                'Scaling based on brain weight differences between species, useful for certain types of drugs.'
+                "Scaling based on species differences in hepatic blood flow and clearance.",
               ),
               React.createElement(
-                'h4',
+                "h4",
                 { className: "font-semibold mb-2" },
-                'When to use?'
+                "When to use?",
               ),
               React.createElement(
-                'ul',
+                "ul",
                 { className: "list-disc pl-6 mb-4" },
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  'CNS-active compounds'
+                  "Drugs with high hepatic extraction",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  'Drugs that cross the blood-brain barrier'
+                  "Compounds primarily metabolized by the liver",
                 ),
-                React.createElement(
-                  'li',
-                  null,
-                  'Neurological treatments'
-                )
-              )
-            )
+                React.createElement("li", null, "Flow-limited drugs"),
+              ),
+            ),
           ),
           React.createElement(
             Card,
@@ -166,189 +232,71 @@ export function Documentation() {
             React.createElement(
               CardHeader,
               null,
-              React.createElement(
-                CardTitle,
-                null,
-                '3. Life-Span Scaling'
-              )
+              React.createElement(CardTitle, null, "5. BSA-Based Scaling"),
             ),
             React.createElement(
               CardContent,
               null,
               React.createElement(
-                'h4',
+                "h4",
                 { className: "font-semibold mb-2" },
-                'What is it?'
+                "What is it?",
               ),
               React.createElement(
-                'p',
+                "p",
                 { className: "mb-4" },
-                'Scaling based on the maximum life span potential of different species.'
+                "Scaling based on body surface area differences between species.",
               ),
               React.createElement(
-                'h4',
+                "h4",
                 { className: "font-semibold mb-2" },
-                'When to use?'
+                "When to use?",
               ),
               React.createElement(
-                'ul',
+                "ul",
                 { className: "list-disc pl-6 mb-4" },
+                React.createElement("li", null, "Many anticancer drugs"),
+                React.createElement("li", null, "Initial human dose estimates"),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  'Long-term toxicity studies'
+                  "When surface-dependent effects are important",
                 ),
-                React.createElement(
-                  'li',
-                  null,
-                  'Chronic exposure assessments'
-                ),
-                React.createElement(
-                  'li',
-                  null,
-                  'Age-related treatments'
-                )
-              )
-            )
-          ),
-          React.createElement(
-            Card,
-            null,
-            React.createElement(
-              CardHeader,
-              null,
+              ),
               React.createElement(
-                CardTitle,
-                null,
-                '4. Hepatic Blood Flow Scaling'
-              )
-            ),
-            React.createElement(
-              CardContent,
-              null,
-              React.createElement(
-                'h4',
+                "h4",
                 { className: "font-semibold mb-2" },
-                'What is it?'
+                "Key Points",
               ),
               React.createElement(
-                'p',
-                { className: "mb-4" },
-                'Scaling based on species differences in hepatic blood flow and clearance.'
-              ),
-              React.createElement(
-                'h4',
-                { className: "font-semibold mb-2" },
-                'When to use?'
-              ),
-              React.createElement(
-                'ul',
-                { className: "list-disc pl-6 mb-4" },
-                React.createElement(
-                  'li',
-                  null,
-                  'Drugs with high hepatic extraction'
-                ),
-                React.createElement(
-                  'li',
-                  null,
-                  'Compounds primarily metabolized by the liver'
-                ),
-                React.createElement(
-                  'li',
-                  null,
-                  'Flow-limited drugs'
-                )
-              )
-            )
-          ),
-          React.createElement(
-            Card,
-            null,
-            React.createElement(
-              CardHeader,
-              null,
-              React.createElement(
-                CardTitle,
-                null,
-                '5. BSA-Based Scaling'
-              )
-            ),
-            React.createElement(
-              CardContent,
-              null,
-              React.createElement(
-                'h4',
-                { className: "font-semibold mb-2" },
-                'What is it?'
-              ),
-              React.createElement(
-                'p',
-                { className: "mb-4" },
-                'Scaling based on body surface area differences between species.'
-              ),
-              React.createElement(
-                'h4',
-                { className: "font-semibold mb-2" },
-                'When to use?'
-              ),
-              React.createElement(
-                'ul',
-                { className: "list-disc pl-6 mb-4" },
-                React.createElement(
-                  'li',
-                  null,
-                  'Many anticancer drugs'
-                ),
-                React.createElement(
-                  'li',
-                  null,
-                  'Initial human dose estimates'
-                ),
-                React.createElement(
-                  'li',
-                  null,
-                  'When surface-dependent effects are important'
-                )
-              ),
-              React.createElement(
-                'h4',
-                { className: "font-semibold mb-2" },
-                'Key Points'
-              ),
-              React.createElement(
-                'ul',
+                "ul",
                 { className: "list-disc pl-6" },
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  'Uses built-in approximate BSA values for each species'
+                  "Uses built-in approximate BSA values for each species",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  'Direct ratio scaling of doses based on BSA'
+                  "Direct ratio scaling of doses based on BSA",
                 ),
-                React.createElement(
-                  'li',
-                  null,
-                  'Common in clinical settings'
-                )
-              )
-            )
-          )
-        )
+                React.createElement("li", null, "Common in clinical settings"),
+              ),
+            ),
+          ),
+        ),
       ),
       React.createElement(
-        'section',
+        "section",
         null,
         React.createElement(
-          'h2',
+          "h2",
           { className: "text-2xl font-bold mb-4" },
-          'Advanced Features'
+          "Advanced Features",
         ),
         React.createElement(
-          'div',
+          "div",
           { className: "space-y-6" },
           React.createElement(
             Card,
@@ -359,76 +307,64 @@ export function Documentation() {
               React.createElement(
                 CardTitle,
                 null,
-                'Kidney Function Adjustment'
-              )
+                "Kidney Function Adjustment",
+              ),
             ),
             React.createElement(
               CardContent,
               null,
               React.createElement(
-                'p',
+                "p",
                 { className: "mb-4" },
-                'Three modes available:'
+                "Three modes available:",
               ),
               React.createElement(
-                'ul',
+                "ul",
                 { className: "list-disc pl-6 mb-4" },
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  React.createElement(
-                    'strong',
-                    null,
-                    'None:'
-                  ),
-                  ' No kidney function adjustment'
+                  React.createElement("strong", null, "None:"),
+                  " No kidney function adjustment",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  React.createElement(
-                    'strong',
-                    null,
-                    'Manual:'
-                  ),
-                  ' Enter a percentage directly'
+                  React.createElement("strong", null, "Manual:"),
+                  " Enter a percentage directly",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
+                  React.createElement("strong", null, "Cockcroft-Gault:"),
+                  " Calculates estimated GFR and applies stage-based reductions:",
                   React.createElement(
-                    'strong',
-                    null,
-                    'Cockcroft-Gault:'
-                  ),
-                  ' Calculates estimated GFR and applies stage-based reductions:',
-                  React.createElement(
-                    'ul',
+                    "ul",
                     { className: "list-disc pl-6 mt-2" },
                     React.createElement(
-                      'li',
+                      "li",
                       null,
-                      'GFR ≥ 60 mL/min → 100% dose'
+                      "GFR ≥ 60 mL/min → 100% dose",
                     ),
                     React.createElement(
-                      'li',
+                      "li",
                       null,
-                      '30 ≤ GFR < 60 mL/min → 75% dose'
+                      "30 ≤ GFR < 60 mL/min → 75% dose",
                     ),
                     React.createElement(
-                      'li',
+                      "li",
                       null,
-                      '15 ≤ GFR < 30 mL/min → 50% dose'
+                      "15 ≤ GFR < 30 mL/min → 50% dose",
                     ),
                     React.createElement(
-                      'li',
+                      "li",
                       null,
-                      'GFR < 15 mL/min → 25% dose'
-                    )
-                  )
-                )
-              )
-            )
+                      "GFR < 15 mL/min → 25% dose",
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
           React.createElement(
             Card,
@@ -436,65 +372,45 @@ export function Documentation() {
             React.createElement(
               CardHeader,
               null,
-              React.createElement(
-                CardTitle,
-                null,
-                'Bioavailability Options'
-              )
+              React.createElement(CardTitle, null, "Bioavailability Options"),
             ),
             React.createElement(
               CardContent,
               null,
               React.createElement(
-                'p',
+                "p",
                 { className: "mb-4" },
-                'Choose from preset values or enter manually:'
+                "Choose from preset values or enter manually:",
               ),
               React.createElement(
-                'ul',
+                "ul",
                 { className: "list-disc pl-6" },
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  React.createElement(
-                    'strong',
-                    null,
-                    'Manual:'
-                  ),
-                  ' Enter any percentage'
+                  React.createElement("strong", null, "Manual:"),
+                  " Enter any percentage",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  React.createElement(
-                    'strong',
-                    null,
-                    'IV:'
-                  ),
-                  ' 100% bioavailability'
+                  React.createElement("strong", null, "IV:"),
+                  " 100% bioavailability",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  React.createElement(
-                    'strong',
-                    null,
-                    'Oral:'
-                  ),
-                  ' Assumes 50% bioavailability'
+                  React.createElement("strong", null, "Oral:"),
+                  " Assumes 50% bioavailability",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  React.createElement(
-                    'strong',
-                    null,
-                    'Other:'
-                  ),
-                  ' Assumes 75% bioavailability'
-                )
-              )
-            )
+                  React.createElement("strong", null, "Other:"),
+                  " Assumes 75% bioavailability",
+                ),
+              ),
+            ),
           ),
           React.createElement(
             Card,
@@ -502,70 +418,54 @@ export function Documentation() {
             React.createElement(
               CardHeader,
               null,
-              React.createElement(
-                CardTitle,
-                null,
-                'Additional Parameters'
-              )
+              React.createElement(CardTitle, null, "Additional Parameters"),
             ),
             React.createElement(
               CardContent,
               null,
               React.createElement(
-                'ul',
+                "ul",
                 { className: "list-disc pl-6" },
                 React.createElement(
-                  'li',
+                  "li",
                   null,
                   React.createElement(
-                    'strong',
+                    "strong",
                     null,
-                    'Volume of Distribution (Vd):'
+                    "Volume of Distribution (Vd):",
                   ),
-                  ' Affects dose based on drug distribution in body compartments'
+                  " Affects dose based on drug distribution in body compartments",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  React.createElement(
-                    'strong',
-                    null,
-                    'Molecular Weight:'
-                  ),
-                  ' Can affect allometric scaling exponent selection'
+                  React.createElement("strong", null, "Molecular Weight:"),
+                  " Can affect allometric scaling exponent selection",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  React.createElement(
-                    'strong',
-                    null,
-                    'LogP:'
-                  ),
-                  ' Influences dose adjustments based on lipophilicity'
+                  React.createElement("strong", null, "LogP:"),
+                  " Influences dose adjustments based on lipophilicity",
                 ),
                 React.createElement(
-                  'li',
+                  "li",
                   null,
-                  React.createElement(
-                    'strong',
-                    null,
-                    'Protein Binding:'
-                  ),
-                  ' Adjusts for differences in free drug fraction'
-                )
-              )
-            )
-          )
-        )
+                  React.createElement("strong", null, "Protein Binding:"),
+                  " Adjusts for differences in free drug fraction",
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
       React.createElement(
-        'section',
+        "section",
         null,
         React.createElement(
-          'h2',
+          "h2",
           { className: "text-2xl font-bold mb-4" },
-          'Best Practices'
+          "Best Practices",
         ),
         React.createElement(
           Card,
@@ -574,103 +474,83 @@ export function Documentation() {
             CardContent,
             { className: "pt-6" },
             React.createElement(
-              'div',
+              "div",
               { className: "space-y-6" },
               React.createElement(
-                'div',
+                "div",
                 null,
                 React.createElement(
-                  'h4',
+                  "h4",
                   { className: "font-semibold mb-2" },
-                  '1. Always Start Conservative'
+                  "1. Always Start Conservative",
                 ),
                 React.createElement(
-                  'ul',
+                  "ul",
                   { className: "list-disc pl-6" },
+                  React.createElement("li", null, "Begin with lower doses"),
                   React.createElement(
-                    'li',
+                    "li",
                     null,
-                    'Begin with lower doses'
+                    "Use multiple scaling methods for comparison",
                   ),
-                  React.createElement(
-                    'li',
-                    null,
-                    'Use multiple scaling methods for comparison'
-                  ),
-                  React.createElement(
-                    'li',
-                    null,
-                    'Consider safety margins'
-                  )
-                )
+                  React.createElement("li", null, "Consider safety margins"),
+                ),
               ),
               React.createElement(
-                'div',
+                "div",
                 null,
                 React.createElement(
-                  'h4',
+                  "h4",
                   { className: "font-semibold mb-2" },
-                  '2. Document Your Choice'
+                  "2. Document Your Choice",
                 ),
                 React.createElement(
-                  'ul',
+                  "ul",
                   { className: "list-disc pl-6" },
-                  React.createElement(
-                    'li',
-                    null,
-                    'Record scaling method used'
-                  ),
-                  React.createElement(
-                    'li',
-                    null,
-                    'Note any adjustments made'
-                  ),
-                  React.createElement(
-                    'li',
-                    null,
-                    'Keep track of assumptions'
-                  )
-                )
+                  React.createElement("li", null, "Record scaling method used"),
+                  React.createElement("li", null, "Note any adjustments made"),
+                  React.createElement("li", null, "Keep track of assumptions"),
+                ),
               ),
               React.createElement(
-                'div',
+                "div",
                 null,
                 React.createElement(
-                  'h4',
+                  "h4",
                   { className: "font-semibold mb-2" },
-                  '3. Validate Results'
+                  "3. Validate Results",
                 ),
                 React.createElement(
-                  'ul',
+                  "ul",
                   { className: "list-disc pl-6" },
                   React.createElement(
-                    'li',
+                    "li",
                     null,
-                    'Compare with literature data when available'
+                    "Compare with literature data when available",
                   ),
                   React.createElement(
-                    'li',
+                    "li",
                     null,
-                    'Consider species-specific factors'
+                    "Consider species-specific factors",
                   ),
                   React.createElement(
-                    'li',
+                    "li",
                     null,
-                    'Monitor for unexpected variations'
-                  )
-                )
-              )
-            )
-          )
-        )
+                    "Monitor for unexpected variations",
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
       React.createElement(
-        'section',
+        "section",
         null,
         React.createElement(
-          'h2',
+          "h2",
           { className: "text-2xl font-bold mb-4" },
-          'Important Reminders'
+          "Important Reminders",
         ),
         React.createElement(
           Card,
@@ -679,44 +559,40 @@ export function Documentation() {
             CardContent,
             { className: "pt-6" },
             React.createElement(
-              'ul',
+              "ul",
               { className: "list-disc pl-6" },
               React.createElement(
-                'li',
+                "li",
                 null,
-                'These are estimation tools, not absolute rules'
+                "These are estimation tools, not absolute rules",
               ),
               React.createElement(
-                'li',
+                "li",
                 null,
-                'Professional judgment is essential'
+                "Professional judgment is essential",
+              ),
+              React.createElement("li", null, "Consider all available data"),
+              React.createElement(
+                "li",
+                null,
+                "Use for research/educational purposes only",
               ),
               React.createElement(
-                'li',
+                "li",
                 null,
-                'Consider all available data'
+                "Consult regulatory guidelines for clinical applications",
               ),
-              React.createElement(
-                'li',
-                null,
-                'Use for research/educational purposes only'
-              ),
-              React.createElement(
-                'li',
-                null,
-                'Consult regulatory guidelines for clinical applications'
-              )
-            )
-          )
-        )
+            ),
+          ),
+        ),
       ),
       React.createElement(
-        'section',
+        "section",
         null,
         React.createElement(
-          'h2',
+          "h2",
           { className: "text-2xl font-bold mb-4" },
-          'References'
+          "References",
         ),
         React.createElement(
           Card,
@@ -725,82 +601,82 @@ export function Documentation() {
             CardContent,
             { className: "pt-6" },
             React.createElement(
-              'ul',
+              "ul",
               { className: "space-y-4" },
               React.createElement(
-                'li',
+                "li",
                 null,
                 React.createElement(
-                  'p',
+                  "p",
                   { className: "text-sm" },
-                  'Boxenbaum, H. (1982). Interspecies scaling, allometry, physiological time, and the ground plan of pharmacokinetics. ',
+                  "Boxenbaum, H. (1982). Interspecies scaling, allometry, physiological time, and the ground plan of pharmacokinetics. ",
                   React.createElement(
-                    'em',
+                    "em",
                     null,
-                    'Journal of Pharmacokinetics and Biopharmaceutics'
+                    "Journal of Pharmacokinetics and Biopharmaceutics",
                   ),
-                  ', 10(2), 201-227.'
-                )
+                  ", 10(2), 201-227.",
+                ),
               ),
               React.createElement(
-                'li',
+                "li",
                 null,
                 React.createElement(
-                  'p',
+                  "p",
                   { className: "text-sm" },
-                  'Mahmood, I., & Balian, J. D. (1996). Interspecies scaling: predicting clearance of drugs in humans. ',
+                  "Mahmood, I., & Balian, J. D. (1996). Interspecies scaling: predicting clearance of drugs in humans. ",
                   React.createElement(
-                    'em',
+                    "em",
                     null,
-                    'Toxicology and Applied Pharmacology'
+                    "Toxicology and Applied Pharmacology",
                   ),
-                  ', 140(2), 253-258.'
-                )
+                  ", 140(2), 253-258.",
+                ),
               ),
               React.createElement(
-                'li',
+                "li",
                 null,
                 React.createElement(
-                  'p',
+                  "p",
                   { className: "text-sm" },
-                  'Sharma, V., & McNeill, J. H. (2009). To scale or not to scale: the principles of dose extrapolation. ',
+                  "Sharma, V., & McNeill, J. H. (2009). To scale or not to scale: the principles of dose extrapolation. ",
                   React.createElement(
-                    'em',
+                    "em",
                     null,
-                    'British Journal of Pharmacology'
+                    "British Journal of Pharmacology",
                   ),
-                  ', 157(6), 907-921.'
-                )
+                  ", 157(6), 907-921.",
+                ),
               ),
               React.createElement(
-                'li',
+                "li",
                 null,
                 React.createElement(
-                  'p',
+                  "p",
                   { className: "text-sm" },
-                  'Tang, H., & Mayersohn, M. (2005). A comparison of allometric scaling methods for predicting human drug clearance and volume of distribution. ',
+                  "Tang, H., & Mayersohn, M. (2005). A comparison of allometric scaling methods for predicting human drug clearance and volume of distribution. ",
                   React.createElement(
-                    'em',
+                    "em",
                     null,
-                    'Journal of Pharmaceutical Sciences'
+                    "Journal of Pharmaceutical Sciences",
                   ),
-                  ', 94(6), 1237-1243.'
-                )
-              )
-            )
-          )
+                  ", 94(6), 1237-1243.",
+                ),
+              ),
+            ),
+          ),
         ),
         React.createElement(
-          'section',
+          "section",
           { className: "mt-8" },
           React.createElement(
-            'h2',
+            "h2",
             { className: "text-2xl font-bold mb-4" },
-            'Detailed Formula Documentation'
+            "Detailed Formula Documentation",
           ),
-          React.createElement(FormulaDocumentation)
-        )
-      )
-    )
+          React.createElement(FormulaDocumentation),
+        ),
+      ),
+    ),
   );
 }

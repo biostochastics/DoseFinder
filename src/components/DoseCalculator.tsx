@@ -1,14 +1,29 @@
-'use client';
+"use client";
 
-import React from 'react';
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { IconInfoCircle, IconAlertCircle, IconCopy, IconCheck } from "@tabler/icons-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  IconInfoCircle,
+  IconAlertCircle,
+  IconCopy,
+  IconCheck,
+} from "@tabler/icons-react";
 import { Animal } from "@/lib/pharmacology/types";
 
 interface DoseCalculatorProps {
@@ -56,7 +71,7 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
   resultDose,
   uncertaintyRange,
   copySuccess,
-  onCopyToClipboard
+  onCopyToClipboard,
 }) => {
   return (
     <div className="space-y-4">
@@ -70,9 +85,10 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
               </PopoverTrigger>
               <PopoverContent className="w-80">
                 <p className="text-sm">
-                  Select the species from which the dose originates. This is typically
-                  from published studies or existing data. Default physiological
-                  parameters are automatically loaded for the selected species.
+                  Select the species from which the dose originates. This is
+                  typically from published studies or existing data. Default
+                  physiological parameters are automatically loaded for the
+                  selected species.
                 </p>
               </PopoverContent>
             </Popover>
@@ -125,16 +141,18 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="source-weight" className="flex items-center gap-2">
-            {sourceAnimal === 'human' ? 'Patient' : 'Animal'} Weight (kg)
+            {sourceAnimal === "human" ? "Patient" : "Animal"} Weight (kg)
             <Popover>
               <PopoverTrigger asChild>
                 <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
               </PopoverTrigger>
               <PopoverContent className="w-80">
                 <p className="text-sm">
-                  Enter the body weight for the source {sourceAnimal === 'human' ? 'patient' : 'animal'}.
-                  For {sourceAnimal === 'human' ? 'humans' : 'animals'}, typical weight range is{' '}
-                  {animals[sourceAnimal].weight * 0.8} - {animals[sourceAnimal].weight * 1.2} kg.
+                  Enter the body weight for the source{" "}
+                  {sourceAnimal === "human" ? "patient" : "animal"}. For{" "}
+                  {sourceAnimal === "human" ? "humans" : "animals"}, typical
+                  weight range is {animals[sourceAnimal].weight * 0.8} -{" "}
+                  {animals[sourceAnimal].weight * 1.2} kg.
                 </p>
               </PopoverContent>
             </Popover>
@@ -142,8 +160,10 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
           <Input
             id="source-weight"
             type="number"
-            value={sourceWeight || ''}
-            onChange={(e) => onSourceWeightChange(parseFloat(e.target.value) || 0)}
+            value={sourceWeight || ""}
+            onChange={(e) =>
+              onSourceWeightChange(parseFloat(e.target.value) || 0)
+            }
             placeholder={`Default: ${animals[sourceAnimal].weight} kg`}
             step="0.001"
             min="0"
@@ -152,15 +172,16 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
 
         <div className="space-y-2">
           <Label htmlFor="target-weight" className="flex items-center gap-2">
-            {targetAnimal === 'human' ? 'Patient' : 'Animal'} Weight (kg)
+            {targetAnimal === "human" ? "Patient" : "Animal"} Weight (kg)
             <Popover>
               <PopoverTrigger asChild>
                 <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
               </PopoverTrigger>
               <PopoverContent className="w-80">
                 <p className="text-sm">
-                  Enter the body weight for the target {targetAnimal === 'human' ? 'patient' : 'animal'}.
-                  Typical weight range is {animals[targetAnimal].weight * 0.8} -{' '}
+                  Enter the body weight for the target{" "}
+                  {targetAnimal === "human" ? "patient" : "animal"}. Typical
+                  weight range is {animals[targetAnimal].weight * 0.8} -{" "}
                   {animals[targetAnimal].weight * 1.2} kg.
                 </p>
               </PopoverContent>
@@ -169,8 +190,10 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
           <Input
             id="target-weight"
             type="number"
-            value={targetWeight || ''}
-            onChange={(e) => onTargetWeightChange(parseFloat(e.target.value) || 0)}
+            value={targetWeight || ""}
+            onChange={(e) =>
+              onTargetWeightChange(parseFloat(e.target.value) || 0)
+            }
             placeholder={`Default: ${animals[targetAnimal].weight} kg`}
             step="0.001"
             min="0"
@@ -197,7 +220,7 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
         <Input
           id="base-dose"
           type="number"
-          value={baseDose || ''}
+          value={baseDose || ""}
           onChange={(e) => onBaseDoseChange(parseFloat(e.target.value) || 0)}
           placeholder="Enter dose in mg/kg"
           step="0.001"
@@ -213,13 +236,25 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
               <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
             </PopoverTrigger>
             <PopoverContent className="w-80">
-              <p className="text-sm font-semibold mb-2">Available scaling methods:</p>
+              <p className="text-sm font-semibold mb-2">
+                Available scaling methods:
+              </p>
               <ul className="text-sm space-y-1">
-                <li><strong>Allometric:</strong> Uses power law scaling (W^0.75)</li>
-                <li><strong>Body Surface Area:</strong> Based on BSA ratios</li>
-                <li><strong>Direct:</strong> Linear weight-based scaling</li>
-                <li><strong>Brain Weight:</strong> For CNS-active drugs</li>
-                <li><strong>Metabolic Rate:</strong> Based on basal metabolism</li>
+                <li>
+                  <strong>Allometric:</strong> Uses power law scaling (W^0.75)
+                </li>
+                <li>
+                  <strong>Body Surface Area:</strong> Based on BSA ratios
+                </li>
+                <li>
+                  <strong>Direct:</strong> Linear weight-based scaling
+                </li>
+                <li>
+                  <strong>Brain Weight:</strong> For CNS-active drugs
+                </li>
+                <li>
+                  <strong>Metabolic Rate:</strong> Based on basal metabolism
+                </li>
               </ul>
             </PopoverContent>
           </Popover>
@@ -247,28 +282,41 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
           </div>
         </RadioGroup>
 
-        {scalingMethod === 'allometric' && (
+        {scalingMethod === "allometric" && (
           <div className="mt-4 space-y-2">
-            <Label htmlFor="scaling-exponent" className="flex items-center gap-2">
+            <Label
+              htmlFor="scaling-exponent"
+              className="flex items-center gap-2"
+            >
               Allometric Exponent
               <Popover>
                 <PopoverTrigger asChild>
                   <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
                 </PopoverTrigger>
                 <PopoverContent className="w-80">
-                  <p className="text-sm mb-2">
-                    Common allometric exponents:
-                  </p>
+                  <p className="text-sm mb-2">Common allometric exponents:</p>
                   <ul className="text-sm space-y-1">
-                    <li><strong>0.75:</strong> Standard metabolic scaling (most drugs)</li>
-                    <li><strong>0.67:</strong> Surface area scaling</li>
-                    <li><strong>1.0:</strong> Direct proportional scaling</li>
-                    <li><strong>Custom:</strong> Based on specific drug data</li>
+                    <li>
+                      <strong>0.75:</strong> Standard metabolic scaling (most
+                      drugs)
+                    </li>
+                    <li>
+                      <strong>0.67:</strong> Surface area scaling
+                    </li>
+                    <li>
+                      <strong>1.0:</strong> Direct proportional scaling
+                    </li>
+                    <li>
+                      <strong>Custom:</strong> Based on specific drug data
+                    </li>
                   </ul>
                 </PopoverContent>
               </Popover>
             </Label>
-            <Select value={scalingExponent} onValueChange={onScalingExponentChange}>
+            <Select
+              value={scalingExponent}
+              onValueChange={onScalingExponentChange}
+            >
               <SelectTrigger id="scaling-exponent">
                 <SelectValue />
               </SelectTrigger>
@@ -279,7 +327,7 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
                 <SelectItem value="custom">Custom</SelectItem>
               </SelectContent>
             </Select>
-            {scalingExponent === 'custom' && (
+            {scalingExponent === "custom" && (
               <Input
                 type="number"
                 placeholder="Enter custom exponent (0.5 - 1.0)"
@@ -331,12 +379,15 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
 
             <div className="space-y-4">
               <div className="p-4 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground mb-2">Calculated Dose</p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Calculated Dose
+                </p>
                 <p className="text-2xl font-bold">
                   {resultDose.toFixed(3)} mg/kg
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Range: {uncertaintyRange.lower.toFixed(3)} - {uncertaintyRange.upper.toFixed(3)} mg/kg
+                  Range: {uncertaintyRange.lower.toFixed(3)} -{" "}
+                  {uncertaintyRange.upper.toFixed(3)} mg/kg
                 </p>
               </div>
 
@@ -353,9 +404,10 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
                 <p className="text-sm text-warning-foreground flex items-start gap-2">
                   <IconAlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   <span>
-                    This calculation is for research purposes only. Always validate
-                    doses with experimental data and consider factors like drug
-                    properties, disease state, and individual variability.
+                    This calculation is for research purposes only. Always
+                    validate doses with experimental data and consider factors
+                    like drug properties, disease state, and individual
+                    variability.
                   </span>
                 </p>
               </div>

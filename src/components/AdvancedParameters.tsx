@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React from 'react';
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -57,7 +57,7 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
   setMolecularWeight,
   logP,
   setLogP,
-  resetAll
+  resetAll,
 }) => {
   return (
     <div className="space-y-4">
@@ -80,16 +80,22 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="none" id="kf-none" />
-                <Label htmlFor="kf-none" className="text-sm">None</Label>
+                <Label htmlFor="kf-none" className="text-sm">
+                  None
+                </Label>
               </div>
               <div className="flex items-center space-x-2 mt-2">
                 <RadioGroupItem value="manual" id="kf-manual" />
-                <Label htmlFor="kf-manual" className="text-sm">Manual %</Label>
+                <Label htmlFor="kf-manual" className="text-sm">
+                  Manual %
+                </Label>
                 {kidneyFunctionMethod === "manual" && (
                   <Input
                     type="number"
                     value={kidneyFunction}
-                    onChange={(e) => setKidneyFunction(Number(e.target.value) || 0)}
+                    onChange={(e) =>
+                      setKidneyFunction(Number(e.target.value) || 0)
+                    }
                     className="w-16 ml-2"
                     step="1"
                     min={0}
@@ -100,7 +106,9 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
               <div className="flex items-start mt-2">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="cockcroft" id="kf-cg" />
-                  <Label htmlFor="kf-cg" className="text-sm">Cockcroft-Gault</Label>
+                  <Label htmlFor="kf-cg" className="text-sm">
+                    Cockcroft-Gault
+                  </Label>
                 </div>
               </div>
             </RadioGroup>
@@ -146,11 +154,15 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
                   >
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="male" id="sex-male" />
-                      <Label htmlFor="sex-male" className="text-sm">Male</Label>
+                      <Label htmlFor="sex-male" className="text-sm">
+                        Male
+                      </Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="female" id="sex-female" />
-                      <Label htmlFor="sex-female" className="text-sm">Female</Label>
+                      <Label htmlFor="sex-female" className="text-sm">
+                        Female
+                      </Label>
                     </div>
                   </RadioGroup>
                 </div>
@@ -170,12 +182,16 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="manual" id="bio-manual" />
-                <Label htmlFor="bio-manual" className="text-sm">Manual (%)</Label>
+                <Label htmlFor="bio-manual" className="text-sm">
+                  Manual (%)
+                </Label>
                 {bioavailabilityMethod === "manual" && (
                   <Input
                     type="number"
                     value={bioavailability}
-                    onChange={(e) => setBioavailability(Number(e.target.value) || 0)}
+                    onChange={(e) =>
+                      setBioavailability(Number(e.target.value) || 0)
+                    }
                     className="w-16 ml-2"
                     step="1"
                     min={0}
@@ -185,15 +201,21 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
               </div>
               <div className="flex items-center space-x-2 mt-2">
                 <RadioGroupItem value="iv" id="bio-iv" />
-                <Label htmlFor="bio-iv" className="text-sm">IV (100%)</Label>
+                <Label htmlFor="bio-iv" className="text-sm">
+                  IV (100%)
+                </Label>
               </div>
               <div className="flex items-center space-x-2 mt-2">
                 <RadioGroupItem value="oral" id="bio-oral" />
-                <Label htmlFor="bio-oral" className="text-sm">Oral (~50%)</Label>
+                <Label htmlFor="bio-oral" className="text-sm">
+                  Oral (~50%)
+                </Label>
               </div>
               <div className="flex items-center space-x-2 mt-2">
                 <RadioGroupItem value="other" id="bio-other" />
-                <Label htmlFor="bio-other" className="text-sm">Other (~75%)</Label>
+                <Label htmlFor="bio-other" className="text-sm">
+                  Other (~75%)
+                </Label>
               </div>
             </RadioGroup>
           </CardContent>
@@ -217,7 +239,9 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
             Percentage of drug bound to plasma proteins
           </p>
 
-          <Label htmlFor="volumeDistribution">Volume of Distribution (L/kg)</Label>
+          <Label htmlFor="volumeDistribution">
+            Volume of Distribution (L/kg)
+          </Label>
           <Input
             id="volumeDistribution"
             type="number"
@@ -242,7 +266,7 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
             step="1"
           />
           <p className="text-xs text-muted-foreground">
-            Affects scaling exponent for molecules {'>'}400 g/mol
+            Affects scaling exponent for molecules {">"}400 g/mol
           </p>
 
           <Label htmlFor="logP">Log P</Label>
@@ -264,10 +288,15 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
             <h4 className="font-medium mb-2">Advanced Parameter Effects</h4>
             <ul className="text-sm space-y-1 list-disc pl-4">
               {proteinBinding > 0 && (
-                <li>Protein binding reduces available drug by {proteinBinding}%</li>
+                <li>
+                  Protein binding reduces available drug by {proteinBinding}%
+                </li>
               )}
               {bioavailabilityMethod === "manual" && bioavailability < 100 && (
-                <li>Bioavailability adjustment factor: {(100/bioavailability).toFixed(2)}x</li>
+                <li>
+                  Bioavailability adjustment factor:{" "}
+                  {(100 / bioavailability).toFixed(2)}x
+                </li>
               )}
               {bioavailabilityMethod === "oral" && (
                 <li>Bioavailability adjustment factor: 2x</li>
@@ -276,7 +305,9 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
                 <li>Bioavailability adjustment factor: 1.33x</li>
               )}
               {kidneyFunctionMethod === "manual" && kidneyFunction < 100 && (
-                <li>Reduced kidney function ({kidneyFunction}%) affects clearance</li>
+                <li>
+                  Reduced kidney function ({kidneyFunction}%) affects clearance
+                </li>
               )}
               {kidneyFunctionMethod === "cockcroft" && (
                 <li>Cockcroft-Gault GFR adjustment</li>
@@ -285,10 +316,20 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
                 <li>Volume of distribution: {volumeDistribution} L/kg</li>
               )}
               {molecularWeight > 0 && (
-                <li>Molecular weight affects scaling: {molecularWeight > 700 ? "0.7" : molecularWeight > 400 ? "0.75" : "0.8"}</li>
+                <li>
+                  Molecular weight affects scaling:{" "}
+                  {molecularWeight > 700
+                    ? "0.7"
+                    : molecularWeight > 400
+                      ? "0.75"
+                      : "0.8"}
+                </li>
               )}
               {logP !== 0 && (
-                <li>LogP adjustment factor: {(1 + Math.abs(logP) * 0.1).toFixed(2)}x</li>
+                <li>
+                  LogP adjustment factor:{" "}
+                  {(1 + Math.abs(logP) * 0.1).toFixed(2)}x
+                </li>
               )}
             </ul>
           </div>

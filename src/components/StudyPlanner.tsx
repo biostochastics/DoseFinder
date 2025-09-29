@@ -94,8 +94,6 @@ interface ArmRequirement {
   }[];
 }
 
-
-
 interface StudyPlannerProps {
   animals: Record<string, Species>;
   currentDose: number;
@@ -109,7 +107,6 @@ export function StudyPlanner({
   sourceAnimal, // eslint-disable-line @typescript-eslint/no-unused-vars
   targetAnimal,
 }: StudyPlannerProps) {
-
   // Study Design State
   const [studyType, setStudyType] = useState<string>("preclinical");
   const [numArms, setNumArms] = useState<number>(1);
@@ -811,7 +808,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                 </CardDescription>
               </div>
               <div className="flex space-x-2">
-{arm.armType !== "placebo" && (
+                {arm.armType !== "placebo" && (
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" size="sm">
@@ -827,7 +824,10 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                         </p>
                         <p className="text-sm">
                           Current dose: {currentDose.toFixed(3)} mg (
-                          {(currentDose / (animals[targetAnimal]?.weight || 70)).toFixed(3)} mg/kg)
+                          {(
+                            currentDose / (animals[targetAnimal]?.weight || 70)
+                          ).toFixed(3)}{" "}
+                          mg/kg)
                         </p>
                         <Button
                           size="sm"

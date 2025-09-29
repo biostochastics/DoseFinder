@@ -3,11 +3,11 @@
  * Data sources: Davies & Morris (1993), FDA guidance documents
  */
 
-import { Species } from './types';
+import { Species } from "./types";
 
 export const SPECIES_DATABASE: Record<string, Species> = {
   mouse: {
-    name: 'Mouse',
+    name: "Mouse",
     weight: 0.02,
     brainWeight: 0.4,
     lifeSpan: 2,
@@ -15,10 +15,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 90,
     renalClearance: 15,
-    bsa: 0.006
+    bsa: 0.006,
   },
   rat: {
-    name: 'Rat',
+    name: "Rat",
     weight: 0.15,
     brainWeight: 2.0,
     lifeSpan: 3,
@@ -26,10 +26,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 73,
     renalClearance: 12,
-    bsa: 0.025
+    bsa: 0.025,
   },
   hamster: {
-    name: 'Hamster',
+    name: "Hamster",
     weight: 0.1,
     brainWeight: 1.0,
     lifeSpan: 2.5,
@@ -37,10 +37,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 75,
     renalClearance: 12,
-    bsa: 0.02
+    bsa: 0.02,
   },
   guineaPig: {
-    name: 'Guinea Pig',
+    name: "Guinea Pig",
     weight: 1.0,
     brainWeight: 4.8,
     lifeSpan: 6,
@@ -48,10 +48,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 55,
     renalClearance: 8,
-    bsa: 0.06
+    bsa: 0.06,
   },
   ferret: {
-    name: 'Ferret',
+    name: "Ferret",
     weight: 1.2,
     brainWeight: 7.2,
     lifeSpan: 7,
@@ -59,10 +59,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 52,
     renalClearance: 10,
-    bsa: 0.08
+    bsa: 0.08,
   },
   rabbit: {
-    name: 'Rabbit',
+    name: "Rabbit",
     weight: 2,
     brainWeight: 9.1,
     lifeSpan: 9,
@@ -70,10 +70,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 65,
     renalClearance: 10,
-    bsa: 0.15
+    bsa: 0.15,
   },
   cat: {
-    name: 'Cat',
+    name: "Cat",
     weight: 4,
     brainWeight: 28.4,
     lifeSpan: 15,
@@ -81,10 +81,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 48,
     renalClearance: 8,
-    bsa: 0.25
+    bsa: 0.25,
   },
   monkey: {
-    name: 'Monkey',
+    name: "Monkey",
     weight: 5,
     brainWeight: 95.0,
     lifeSpan: 25,
@@ -92,10 +92,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 42,
     renalClearance: 7,
-    bsa: 0.3
+    bsa: 0.3,
   },
   dog: {
-    name: 'Dog',
+    name: "Dog",
     weight: 20,
     brainWeight: 85.0,
     lifeSpan: 13,
@@ -103,10 +103,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 38,
     renalClearance: 6,
-    bsa: 0.8
+    bsa: 0.8,
   },
   miniPig: {
-    name: 'Mini Pig',
+    name: "Mini Pig",
     weight: 30,
     brainWeight: 125.0,
     lifeSpan: 17,
@@ -114,10 +114,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 28,
     renalClearance: 4,
-    bsa: 1.1
+    bsa: 1.1,
   },
   sheep: {
-    name: 'Sheep',
+    name: "Sheep",
     weight: 40,
     brainWeight: 130.0,
     lifeSpan: 12,
@@ -125,10 +125,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 32,
     renalClearance: 5,
-    bsa: 1.2
+    bsa: 1.2,
   },
   horse: {
-    name: 'Horse',
+    name: "Horse",
     weight: 500,
     brainWeight: 620.0,
     lifeSpan: 28,
@@ -136,10 +136,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 18,
     renalClearance: 2.5,
-    bsa: 2.5
+    bsa: 2.5,
   },
   cow: {
-    name: 'Cow',
+    name: "Cow",
     weight: 600,
     brainWeight: 445.0,
     lifeSpan: 18,
@@ -147,10 +147,10 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 15,
     renalClearance: 2,
-    bsa: 3.0
+    bsa: 3.0,
   },
   human: {
-    name: 'Human',
+    name: "Human",
     weight: 70,
     brainWeight: 1350.0,
     lifeSpan: 80,
@@ -158,8 +158,8 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     allometricExponent: 0.75,
     hepaticClearance: 15,
     renalClearance: 1.5,
-    bsa: 1.9
-  }
+    bsa: 1.9,
+  },
 };
 
 // Helper functions
