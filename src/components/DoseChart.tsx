@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React from 'react';
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   LineChart,
@@ -11,7 +11,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-} from 'recharts';
+} from "recharts";
 import { Animal } from "@/lib/pharmacology/types";
 
 interface DoseChartProps {
@@ -25,7 +25,7 @@ export const DoseChart: React.FC<DoseChartProps> = ({
   chartData,
   animals,
   scalingMethod,
-  isDarkMode
+  isDarkMode,
 }) => {
   return (
     <Card className="min-h-[700px] mb-6">
@@ -45,21 +45,25 @@ export const DoseChart: React.FC<DoseChartProps> = ({
               scale="log"
               domain={[0.01, 1000]}
               allowDuplicatedCategory={true}
-              ticks={chartData.filter(point => point.isAnimal).map(point => point.weight)}
+              ticks={chartData
+                .filter((point) => point.isAnimal)
+                .map((point) => point.weight)}
               tickFormatter={(value) => {
-                const animal = Object.entries(animals).find(([, data]) =>
-                  Math.abs(data.weight - value) < 1e-10
+                const animal = Object.entries(animals).find(
+                  ([, data]) => Math.abs(data.weight - value) < 1e-10,
                 );
                 if (animal) return animal[1].name;
 
-                const point = chartData.find(p => p.isAnimal && Math.abs(p.weight - value) < 1e-10);
+                const point = chartData.find(
+                  (p) => p.isAnimal && Math.abs(p.weight - value) < 1e-10,
+                );
                 return point?.label || value.toExponential(1);
               }}
               tick={{
                 fill: isDarkMode ? "#e2e8f0" : "#1e293b",
                 fontSize: 12,
-                textAnchor: 'end',
-                transform: 'rotate(-45)'
+                textAnchor: "end",
+                transform: "rotate(-45)",
               }}
               angle={-45}
               dy={15}
@@ -69,11 +73,11 @@ export const DoseChart: React.FC<DoseChartProps> = ({
             />
             <YAxis
               type="number"
-              domain={['auto', 'auto']}
+              domain={["auto", "auto"]}
               tickFormatter={(value) => `${value.toFixed(1)} mg`}
               tick={{
                 fill: isDarkMode ? "#e2e8f0" : "#1e293b",
-                fontSize: 12
+                fontSize: 12,
               }}
               interval={0}
               minTickGap={30}
@@ -83,23 +87,23 @@ export const DoseChart: React.FC<DoseChartProps> = ({
                 backgroundColor: isDarkMode ? "#1e293b" : "#ffffff",
                 border: isDarkMode ? "1px solid #475569" : "1px solid #e2e8f0",
                 borderRadius: "0.5rem",
-                fontSize: "0.875rem"
+                fontSize: "0.875rem",
               }}
               itemStyle={{
                 color: isDarkMode ? "#e2e8f0" : "#1e293b",
-                fontSize: "0.875rem"
+                fontSize: "0.875rem",
               }}
-              formatter={(value: number) => [`${value.toFixed(2)} mg`, 'Dose']}
+              formatter={(value: number) => [`${value.toFixed(2)} mg`, "Dose"]}
               labelFormatter={(weight: number) => {
-                const point = chartData.find(p => {
+                const point = chartData.find((p) => {
                   return p.isAnimal && Math.abs(p.weight - weight) < 1e-10;
                 });
-                return `Weight: ${weight.toFixed(2)} kg${point?.label ? ` (${point.label})` : ''}`;
+                return `Weight: ${weight.toFixed(2)} kg${point?.label ? ` (${point.label})` : ""}`;
               }}
             />
             <Legend
               wrapperStyle={{
-                paddingTop: "1rem"
+                paddingTop: "1rem",
               }}
               height={36}
               iconType="circle"
@@ -125,7 +129,7 @@ export const DoseChart: React.FC<DoseChartProps> = ({
                 );
               }}
             />
-            {chartData.some(d => d.dilutedDose) && (
+            {chartData.some((d) => d.dilutedDose) && (
               <Line
                 dataKey="dilutedDose"
                 stroke="#3b82f6"

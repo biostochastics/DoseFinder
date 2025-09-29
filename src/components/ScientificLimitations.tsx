@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,10 @@ export function ScientificLimitations() {
         <AlertTriangle className="h-4 w-4 text-orange-600" />
         <AlertTitle>Important Scientific Limitations</AlertTitle>
         <AlertDescription className="space-y-2 mt-2">
-          <p>This calculator implements classical allometric scaling approaches. Modern pharmacokinetic practice combines these methods with:</p>
+          <p>
+            This calculator implements classical allometric scaling approaches.
+            Modern pharmacokinetic practice combines these methods with:
+          </p>
           <ul className="list-disc ml-6 space-y-1">
             <li>Population pharmacokinetic (PopPK) modeling</li>
             <li>Physiologically-based pharmacokinetic (PBPK) models</li>
@@ -34,23 +37,38 @@ export function ScientificLimitations() {
             <div className="space-y-2 text-sm">
               <div className="flex items-start gap-2">
                 <Badge variant="outline">Allometric</Badge>
-                <span>Assumes similar metabolic rates across species. May not apply to drugs with active metabolites or non-linear kinetics.</span>
+                <span>
+                  Assumes similar metabolic rates across species. May not apply
+                  to drugs with active metabolites or non-linear kinetics.
+                </span>
               </div>
               <div className="flex items-start gap-2">
                 <Badge variant="outline">Brain Weight</Badge>
-                <span>Based on simplified coefficient (2/3). Actual brain-drug penetration varies significantly by drug properties.</span>
+                <span>
+                  Based on simplified coefficient (2/3). Actual brain-drug
+                  penetration varies significantly by drug properties.
+                </span>
               </div>
               <div className="flex items-start gap-2">
                 <Badge variant="outline">Life-Span</Badge>
-                <span>Correlation-based method. Does not account for specific aging mechanisms or drug accumulation.</span>
+                <span>
+                  Correlation-based method. Does not account for specific aging
+                  mechanisms or drug accumulation.
+                </span>
               </div>
               <div className="flex items-start gap-2">
                 <Badge variant="outline">Hepatic Flow</Badge>
-                <span>Applies only to high-extraction drugs. Requires knowledge of hepatic extraction ratio.</span>
+                <span>
+                  Applies only to high-extraction drugs. Requires knowledge of
+                  hepatic extraction ratio.
+                </span>
               </div>
               <div className="flex items-start gap-2">
                 <Badge variant="outline">BSA</Badge>
-                <span>Traditional oncology approach. May overestimate doses for small animals.</span>
+                <span>
+                  Traditional oncology approach. May overestimate doses for
+                  small animals.
+                </span>
               </div>
             </div>
           </div>
@@ -69,7 +87,9 @@ export function ScientificLimitations() {
           <div>
             <h4 className="font-semibold mb-2">Not Accounted For</h4>
             <ul className="list-disc ml-6 space-y-1 text-sm">
-              <li>Drug-specific pharmacokinetics (half-life, clearance pathways)</li>
+              <li>
+                Drug-specific pharmacokinetics (half-life, clearance pathways)
+              </li>
               <li>Route of administration differences</li>
               <li>Species-specific drug sensitivity and receptor density</li>
               <li>Plasma protein binding variations</li>
@@ -81,7 +101,9 @@ export function ScientificLimitations() {
 
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <p className="text-sm font-medium">Recommended Use:</p>
-            <p className="text-sm mt-1">Use results as initial estimates only. Always validate with:</p>
+            <p className="text-sm mt-1">
+              Use results as initial estimates only. Always validate with:
+            </p>
             <ul className="list-disc ml-6 mt-1 text-sm">
               <li>Literature precedent for similar compounds</li>
               <li>Pilot dose-finding studies</li>
@@ -96,10 +118,22 @@ export function ScientificLimitations() {
         <Info className="h-4 w-4" />
         <AlertTitle>Literature References</AlertTitle>
         <AlertDescription className="space-y-1 text-sm mt-2">
-          <p>• Reagan-Shaw et al. (2008) "Dose translation from animal to human studies revisited" FASEB J. 22(3):659-61</p>
-          <p>• Nair & Jacob (2016) "A simple practice guide for dose conversion" J Basic Clin Pharm. 7(2):27-31</p>
-          <p>• Sharma & McNeill (2009) "To scale or not to scale" Br J Pharmacol. 157(6):907-21</p>
-          <p>• FDA Guidance (2005) "Estimating the Maximum Safe Starting Dose in Initial Clinical Trials"</p>
+          <p>
+            • Reagan-Shaw et al. (2008) "Dose translation from animal to human
+            studies revisited" FASEB J. 22(3):659-61
+          </p>
+          <p>
+            • Nair & Jacob (2016) "A simple practice guide for dose conversion"
+            J Basic Clin Pharm. 7(2):27-31
+          </p>
+          <p>
+            • Sharma & McNeill (2009) "To scale or not to scale" Br J Pharmacol.
+            157(6):907-21
+          </p>
+          <p>
+            • FDA Guidance (2005) "Estimating the Maximum Safe Starting Dose in
+            Initial Clinical Trials"
+          </p>
         </AlertDescription>
       </Alert>
     </div>

@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React from 'react';
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   setShowDilution,
   dilutionFactor,
   handleDilutionChange,
-  isDarkMode
+  isDarkMode,
 }) => {
   if (!calculationSteps) return null;
 
@@ -53,7 +53,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 onCheckedChange={setShowDilution}
                 className={cn(
                   "bg-primary",
-                  isDarkMode && "data-[state=unchecked]:bg-slate-700"
+                  isDarkMode && "data-[state=unchecked]:bg-slate-700",
                 )}
               />
               <Label htmlFor="dilution">Show Dilution</Label>
@@ -102,16 +102,15 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             </div>
             <div>
               <Label>Base Dose</Label>
-              <div className="text-2xl font-bold">
-                {baseDose} mg
-              </div>
+              <div className="text-2xl font-bold">{baseDose} mg</div>
               <Label className="mt-4">Calculated Dose</Label>
               <div className="text-2xl font-bold text-orange-500">
                 {calculationSteps.calculatedDose.toFixed(4)} mg
               </div>
               {showDilution && Number(dilutionFactor) !== 1 && (
                 <div className="text-2xl font-bold text-orange-500">
-                  Final with dilution: {calculationSteps.finalDose.toFixed(4)} mg
+                  Final with dilution: {calculationSteps.finalDose.toFixed(4)}{" "}
+                  mg
                 </div>
               )}
             </div>
@@ -127,15 +126,21 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         <CardContent>
           <div className="p-2 mb-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
             <div className="flex items-start gap-2">
-              <IconAlertCircle className="h-4 w-4 text-orange-600 mt-0.5" stroke={1.5} />
+              <IconAlertCircle
+                className="h-4 w-4 text-orange-600 mt-0.5"
+                stroke={1.5}
+              />
               <p className="text-xs text-orange-700 dark:text-orange-300">
-                Values use species averages with ±30% typical variation. Individual animals may differ significantly.
+                Values use species averages with ±30% typical variation.
+                Individual animals may differ significantly.
               </p>
             </div>
           </div>
           <div className="text-sm space-y-1">
             {calculationSteps.steps.map((step: string, index: number) => (
-              <p key={index} className="ml-2 font-mono text-xs">{step}</p>
+              <p key={index} className="ml-2 font-mono text-xs">
+                {step}
+              </p>
             ))}
             {showDilution && Number(dilutionFactor) !== 1 && (
               <p className="ml-2 font-mono text-xs">

@@ -15,7 +15,8 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "DoseFinder",
-  description: "A simple tool for calculating and scaling drug doses across different species",
+  description:
+    "A simple tool for calculating and scaling drug doses across different species",
 };
 
 export default function RootLayout({

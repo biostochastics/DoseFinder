@@ -10,10 +10,10 @@ import {
   CalculationResult,
   COCKCROFT_CONSTANTS,
   GFR_THRESHOLDS,
-  PatientSex
-} from './types';
-import { SPECIES_DATABASE } from './species';
-import { validateCalculationInputs } from './validators';
+  PatientSex,
+} from "./types";
+import { SPECIES_DATABASE } from "./species";
+import { validateCalculationInputs } from "./validators";
 
 /**
  * Calculate Cockcroft-Gault GFR for kidney function assessment
@@ -22,24 +22,26 @@ export function calculateCockcroftGFR(
   weightKg: number,
   age: number,
   creatinine: number,
-  sex: PatientSex
+  sex: PatientSex,
 ): number {
   try {
     if (weightKg <= 0 || age <= 0 || creatinine <= 0) {
       return 0;
     }
 
-    const { ageFactor, creatinineMultiplier, femaleAdjustment } = COCKCROFT_CONSTANTS;
+    const { ageFactor, creatinineMultiplier, femaleAdjustment } =
+      COCKCROFT_CONSTANTS;
 
-    let gfr = ((ageFactor - age) * weightKg) / (creatinineMultiplier * creatinine);
+    let gfr =
+      ((ageFactor - age) * weightKg) / (creatinineMultiplier * creatinine);
 
-    if (sex === 'female') {
+    if (sex === "female") {
       gfr *= femaleAdjustment;
     }
 
     return Math.max(0, gfr);
   } catch (error) {
-    console.error('Error calculating GFR:', error);
+    console.error("Error calculating GFR:", error);
     return 0;
   }
 }
@@ -61,7 +63,7 @@ export function gfrToDoseAdjustment(gfr: number): number {
 function calculateAllometricScaling(
   weightRatio: number,
   exponent: number,
-  molecularWeight?: number
+  molecularWeight?: number,
 ): { factor: number; description: string } {
   let scalingFactor = exponent;
   let description = `Allometric scaling (${exponent})`;
@@ -87,17 +89,18 @@ function calculateAllometricScaling(
 function calculateBrainWeightScaling(
   sourceSpecies: Species,
   targetSpecies: Species,
-  weightRatio: number
+  weightRatio: number,
 ): { factor: number; description: string } {
   const sourceBrain = sourceSpecies.brainWeight;
   const targetBrain = targetSpecies.brainWeight;
 
   if (sourceBrain <= 0 || targetBrain <= 0) {
-    throw new Error('Invalid brain weights');
+    throw new Error("Invalid brain weights");
   }
 
-  const factor = (2 / 3) * Math.log(targetBrain / sourceBrain) / Math.log(weightRatio);
-  return { factor, description: 'Brain weight scaling' };
+  const factor =
+    ((2 / 3) * Math.log(targetBrain / sourceBrain)) / Math.log(weightRatio);
+  return { factor, description: "Brain weight scaling" };
 }
 
 /**
@@ -106,17 +109,17 @@ function calculateBrainWeightScaling(
 function calculateLifeSpanScaling(
   sourceSpecies: Species,
   targetSpecies: Species,
-  weightRatio: number
+  weightRatio: number,
 ): { factor: number; description: string } {
   const sourceLife = sourceSpecies.lifeSpan;
   const targetLife = targetSpecies.lifeSpan;
 
   if (sourceLife <= 0 || targetLife <= 0) {
-    throw new Error('Invalid life spans');
+    throw new Error("Invalid life spans");
   }
 
   const factor = Math.log(targetLife / sourceLife) / Math.log(weightRatio);
-  return { factor, description: 'Life-span scaling' };
+  return { factor, description: "Life-span scaling" };
 }
 
 /**
@@ -125,7 +128,7 @@ function calculateLifeSpanScaling(
 function calculateHepaticFlowScaling(
   sourceSpecies: Species,
   targetSpecies: Species,
-  weightRatio: number
+  weightRatio: number,
 ): { factor: number; description: string } {
   const sourceFlow = sourceSpecies.hepaticFlow;
   const targetFlow = targetSpecies.hepaticFlow;
@@ -133,11 +136,13 @@ function calculateHepaticFlowScaling(
   const targetHepRatio = targetSpecies.hepaticClearance / targetFlow;
 
   if (sourceFlow <= 0 || targetFlow <= 0) {
-    throw new Error('Invalid hepatic flow values');
+    throw new Error("Invalid hepatic flow values");
   }
 
-  const factor = Math.log((targetFlow * targetHepRatio) / (sourceFlow * sourceHepRatio)) / Math.log(weightRatio);
-  return { factor, description: 'Hepatic blood flow scaling' };
+  const factor =
+    Math.log((targetFlow * targetHepRatio) / (sourceFlow * sourceHepRatio)) /
+    Math.log(weightRatio);
+  return { factor, description: "Hepatic blood flow scaling" };
 }
 
 /**
@@ -146,19 +151,19 @@ function calculateHepaticFlowScaling(
 function calculateBSAScaling(
   sourceSpecies: Species,
   targetSpecies: Species,
-  baseDose: number
+  baseDose: number,
 ): { dose: number; description: string; step: string } {
   const sourceBSA = sourceSpecies.bsa;
   const targetBSA = targetSpecies.bsa;
 
   if (sourceBSA <= 0 || targetBSA <= 0) {
-    throw new Error('Invalid BSA values');
+    throw new Error("Invalid BSA values");
   }
 
   const dose = baseDose * (targetBSA / sourceBSA);
   const step = `BSA scaling: ${baseDose} mg × (${targetBSA.toFixed(3)} / ${sourceBSA.toFixed(3)}) = ${dose.toFixed(4)} mg`;
 
-  return { dose, description: 'BSA-based scaling', step };
+  return { dose, description: "BSA-based scaling", step };
 }
 
 /**
@@ -171,19 +176,25 @@ export function calculateDose(
   method: ScalingMethod,
   sourceAnimalKey: string,
   targetAnimalKey: string,
-  params: Partial<CalculationParameters> = {}
+  params: Partial<CalculationParameters> = {},
 ): CalculationResult {
   // Validate inputs
-  const validation = validateCalculationInputs(baseWeight, targetWeight, baseDose, method, params);
+  const validation = validateCalculationInputs(
+    baseWeight,
+    targetWeight,
+    baseDose,
+    method,
+    params,
+  );
 
   if (!validation.isValid) {
     return {
       dose: 0,
       scalingFactor: 0,
-      methodDescription: 'Invalid inputs',
+      methodDescription: "Invalid inputs",
       steps: validation.errors,
       warnings: validation.warnings,
-      error: validation.errors.join('; ')
+      error: validation.errors.join("; "),
     };
   }
 
@@ -195,58 +206,80 @@ export function calculateDose(
     return {
       dose: 0,
       scalingFactor: 0,
-      methodDescription: 'Invalid species',
-      steps: ['Error: Species data not found'],
-      error: 'Invalid species selection'
+      methodDescription: "Invalid species",
+      steps: ["Error: Species data not found"],
+      error: "Invalid species selection",
     };
   }
 
   try {
     const weightRatio = targetWeight / baseWeight;
     let scalingFactor = 0;
-    let methodDescription = '';
+    let methodDescription = "";
     let dose = 0;
     const steps: string[] = [];
     const warnings = validation.warnings;
 
     // Prevent division by zero in logarithmic calculations
-    if (Math.abs(weightRatio - 1) < 0.0001 && method !== 'allometric' && method !== 'bsa') {
-      warnings.push('Source and target weights are nearly equal. Some scaling methods may be inaccurate');
+    if (
+      Math.abs(weightRatio - 1) < 0.0001 &&
+      method !== "allometric" &&
+      method !== "bsa"
+    ) {
+      warnings.push(
+        "Source and target weights are nearly equal. Some scaling methods may be inaccurate",
+      );
     }
 
     // Calculate base scaling
-    if (method === 'bsa') {
-      const bsaResult = calculateBSAScaling(sourceSpecies, targetSpecies, baseDose);
+    if (method === "bsa") {
+      const bsaResult = calculateBSAScaling(
+        sourceSpecies,
+        targetSpecies,
+        baseDose,
+      );
       dose = bsaResult.dose;
       methodDescription = bsaResult.description;
       steps.push(bsaResult.step);
     } else {
       // Calculate scaling factor based on method
       switch (method) {
-        case 'allometric': {
+        case "allometric": {
           const result = calculateAllometricScaling(
             weightRatio,
             params.scalingExponent || 0.75,
-            params.molecularWeight
+            params.molecularWeight,
           );
           scalingFactor = result.factor;
           methodDescription = result.description;
           break;
         }
-        case 'brainWeight': {
-          const result = calculateBrainWeightScaling(sourceSpecies, targetSpecies, weightRatio);
+        case "brainWeight": {
+          const result = calculateBrainWeightScaling(
+            sourceSpecies,
+            targetSpecies,
+            weightRatio,
+          );
           scalingFactor = result.factor;
           methodDescription = result.description;
           break;
         }
-        case 'lifeSpan': {
-          const result = calculateLifeSpanScaling(sourceSpecies, targetSpecies, weightRatio);
+        case "lifeSpan": {
+          const result = calculateLifeSpanScaling(
+            sourceSpecies,
+            targetSpecies,
+            weightRatio,
+          );
           scalingFactor = result.factor;
           methodDescription = result.description;
           break;
         }
-        case 'hepaticFlow': {
-          const result = calculateHepaticFlowScaling(sourceSpecies, targetSpecies, weightRatio);
+        case "hepaticFlow": {
+          const result = calculateHepaticFlowScaling(
+            sourceSpecies,
+            targetSpecies,
+            weightRatio,
+          );
           scalingFactor = result.factor;
           methodDescription = result.description;
           break;
@@ -255,27 +288,31 @@ export function calculateDose(
 
       // Apply scaling factor
       dose = baseDose * Math.pow(weightRatio, scalingFactor);
-      steps.push(`Base scaling: ${baseDose} mg × (${weightRatio.toFixed(4)}^${scalingFactor.toFixed(4)}) = ${dose.toFixed(4)} mg`);
+      steps.push(
+        `Base scaling: ${baseDose} mg × (${weightRatio.toFixed(4)}^${scalingFactor.toFixed(4)}) = ${dose.toFixed(4)} mg`,
+      );
     }
 
     // Apply protein binding adjustment
     if (params.proteinBinding && params.proteinBinding > 0) {
       const proteinBindingFactor = (100 - params.proteinBinding) / 100;
       dose *= proteinBindingFactor;
-      steps.push(`Protein binding (${params.proteinBinding}%): × ${proteinBindingFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
+      steps.push(
+        `Protein binding (${params.proteinBinding}%): × ${proteinBindingFactor.toFixed(4)} = ${dose.toFixed(4)} mg`,
+      );
     }
 
     // Apply bioavailability adjustment
     let actualBioavailability = params.bioavailability || 100;
     if (params.bioavailabilityMethod) {
       switch (params.bioavailabilityMethod) {
-        case 'iv':
+        case "iv":
           actualBioavailability = 100;
           break;
-        case 'oral':
+        case "oral":
           actualBioavailability = 50;
           break;
-        case 'other':
+        case "other":
           actualBioavailability = 75;
           break;
       }
@@ -284,16 +321,24 @@ export function calculateDose(
     if (actualBioavailability < 100) {
       const bioavailabilityFactor = actualBioavailability / 100;
       dose /= bioavailabilityFactor;
-      steps.push(`Bioavailability (${actualBioavailability}%): ÷ ${bioavailabilityFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
+      steps.push(
+        `Bioavailability (${actualBioavailability}%): ÷ ${bioavailabilityFactor.toFixed(4)} = ${dose.toFixed(4)} mg`,
+      );
     }
 
     // Apply kidney function adjustment
-    if (params.kidneyFunctionMethod === 'manual' && params.kidneyFunction !== undefined) {
-      const kidneyFactor = Math.max(0, Math.min(100, params.kidneyFunction)) / 100;
+    if (
+      params.kidneyFunctionMethod === "manual" &&
+      params.kidneyFunction !== undefined
+    ) {
+      const kidneyFactor =
+        Math.max(0, Math.min(100, params.kidneyFunction)) / 100;
       dose *= kidneyFactor;
-      steps.push(`Manual kidney function: × ${kidneyFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
+      steps.push(
+        `Manual kidney function: × ${kidneyFactor.toFixed(4)} = ${dose.toFixed(4)} mg`,
+      );
     } else if (
-      params.kidneyFunctionMethod === 'cockcroft' &&
+      params.kidneyFunctionMethod === "cockcroft" &&
       params.patientAge &&
       params.patientCreatinine &&
       params.patientSex
@@ -302,15 +347,17 @@ export function calculateDose(
         targetWeight,
         params.patientAge,
         params.patientCreatinine,
-        params.patientSex
+        params.patientSex,
       );
 
       if (gfr > 0) {
         const fraction = gfrToDoseAdjustment(gfr);
         dose *= fraction;
-        steps.push(`Cockcroft-Gault GFR (${gfr.toFixed(1)} mL/min): × ${fraction.toFixed(2)} = ${dose.toFixed(4)} mg`);
+        steps.push(
+          `Cockcroft-Gault GFR (${gfr.toFixed(1)} mL/min): × ${fraction.toFixed(2)} = ${dose.toFixed(4)} mg`,
+        );
       } else {
-        warnings.push('Invalid GFR calculation inputs');
+        warnings.push("Invalid GFR calculation inputs");
       }
     }
 
@@ -318,14 +365,18 @@ export function calculateDose(
     if (params.volumeDistribution && params.volumeDistribution > 0) {
       const volumeFactor = params.volumeDistribution / targetSpecies.weight;
       dose *= volumeFactor;
-      steps.push(`Volume distribution (${params.volumeDistribution} L/kg): × ${volumeFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
+      steps.push(
+        `Volume distribution (${params.volumeDistribution} L/kg): × ${volumeFactor.toFixed(4)} = ${dose.toFixed(4)} mg`,
+      );
     }
 
     // Apply lipophilicity adjustment
     if (params.logP && params.logP !== 0) {
-      const lipophilicityFactor = 1 + (Math.abs(params.logP) * 0.1);
+      const lipophilicityFactor = 1 + Math.abs(params.logP) * 0.1;
       dose *= lipophilicityFactor;
-      steps.push(`Lipophilicity (LogP ${params.logP}): × ${lipophilicityFactor.toFixed(4)} = ${dose.toFixed(4)} mg`);
+      steps.push(
+        `Lipophilicity (LogP ${params.logP}): × ${lipophilicityFactor.toFixed(4)} = ${dose.toFixed(4)} mg`,
+      );
     }
 
     // Final dose validation
@@ -334,9 +385,9 @@ export function calculateDose(
         dose: 0,
         scalingFactor,
         methodDescription,
-        steps: ['Error: Calculation resulted in invalid number'],
+        steps: ["Error: Calculation resulted in invalid number"],
         warnings,
-        error: 'Mathematical error in calculation'
+        error: "Mathematical error in calculation",
       };
     }
 
@@ -345,18 +396,20 @@ export function calculateDose(
       scalingFactor,
       methodDescription,
       steps,
-      warnings: warnings.length > 0 ? warnings : undefined
+      warnings: warnings.length > 0 ? warnings : undefined,
     };
-
   } catch (error) {
-    console.error('Calculation error:', error);
+    console.error("Calculation error:", error);
     return {
       dose: 0,
       scalingFactor: 0,
-      methodDescription: 'Calculation error',
-      steps: ['Error: ' + (error instanceof Error ? error.message : 'Unknown error')],
+      methodDescription: "Calculation error",
+      steps: [
+        "Error: " + (error instanceof Error ? error.message : "Unknown error"),
+      ],
       warnings: validation.warnings,
-      error: error instanceof Error ? error.message : 'Unknown calculation error'
+      error:
+        error instanceof Error ? error.message : "Unknown calculation error",
     };
   }
 }
@@ -370,7 +423,7 @@ export function generateChartData(
   method: ScalingMethod,
   sourceAnimalKey: string,
   params: Partial<CalculationParameters> = {},
-  numPoints: number = 50
+  numPoints: number = 50,
 ): any[] {
   const points: any[] = [];
   const minWeight = 0.01;
@@ -385,7 +438,7 @@ export function generateChartData(
       method,
       sourceAnimalKey,
       key,
-      params
+      params,
     );
 
     if (result.dose > 0 && isFinite(result.dose)) {
@@ -394,7 +447,7 @@ export function generateChartData(
         weight: species.weight,
         dose: result.dose,
         isAnimal: true,
-        label: species.name
+        label: species.name,
       });
     }
   }
@@ -407,15 +460,20 @@ export function generateChartData(
     const weight = Math.pow(10, logWeight);
 
     // Skip if too close to an actual animal point
-    const tooClose = points.some(p =>
-      Math.abs(p.weight - weight) < (weight * 0.01)
+    const tooClose = points.some(
+      (p) => Math.abs(p.weight - weight) < weight * 0.01,
     );
 
     if (!tooClose) {
       // Find closest animal for calculation
-      const closestAnimal = Object.entries(SPECIES_DATABASE).reduce((prev, curr) => {
-        return Math.abs(curr[1].weight - weight) < Math.abs(prev[1].weight - weight) ? curr : prev;
-      })[0];
+      const closestAnimal = Object.entries(SPECIES_DATABASE).reduce(
+        (prev, curr) => {
+          return Math.abs(curr[1].weight - weight) <
+            Math.abs(prev[1].weight - weight)
+            ? curr
+            : prev;
+        },
+      )[0];
 
       const result = calculateDose(
         baseWeight,
@@ -424,7 +482,7 @@ export function generateChartData(
         method,
         sourceAnimalKey,
         closestAnimal,
-        params
+        params,
       );
 
       if (result.dose > 0 && isFinite(result.dose)) {
@@ -433,7 +491,7 @@ export function generateChartData(
           weight,
           dose: result.dose,
           isAnimal: false,
-          label: ''
+          label: "",
         });
       }
     }

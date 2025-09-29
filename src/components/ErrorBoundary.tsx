@@ -1,9 +1,15 @@
-'use client';
+"use client";
 
-import React, { Component, ReactNode, ErrorInfo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import React, { Component, ReactNode, ErrorInfo } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
 
 interface Props {
   children: ReactNode;
@@ -22,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
     this.state = {
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     };
   }
 
@@ -30,19 +36,22 @@ export class ErrorBoundary extends Component<Props, State> {
     return {
       hasError: true,
       error,
-      errorInfo: null
+      errorInfo: null,
     };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
+    console.error("Error caught by boundary:", error, errorInfo);
     this.setState({
       error,
-      errorInfo
+      errorInfo,
     });
 
     // Log to external error tracking service in production
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+    if (
+      typeof window !== "undefined" &&
+      process.env.NODE_ENV === "production"
+    ) {
       // Example: Send to error tracking service
       // logErrorToService(error, errorInfo);
     }
@@ -52,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({
       hasError: false,
       error: null,
-      errorInfo: null
+      errorInfo: null,
     });
   };
 
@@ -75,7 +84,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {process.env.NODE_ENV === "development" && this.state.error && (
                 <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-md">
                   <p className="text-sm font-mono text-red-600 dark:text-red-400">
                     {this.state.error.toString()}
@@ -117,7 +126,7 @@ export class ErrorBoundary extends Component<Props, State> {
 // Hook for functional components
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
-  fallback?: ReactNode
+  fallback?: ReactNode,
 ) {
   return function WithErrorBoundaryComponent(props: P) {
     return (

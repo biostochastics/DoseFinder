@@ -3,32 +3,19 @@
  */
 
 export type ScalingMethod =
-  | 'allometric'
-  | 'brainWeight'
-  | 'lifeSpan'
-  | 'hepaticFlow'
-  | 'bsa';
+  | "allometric"
+  | "brainWeight"
+  | "lifeSpan"
+  | "hepaticFlow"
+  | "bsa";
 
-export type DoseUnit =
-  | 'mg'
-  | 'mg/kg'
-  | 'mcg'
-  | 'mcg/kg';
+export type DoseUnit = "mg" | "mg/kg" | "mcg" | "mcg/kg";
 
-export type BioavailabilityMethod =
-  | 'manual'
-  | 'iv'
-  | 'oral'
-  | 'other';
+export type BioavailabilityMethod = "manual" | "iv" | "oral" | "other";
 
-export type KidneyFunctionMethod =
-  | 'none'
-  | 'manual'
-  | 'cockcroft';
+export type KidneyFunctionMethod = "none" | "manual" | "cockcroft";
 
-export type PatientSex =
-  | 'male'
-  | 'female';
+export type PatientSex = "male" | "female";
 
 export interface Animal {
   name: string;
@@ -112,7 +99,7 @@ export const VALIDATION_LIMITS = {
   kidneyFunction: { min: 0, max: 100 }, // percentage
   molecularWeight: { min: 0, max: 100000 }, // g/mol
   logP: { min: -10, max: 10 }, // partition coefficient
-  scalingExponent: { min: 0, max: 2 } // dimensionless
+  scalingExponent: { min: 0, max: 2 }, // dimensionless
 } as const;
 
 // GFR thresholds for kidney function adjustment
@@ -120,12 +107,12 @@ export const GFR_THRESHOLDS = {
   normal: 60,
   mild: 30,
   moderate: 15,
-  severe: 0
+  severe: 0,
 } as const;
 
 // Cockcroft-Gault formula constants
 export const COCKCROFT_CONSTANTS = {
   ageFactor: 140,
   creatinineMultiplier: 72,
-  femaleAdjustment: 0.85
+  femaleAdjustment: 0.85,
 } as const;
