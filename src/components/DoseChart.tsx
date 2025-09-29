@@ -27,6 +27,9 @@ export const DoseChart: React.FC<DoseChartProps> = ({
   scalingMethod,
   isDarkMode,
 }) => {
+  const accentColor = isDarkMode ? "#f4a259" : "#b45309";
+  const secondaryLineColor = isDarkMode ? "#a1a1aa" : "#4b5563";
+
   return (
     <Card className="min-h-[700px] mb-6">
       <CardHeader>
@@ -111,7 +114,7 @@ export const DoseChart: React.FC<DoseChartProps> = ({
             />
             <Line
               dataKey="dose"
-              stroke="#f97316"
+              stroke={accentColor}
               strokeWidth={2}
               name={`${scalingMethod.charAt(0).toUpperCase() + scalingMethod.slice(1)} Scaling`}
               dot={(props: any): React.ReactElement<SVGElement> => {
@@ -122,7 +125,7 @@ export const DoseChart: React.FC<DoseChartProps> = ({
                     cx={cx}
                     cy={cy}
                     r={payload.isAnimal ? 4 : 0}
-                    fill="#f97316"
+                    fill={accentColor}
                     stroke="#fff"
                     strokeWidth={payload.isSource ? 2 : 0}
                   />
@@ -132,7 +135,7 @@ export const DoseChart: React.FC<DoseChartProps> = ({
             {chartData.some((d) => d.dilutedDose) && (
               <Line
                 dataKey="dilutedDose"
-                stroke="#3b82f6"
+                stroke={secondaryLineColor}
                 strokeWidth={2}
                 name="Diluted Dose"
                 strokeDasharray="5 5"
@@ -144,7 +147,7 @@ export const DoseChart: React.FC<DoseChartProps> = ({
                       cx={cx}
                       cy={cy}
                       r={payload.isAnimal ? 4 : 0}
-                      fill="#3b82f6"
+                      fill={secondaryLineColor}
                       stroke="#fff"
                       strokeWidth={payload.isSource ? 2 : 0}
                     />

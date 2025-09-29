@@ -97,15 +97,15 @@ export default function Home() {
   const getGradientClass = (tab: string) => {
     switch (tab) {
       case "calculator":
-        return "from-blue-500/10 via-purple-500/10 to-pink-500/10";
+        return "from-primary/20 via-muted/40 to-accent/15";
       case "advanced":
-        return "from-green-500/10 via-emerald-500/10 to-teal-500/10";
+        return "from-primary/25 via-secondary/50 to-muted/40";
       case "studyplanner":
-        return "from-amber-500/10 via-orange-500/10 to-red-500/10";
+        return "from-muted/50 via-accent/20 to-secondary/50";
       case "limitations":
-        return "from-violet-500/10 via-purple-500/10 to-fuchsia-500/10";
+        return "from-primary/20 via-muted/35 to-secondary/50";
       case "documentation":
-        return "from-cyan-500/10 via-sky-500/10 to-blue-500/10";
+        return "from-primary/20 via-muted/40 to-accent/12";
       default:
         return "from-gray-500/10 to-gray-600/10";
     }

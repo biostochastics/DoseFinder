@@ -21,7 +21,7 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">Most Common</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <p className="font-mono bg-slate-100 dark:bg-slate-800 p-2 rounded">
+                <p className="font-mono bg-muted/60 dark:bg-muted/30 p-2 rounded">
                   Dose_target = Dose_source × (Weight_target / Weight_source)^b
                 </p>
                 <p>where b is the allometric exponent (typically 0.75)</p>
@@ -33,7 +33,7 @@ export function FormulaDocumentation() {
                   <strong>Best for:</strong> Drugs cleared by metabolism, when
                   pharmacokinetics scale with metabolic rate
                 </p>
-                <p className="text-blue-600 dark:text-blue-400">
+                <p className="text-accent font-medium">
                   <strong>Reference:</strong> West GB, Brown JH (2005) "The
                   origin of allometric scaling laws in biology" J Exp Biol
                   208:1575-92
@@ -47,7 +47,7 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">CNS Drugs</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <p className="font-mono bg-slate-100 dark:bg-slate-800 p-2 rounded">
+                <p className="font-mono bg-muted/60 dark:bg-muted/30 p-2 rounded">
                   b = (2/3) × ln(Brain_target / Brain_source) / ln(Weight_target
                   / Weight_source)
                 </p>
@@ -63,11 +63,11 @@ export function FormulaDocumentation() {
                   <strong>Best for:</strong> CNS-active drugs, psychotropics,
                   anesthetics
                 </p>
-                <p className="text-orange-600 dark:text-orange-400">
+                <p className="text-warning font-medium">
                   <strong>Note:</strong> The 2/3 coefficient is empirical and
                   may vary by drug class
                 </p>
-                <p className="text-blue-600 dark:text-blue-400">
+                <p className="text-accent font-medium">
                   <strong>Reference:</strong> Mahmood I, Balian JD (1996)
                   "Interspecies scaling: predicting clearance of anticancer
                   drugs" Br J Clin Pharmacol 41:163-75
@@ -81,7 +81,7 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">Theoretical</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <p className="font-mono bg-slate-100 dark:bg-slate-800 p-2 rounded">
+                <p className="font-mono bg-muted/60 dark:bg-muted/30 p-2 rounded">
                   b = ln(LifeSpan_target / LifeSpan_source) / ln(Weight_target /
                   Weight_source)
                 </p>
@@ -97,11 +97,11 @@ export function FormulaDocumentation() {
                   <strong>Best for:</strong> Chronic toxicity studies,
                   gerontological research
                 </p>
-                <p className="text-orange-600 dark:text-orange-400">
+                <p className="text-warning font-medium">
                   <strong>Limitation:</strong> Assumes similar aging mechanisms
                   across species
                 </p>
-                <p className="text-blue-600 dark:text-blue-400">
+                <p className="text-accent font-medium">
                   <strong>Reference:</strong> Boxenbaum H (1982) "Interspecies
                   scaling, allometry, physiological time, and the ground plan of
                   pharmacokinetics" J Pharmacokinet Biopharm 10:201-27
@@ -115,7 +115,7 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">High-Extraction Drugs</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <p className="font-mono bg-slate-100 dark:bg-slate-800 p-2 rounded">
+                <p className="font-mono bg-muted/60 dark:bg-muted/30 p-2 rounded">
                   b = ln[(Q_h × CL_h/Q_h)_target / (Q_h × CL_h/Q_h)_source] /
                   ln(W_ratio)
                 </p>
@@ -128,10 +128,10 @@ export function FormulaDocumentation() {
                   <strong>Best for:</strong> Drugs with hepatic extraction ratio
                   &gt; 0.7
                 </p>
-                <p className="text-orange-600 dark:text-orange-400">
+                <p className="text-warning font-medium">
                   <strong>Important:</strong> Only valid for flow-limited drugs
                 </p>
-                <p className="text-blue-600 dark:text-blue-400">
+                <p className="text-accent font-medium">
                   <strong>Reference:</strong> Ward KW, Smith BR (2004) "A
                   comprehensive quantitative and qualitative evaluation of
                   extrapolation of intravenous pharmacokinetic parameters" Drug
@@ -146,7 +146,7 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">Oncology Standard</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <p className="font-mono bg-slate-100 dark:bg-slate-800 p-2 rounded">
+                <p className="font-mono bg-muted/60 dark:bg-muted/30 p-2 rounded">
                   Dose_target = Dose_source × (BSA_target / BSA_source)
                 </p>
                 <p>BSA (m²) ≈ 0.007184 × Weight(kg)^0.425 × Height(cm)^0.725</p>
@@ -158,11 +158,11 @@ export function FormulaDocumentation() {
                   <strong>Best for:</strong> Chemotherapy agents, traditional in
                   oncology
                 </p>
-                <p className="text-orange-600 dark:text-orange-400">
+                <p className="text-warning font-medium">
                   <strong>Criticism:</strong> May not be optimal for all drug
                   types
                 </p>
-                <p className="text-blue-600 dark:text-blue-400">
+                <p className="text-accent font-medium">
                   <strong>Reference:</strong> Reagan-Shaw S et al. (2008) "Dose
                   translation from animal to human studies revisited" FASEB J
                   22:659-61
@@ -171,9 +171,9 @@ export function FormulaDocumentation() {
             </div>
           </div>
 
-          <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+          <div className="p-3 bg-secondary/70 dark:bg-secondary/30 rounded-lg">
             <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 mt-0.5 text-blue-600" />
+              <Info className="h-4 w-4 mt-0.5 text-accent" />
               <div className="space-y-2 text-sm">
                 <p className="font-semibold">
                   Key Considerations for Method Selection:
