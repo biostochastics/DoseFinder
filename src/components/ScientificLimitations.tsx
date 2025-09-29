@@ -7,8 +7,8 @@ import { Info, AlertTriangle } from "lucide-react";
 export function ScientificLimitations() {
   return (
     <div className="space-y-4">
-      <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-900/20">
-        <AlertTriangle className="h-4 w-4 text-orange-600" />
+      <Alert className="border-warning/40 bg-warning/10 dark:bg-warning/20">
+        <AlertTriangle className="h-4 w-4 text-warning" />
         <AlertTitle>Important Scientific Limitations</AlertTitle>
         <AlertDescription className="space-y-2 mt-2">
           <p>
@@ -99,7 +99,7 @@ export function ScientificLimitations() {
             </ul>
           </div>
 
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+          <div className="p-3 bg-secondary/70 dark:bg-secondary/30 rounded-lg">
             <p className="text-sm font-medium">Recommended Use:</p>
             <p className="text-sm mt-1">
               Use results as initial estimates only. Always validate with:
