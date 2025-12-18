@@ -1,7 +1,28 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Info, BookOpen } from "lucide-react";
+import { Info, BookOpen, ExternalLink } from "lucide-react";
+
+// Standardized reference link component for consistency
+function ReferenceLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-primary hover:underline inline-flex items-center gap-0.5"
+    >
+      {children}
+      <ExternalLink className="h-3 w-3 flex-shrink-0" />
+    </a>
+  );
+}
 
 export function FormulaDocumentation() {
   return (
@@ -33,10 +54,12 @@ export function FormulaDocumentation() {
                   <strong>Best for:</strong> Drugs cleared by metabolism, when
                   pharmacokinetics scale with metabolic rate
                 </p>
-                <p className="text-accent font-medium">
-                  <strong>Reference:</strong> West GB, Brown JH (2005) "The
-                  origin of allometric scaling laws in biology" J Exp Biol
-                  208:1575-92
+                <p className="text-muted-foreground text-xs">
+                  <strong>Ref:</strong> West GB, Brown JH. (2005).{" "}
+                  <em>J Exp Biol.</em> 208:1575-1592.{" "}
+                  <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/15855389/">
+                    PMID: 15855389
+                  </ReferenceLink>
                 </p>
               </div>
             </div>
@@ -67,10 +90,12 @@ export function FormulaDocumentation() {
                   <strong>Note:</strong> The 2/3 coefficient is empirical and
                   may vary by drug class
                 </p>
-                <p className="text-accent font-medium">
-                  <strong>Reference:</strong> Mahmood I, Balian JD (1996)
-                  "Interspecies scaling: predicting clearance of anticancer
-                  drugs" Br J Clin Pharmacol 41:163-75
+                <p className="text-muted-foreground text-xs">
+                  <strong>Ref:</strong> Mahmood I, Balian JD. (1996).{" "}
+                  <em>Br J Clin Pharmacol.</em> 41:163-175.{" "}
+                  <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/8866916/">
+                    PMID: 8866916
+                  </ReferenceLink>
                 </p>
               </div>
             </div>
@@ -101,10 +126,12 @@ export function FormulaDocumentation() {
                   <strong>Limitation:</strong> Assumes similar aging mechanisms
                   across species
                 </p>
-                <p className="text-accent font-medium">
-                  <strong>Reference:</strong> Boxenbaum H (1982) "Interspecies
-                  scaling, allometry, physiological time, and the ground plan of
-                  pharmacokinetics" J Pharmacokinet Biopharm 10:201-27
+                <p className="text-muted-foreground text-xs">
+                  <strong>Ref:</strong> Boxenbaum H. (1982).{" "}
+                  <em>J Pharmacokinet Biopharm.</em> 10:201-227.{" "}
+                  <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/7120049/">
+                    PMID: 7120049
+                  </ReferenceLink>
                 </p>
               </div>
             </div>
@@ -131,11 +158,12 @@ export function FormulaDocumentation() {
                 <p className="text-warning font-medium">
                   <strong>Important:</strong> Only valid for flow-limited drugs
                 </p>
-                <p className="text-accent font-medium">
-                  <strong>Reference:</strong> Ward KW, Smith BR (2004) "A
-                  comprehensive quantitative and qualitative evaluation of
-                  extrapolation of intravenous pharmacokinetic parameters" Drug
-                  Metab Dispos 32:603-11
+                <p className="text-muted-foreground text-xs">
+                  <strong>Ref:</strong> Ward KW, Smith BR. (2004).{" "}
+                  <em>Drug Metab Dispos.</em> 32:603-611.{" "}
+                  <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/15155551/">
+                    PMID: 15155551
+                  </ReferenceLink>
                 </p>
               </div>
             </div>
@@ -162,10 +190,12 @@ export function FormulaDocumentation() {
                   <strong>Criticism:</strong> May not be optimal for all drug
                   types
                 </p>
-                <p className="text-accent font-medium">
-                  <strong>Reference:</strong> Reagan-Shaw S et al. (2008) "Dose
-                  translation from animal to human studies revisited" FASEB J
-                  22:659-61
+                <p className="text-muted-foreground text-xs">
+                  <strong>Ref:</strong> Reagan-Shaw S, et al. (2008).{" "}
+                  <em>FASEB J.</em> 22:659-661.{" "}
+                  <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/17942826/">
+                    PMID: 17942826
+                  </ReferenceLink>
                 </p>
               </div>
             </div>
@@ -204,12 +234,17 @@ export function FormulaDocumentation() {
           </div>
 
           <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <p className="text-sm font-semibold mb-2">FDA Guidance (2005):</p>
+            <p className="text-sm font-semibold mb-2">
+              FDA Guidance (2005):{" "}
+              <ReferenceLink href="https://www.fda.gov/media/72309/download">
+                View Document
+              </ReferenceLink>
+            </p>
             <p className="text-sm">
-              "Estimating the Maximum Safe Starting Dose in Initial Clinical
-              Trials for Therapeutics in Adult Healthy Volunteers" recommends
-              using allometric scaling with appropriate safety factors. The HED
-              (Human Equivalent Dose) is calculated as:
+              &quot;Estimating the Maximum Safe Starting Dose in Initial
+              Clinical Trials for Therapeutics in Adult Healthy Volunteers&quot;
+              recommends using allometric scaling with appropriate safety
+              factors. The HED (Human Equivalent Dose) is calculated as:
             </p>
             <p className="font-mono text-sm mt-2 bg-white dark:bg-slate-800 p-2 rounded">
               HED = Animal dose × (Animal weight / Human weight)^(1-b)

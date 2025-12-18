@@ -49,7 +49,7 @@ test.describe("Application Load", () => {
     // Footer should be visible
     const footer = page.locator("footer");
     await expect(footer).toBeVisible();
-    await expect(footer.getByText("DoseFinder")).toBeVisible();
+    await expect(footer.getByText("Biostochastics")).toBeVisible();
     await expect(footer.getByText("For research use only")).toBeVisible();
   });
 });

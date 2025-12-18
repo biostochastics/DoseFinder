@@ -13,7 +13,23 @@ import {
   BioavailabilityMethod,
   KidneyFunctionMethod,
   CreatinineUnit,
+  BIOAVAILABILITY_DEFAULTS,
 } from "@/lib/pharmacology/types";
+
+/**
+ * Helper function to get bioavailability value for a given method
+ * Uses literature-based defaults from BIOAVAILABILITY_DEFAULTS
+ */
+function getBioavailabilityForMethod(
+  method: BioavailabilityMethod,
+  manualValue: number,
+): number {
+  if (method === "manual") {
+    return manualValue;
+  }
+  const defaultData = BIOAVAILABILITY_DEFAULTS[method];
+  return defaultData?.value ?? 100;
+}
 
 // Extended calculation steps with final dose for dilution
 interface CalculationStepsWithDilution extends CalculationResult {
@@ -185,14 +201,10 @@ export function useCalculatorState() {
       state.targetAnimal,
       {
         scalingExponent: exponentValue,
-        bioavailability:
-          state.bioavailabilityMethod === "iv"
-            ? 100
-            : state.bioavailabilityMethod === "oral"
-              ? 50
-              : state.bioavailabilityMethod === "other"
-                ? 75
-                : state.bioavailability,
+        bioavailability: getBioavailabilityForMethod(
+          state.bioavailabilityMethod,
+          state.bioavailability,
+        ),
         bioavailabilityMethod: state.bioavailabilityMethod,
         kidneyFunctionMethod: state.kidneyFunctionMethod,
         kidneyFunction:
@@ -244,26 +256,208 @@ export function useCalculatorState() {
   const copyToClipboard = useCallback(() => {
     if (!calculationSteps) return;
 
-    const text = `
-Dose Calculation Results:
+    // Determine effective bioavailability based on method using literature defaults
+    const effectiveBioavailability = getBioavailabilityForMethod(
+      state.bioavailabilityMethod,
+      state.bioavailability,
+    );
+
+    // Build advanced parameters section
+    const advancedParams: string[] = [];
+
+    // Scaling parameters
+    const exponentValue =
+      state.scalingExponent === "custom"
+        ? state.customExponentValue
+        : parseFloat(state.scalingExponent);
+    advancedParams.push(`Scaling Method: ${state.scalingMethod}`);
+    advancedParams.push(`Scaling Exponent: ${exponentValue}`);
+
+    // Bioavailability
+    if (effectiveBioavailability < 100) {
+      advancedParams.push(
+        `Bioavailability: ${effectiveBioavailability}% (${state.bioavailabilityMethod})`,
+      );
+      advancedParams.push(
+        `Bioavailability Adjustment: ${(100 / effectiveBioavailability).toFixed(2)}x`,
+      );
+    }
+
+    // Kidney function
+    if (state.kidneyFunctionMethod !== "none") {
+      advancedParams.push(
+        `Kidney Function Method: ${state.kidneyFunctionMethod}`,
+      );
+      if (state.kidneyFunctionMethod === "manual") {
+        advancedParams.push(`Kidney Function: ${state.kidneyFunction}%`);
+      } else if (state.kidneyFunctionMethod === "cockcroft") {
+        advancedParams.push(`Patient Age: ${state.patientAge} years`);
+        advancedParams.push(
+          `Serum Creatinine: ${state.patientCreatinine} ${state.creatinineUnit}`,
+        );
+        advancedParams.push(`Patient Sex: ${state.patientSex}`);
+      }
+      advancedParams.push(
+        `Fraction Excreted Renal (fe): ${state.fractionExcretedRenal.toFixed(2)}`,
+      );
+    }
+
+    const text = `DoseFinder Calculation Results
+Generated: ${new Date().toLocaleString()}
+
+Basic Parameters:
+-----------------
 Source: ${animals[state.sourceAnimal].name} (${state.sourceWeight} kg)
 Target: ${animals[state.targetAnimal].name} (${state.targetWeight} kg)
 Base Dose: ${state.baseDose} mg/kg
 Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg
 ${
   state.showDilution && parseFloat(state.dilutionFactor) !== 1
-    ? `Final Dose (with dilution): ${calculationSteps.finalDose.toFixed(4)} mg/kg`
+    ? `Dilution Factor: ${state.dilutionFactor}x
+Final Dose (with dilution): ${calculationSteps.finalDose.toFixed(4)} mg/kg`
     : ""
 }
 
+Advanced Parameters:
+-------------------
+${advancedParams.join("\n")}
+
+Uncertainty Range:
+-----------------
+Lower bound (0.7x): ${(calculationSteps.calculatedDose * 0.7).toFixed(4)} mg/kg
+Upper bound (1.3x): ${(calculationSteps.calculatedDose * 1.3).toFixed(4)} mg/kg
+
 Calculation Steps:
+-----------------
 ${calculationSteps.steps.join("\n")}
+
+DISCLAIMER:
+-----------
+FOR RESEARCH AND EDUCATIONAL USE ONLY. This calculation is provided as an
+estimation tool and should not be used for clinical dosing without proper
+validation. Always verify calculations with experimental data and consult
+appropriate regulatory guidelines. Consider drug-specific properties, disease
+state, and individual variability when applying these estimates.
 `;
 
     navigator.clipboard.writeText(text).then(() => {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     });
+  }, [calculationSteps, state, animals]);
+
+  const exportResults = useCallback(() => {
+    if (!calculationSteps) return;
+
+    // Determine effective bioavailability based on method using literature defaults
+    const effectiveBioavailability = getBioavailabilityForMethod(
+      state.bioavailabilityMethod,
+      state.bioavailability,
+    );
+
+    // Determine effective kidney function
+    const effectiveKidneyFunction =
+      state.kidneyFunctionMethod === "none"
+        ? 100
+        : state.kidneyFunctionMethod === "manual"
+          ? state.kidneyFunction
+          : null; // Cockcroft-Gault calculated value
+
+    // Build scaling method description
+    const exponentValue =
+      state.scalingExponent === "custom"
+        ? state.customExponentValue
+        : parseFloat(state.scalingExponent);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+    const exportText = `DoseFinder Dose Calculation Report
+=====================================
+Generated: ${new Date().toLocaleString()}
+Export ID: ${timestamp}
+
+BASIC PARAMETERS
+================
+Source Species: ${animals[state.sourceAnimal].name}
+Source Weight: ${state.sourceWeight} kg
+
+Target Species: ${animals[state.targetAnimal].name}
+Target Weight: ${state.targetWeight} kg
+
+Base Dose (Known Dose): ${state.baseDose} mg/kg
+
+SCALING CONFIGURATION
+=====================
+Scaling Method: ${state.scalingMethod}
+Scaling Exponent: ${exponentValue}
+${state.scalingExponent === "custom" ? "(Custom exponent value)" : state.scalingExponent === "0.75" ? "(Standard metabolic scaling)" : state.scalingExponent === "0.67" ? "(Surface area scaling)" : state.scalingExponent === "1.0" ? "(Linear scaling)" : ""}
+
+ADVANCED PARAMETERS
+===================
+Bioavailability:
+  Method: ${state.bioavailabilityMethod}
+  Value: ${effectiveBioavailability}%
+  ${effectiveBioavailability < 100 ? `Adjustment Factor: ${(100 / effectiveBioavailability).toFixed(2)}x` : "No adjustment applied"}
+
+Kidney Function:
+  Method: ${state.kidneyFunctionMethod}
+${state.kidneyFunctionMethod === "none" ? "  No kidney function adjustment applied" : ""}${
+      state.kidneyFunctionMethod === "manual"
+        ? `  Value: ${effectiveKidneyFunction}%
+  Fraction Excreted Renal (fe): ${state.fractionExcretedRenal.toFixed(2)}`
+        : ""
+    }${
+      state.kidneyFunctionMethod === "cockcroft"
+        ? `  Cockcroft-Gault Parameters:
+    Patient Age: ${state.patientAge} years
+    Serum Creatinine: ${state.patientCreatinine} ${state.creatinineUnit}
+    Patient Sex: ${state.patientSex}
+  Fraction Excreted Renal (fe): ${state.fractionExcretedRenal.toFixed(2)}`
+        : ""
+    }
+
+DILUTION SETTINGS
+=================
+Dilution Enabled: ${state.showDilution ? "Yes" : "No"}
+${state.showDilution && parseFloat(state.dilutionFactor) !== 1 ? `Dilution Factor: ${state.dilutionFactor}x` : ""}
+
+RESULTS
+=======
+Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg
+${state.showDilution && parseFloat(state.dilutionFactor) !== 1 ? `Final Dose (with dilution): ${calculationSteps.finalDose.toFixed(4)} mg/kg` : ""}
+
+Absolute Dose for Target:
+  Per kg: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg
+  Total (for ${state.targetWeight} kg): ${(calculationSteps.calculatedDose * state.targetWeight).toFixed(4)} mg
+
+Uncertainty Range (±30%):
+  Lower Bound: ${(calculationSteps.calculatedDose * 0.7).toFixed(4)} mg/kg
+  Upper Bound: ${(calculationSteps.calculatedDose * 1.3).toFixed(4)} mg/kg
+
+CALCULATION STEPS
+=================
+${calculationSteps.steps.map((step, i) => `${i + 1}. ${step}`).join("\n")}
+
+DISCLAIMER
+==========
+FOR RESEARCH AND EDUCATIONAL USE ONLY. This calculation is provided as an
+estimation tool and should NOT be used for clinical dosing without proper
+validation. Always verify calculations with experimental data and consult
+appropriate regulatory guidelines. Consider drug-specific pharmacokinetic
+properties, disease state, and individual variability when applying these
+estimates. Cross-species dose scaling provides estimates that MUST be verified
+through appropriate preclinical and clinical studies before human use.
+`;
+
+    const blob = new Blob([exportText], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dosefinder-calculation-${timestamp}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }, [calculationSteps, state, animals]);
 
   const resultDose = calculationSteps?.calculatedDose || 0;
@@ -285,6 +479,7 @@ ${calculationSteps.steps.join("\n")}
     copySuccess,
     calculateDose,
     copyToClipboard,
+    exportResults,
     animals,
     resultDose,
     uncertaintyRange,

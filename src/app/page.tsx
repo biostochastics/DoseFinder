@@ -32,6 +32,7 @@ import {
   IconClipboard,
   IconBrandGithub,
   IconMail,
+  IconUserHeart,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ import { DoseCalculator } from "@/components/DoseCalculator";
 import { DoseChart } from "@/components/DoseChart";
 import { AdvancedParameters } from "@/components/AdvancedParameters";
 import { ResultsDisplay } from "@/components/ResultsDisplay";
+import { FihCalculator } from "@/components/FihCalculator";
 import { useCalculatorState } from "@/hooks/useCalculatorState";
 
 export default function Home() {
@@ -56,6 +58,7 @@ export default function Home() {
     copySuccess,
     calculateDose,
     copyToClipboard,
+    exportResults,
     animals,
     resultDose,
     uncertaintyRange,
@@ -89,6 +92,7 @@ export default function Home() {
 
   const tabIcons: { [key: string]: React.ReactNode } = {
     calculator: <IconCalculator className="h-4 w-4" stroke={1.5} />,
+    fih: <IconUserHeart className="h-4 w-4" stroke={1.5} />,
     advanced: <IconFlask className="h-4 w-4" stroke={1.5} />,
     studyplanner: <IconClipboard className="h-4 w-4" stroke={1.5} />,
     limitations: <IconBooks className="h-4 w-4" stroke={1.5} />,
@@ -99,6 +103,8 @@ export default function Home() {
     switch (tab) {
       case "calculator":
         return "from-primary/20 via-muted/40 to-accent/15";
+      case "fih":
+        return "from-green-500/15 via-primary/20 to-muted/40";
       case "advanced":
         return "from-primary/25 via-secondary/50 to-muted/40";
       case "studyplanner":
@@ -224,13 +230,14 @@ export default function Home() {
                 onValueChange={setSelectedTab}
                 className="w-full"
               >
-                <TabsList className="grid w-full grid-cols-5 mb-4 bg-muted/50 p-1 rounded-lg">
+                <TabsList className="grid w-full grid-cols-6 mb-4 bg-muted/50 p-1 rounded-lg">
                   {[
                     { id: "calculator", label: "Calculator" },
+                    { id: "fih", label: "FIH Dose" },
                     { id: "advanced", label: "Advanced" },
                     { id: "studyplanner", label: "Study Planner" },
                     { id: "limitations", label: "Limitations" },
-                    { id: "documentation", label: "Documentation" },
+                    { id: "documentation", label: "Docs" },
                   ].map((tab) => (
                     <TabsTrigger
                       key={tab.id}
@@ -261,6 +268,8 @@ export default function Home() {
                       <span className="text-muted-foreground">
                         {selectedTab === "calculator" &&
                           "Standard dose scaling between species"}
+                        {selectedTab === "fih" &&
+                          "FDA First-in-Human starting dose calculation"}
                         {selectedTab === "advanced" &&
                           "Advanced pharmacological parameters"}
                         {selectedTab === "studyplanner" &&
@@ -273,6 +282,10 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
+
+                <TabsContent value="fih">
+                  <FihCalculator />
+                </TabsContent>
 
                 <TabsContent value="calculator">
                   <DoseCalculator
@@ -313,6 +326,7 @@ export default function Home() {
                     uncertaintyRange={uncertaintyRange}
                     copySuccess={copySuccess}
                     onCopyToClipboard={copyToClipboard}
+                    onExportResults={exportResults}
                   />
                 </TabsContent>
 
@@ -394,7 +408,7 @@ export default function Home() {
           {/* Only show results and chart if in calculator or advanced tabs */}
           {calculationSteps &&
             (selectedTab === "calculator" || selectedTab === "advanced") && (
-              <>
+              <div className="mt-4 space-y-4">
                 <ResultsDisplay
                   calculationSteps={calculationSteps}
                   sourceAnimal={state.sourceAnimal}
@@ -409,7 +423,6 @@ export default function Home() {
                   }
                   dilutionFactor={state.dilutionFactor}
                   handleDilutionChange={handleDilutionChange}
-                  isDarkMode={isDarkMode}
                 />
 
                 <DoseChart
@@ -418,7 +431,7 @@ export default function Home() {
                   scalingMethod={state.scalingMethod}
                   isDarkMode={isDarkMode}
                 />
-              </>
+              </div>
             )}
         </div>
       </main>
@@ -427,10 +440,11 @@ export default function Home() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-sm text-muted-foreground text-center sm:text-left">
             <p>
-              © {new Date().getFullYear()} DoseFinder. For research use only.
+              © {new Date().getFullYear()} Biostochastics, LLC. For research use
+              only.
             </p>
             <p className="text-xs mt-1">
-              Always validate calculations with experimental data
+              MIT License • Always validate calculations with experimental data
             </p>
           </div>
           <div className="flex items-center gap-2">

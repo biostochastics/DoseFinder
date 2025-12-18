@@ -371,6 +371,129 @@ describe("DoseFinder Calculation Tests", () => {
       expect(oralResult.dose).toBeCloseTo(ivResult.dose * 2, 2);
     });
 
+    it("should handle all bioavailability route presets with literature-based defaults", () => {
+      // Test all routes: IV=100%, IM=85%, SC=70%, Oral=50%, Rectal=65%, Sublingual=70%, Transdermal=35%, Inhalation=25%, Other=75%
+      const baseResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        { bioavailabilityMethod: "iv" },
+      );
+
+      // IM: 85% bioavailability → factor = 100/85 ≈ 1.176
+      const imResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        { bioavailabilityMethod: "im" },
+      );
+      expect(imResult.dose).toBeCloseTo(baseResult.dose * (100 / 85), 2);
+
+      // SC: 70% bioavailability → factor = 100/70 ≈ 1.429
+      const scResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        { bioavailabilityMethod: "sc" },
+      );
+      expect(scResult.dose).toBeCloseTo(baseResult.dose * (100 / 70), 2);
+
+      // Rectal: 65% bioavailability → factor = 100/65 ≈ 1.538
+      const rectalResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        { bioavailabilityMethod: "rectal" },
+      );
+      expect(rectalResult.dose).toBeCloseTo(baseResult.dose * (100 / 65), 2);
+
+      // Sublingual: 70% bioavailability → factor = 100/70 ≈ 1.429
+      const sublingualResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        { bioavailabilityMethod: "sublingual" },
+      );
+      expect(sublingualResult.dose).toBeCloseTo(
+        baseResult.dose * (100 / 70),
+        2,
+      );
+
+      // Transdermal: 35% bioavailability → factor = 100/35 ≈ 2.857
+      const transdermalResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        { bioavailabilityMethod: "transdermal" },
+      );
+      expect(transdermalResult.dose).toBeCloseTo(
+        baseResult.dose * (100 / 35),
+        2,
+      );
+
+      // Inhalation: 25% bioavailability → factor = 100/25 = 4
+      const inhalationResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        { bioavailabilityMethod: "inhalation" },
+      );
+      expect(inhalationResult.dose).toBeCloseTo(baseResult.dose * 4, 2);
+
+      // Other: 75% bioavailability → factor = 100/75 ≈ 1.333
+      const otherResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        { bioavailabilityMethod: "other" },
+      );
+      expect(otherResult.dose).toBeCloseTo(baseResult.dose * (100 / 75), 2);
+    });
+
+    it("should include route source in calculation steps", () => {
+      const result = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        { bioavailabilityMethod: "oral" },
+      );
+
+      // Check that steps include literature range information
+      const bioavailabilityStep = result.steps.find((step) =>
+        step.includes("Bioavailability"),
+      );
+      expect(bioavailabilityStep).toBeDefined();
+      expect(bioavailabilityStep).toContain("oral route");
+      expect(bioavailabilityStep).toContain("literature default");
+    });
+
     it("should apply kidney function adjustment with fe=1 (100% renal)", () => {
       const params: Partial<CalculationParameters> = {
         kidneyFunctionMethod: "manual",

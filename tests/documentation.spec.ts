@@ -275,9 +275,14 @@ test.describe("Documentation Tab", () => {
     });
 
     test("should explain bioavailability options", async ({ page }) => {
-      await expect(page.getByText("Bioavailability Options")).toBeVisible();
+      // Use first() to handle the two headings (card title and references subsection)
       await expect(
-        page.getByText("Choose from preset values or enter manually:"),
+        page.getByText("Bioavailability by Route of Administration").first(),
+      ).toBeVisible();
+      await expect(
+        page.getByText(
+          /Literature-based default values.*routes of administration/,
+        ),
       ).toBeVisible();
     });
   });
@@ -327,8 +332,9 @@ test.describe("Documentation Tab", () => {
 
   test.describe("References Section", () => {
     test("should display References section", async ({ page }) => {
+      // Use first() to handle multiple References headings (one main, subheadings)
       await expect(
-        page.getByRole("heading", { name: "References" }),
+        page.getByRole("heading", { name: "References" }).first(),
       ).toBeVisible();
     });
 

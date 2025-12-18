@@ -284,7 +284,7 @@ test.describe("Accessibility - Screen Reader Support", () => {
     // Skip clipboard permission test on Firefox and WebKit (not supported)
     test.skip(
       browserName === "firefox" || browserName === "webkit",
-      "Firefox and WebKit don't support clipboard permissions"
+      "Firefox and WebKit don't support clipboard permissions",
     );
 
     // Grant clipboard permissions
@@ -353,13 +353,12 @@ test.describe("Accessibility - Advanced Parameters Tab", () => {
     await expect(kidneyRadioGroup).toBeVisible();
   });
 
-  test("should have accessible radio groups for bioavailability", async ({
+  test("should have accessible select for bioavailability route", async ({
     page,
   }) => {
-    const bioRadioGroup = page.getByRole("radiogroup", {
-      name: /Bioavailability calculation method/i,
-    });
-    await expect(bioRadioGroup).toBeVisible();
+    // Bioavailability now uses a Select dropdown for route selection
+    const bioSelect = page.locator("#bioavailability-route");
+    await expect(bioSelect).toBeVisible();
   });
 
   test("should have aria-label on reset button", async ({ page }) => {

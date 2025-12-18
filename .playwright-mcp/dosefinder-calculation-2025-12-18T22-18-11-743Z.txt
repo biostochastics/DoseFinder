@@ -1,0 +1,63 @@
+DoseFinder Dose Calculation Report
+=====================================
+Generated: 12/18/2025, 2:18:11 PM
+Export ID: 2025-12-18T22-18-11-743Z
+
+BASIC PARAMETERS
+================
+Source Species: Mouse
+Source Weight: 0.02 kg
+
+Target Species: Human
+Target Weight: 70 kg
+
+Base Dose (Known Dose): 1 mg/kg
+
+SCALING CONFIGURATION
+=====================
+Scaling Method: bsa
+Scaling Exponent: 0.75
+(Standard metabolic scaling)
+
+ADVANCED PARAMETERS
+===================
+Bioavailability:
+  Method: manual
+  Value: 100%
+  No adjustment applied
+
+Kidney Function:
+  Method: none
+  No kidney function adjustment applied
+
+DILUTION SETTINGS
+=================
+Dilution Enabled: No
+
+
+RESULTS
+=======
+Calculated Dose: 0.0905 mg/kg
+
+
+Absolute Dose for Target:
+  Per kg: 0.0905 mg/kg
+  Total (for 70 kg): 6.3333 mg
+
+Uncertainty Range (±30%):
+  Lower Bound: 0.0633 mg/kg
+  Upper Bound: 0.1176 mg/kg
+
+CALCULATION STEPS
+=================
+1. BSA scaling (Km method): 1 mg/kg × (Km_source: 3.33 / Km_target: 36.84) = 0.0905 mg/kg
+
+DISCLAIMER
+==========
+FOR RESEARCH AND EDUCATIONAL USE ONLY. This calculation is provided as an
+estimation tool and should NOT be used for clinical dosing without proper
+validation. Always verify calculations with experimental data and consult
+appropriate regulatory guidelines. Consider drug-specific pharmacokinetic
+properties, disease state, and individual variability when applying these
+estimates. Cross-species dose scaling provides estimates that MUST be verified
+through appropriate preclinical and clinical studies before human use.

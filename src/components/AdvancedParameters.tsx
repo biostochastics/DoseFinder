@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { IconRefresh, IconAlertCircle } from "@tabler/icons-react";
+import { IconRefresh } from "@tabler/icons-react";
 import {
   KidneyFunctionMethod,
   BioavailabilityMethod,
   PatientSex,
   CreatinineUnit,
+  BIOAVAILABILITY_DEFAULTS,
 } from "@/lib/pharmacology/types";
 import {
   Select,
@@ -70,21 +71,18 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
         <Button
           variant="outline"
           onClick={resetAll}
+          className="gap-2"
           aria-label="Reset all advanced parameters to default values"
         >
-          <IconRefresh
-            className="h-4 w-4 mr-2"
-            stroke={1.5}
-            aria-hidden="true"
-          />
+          <IconRefresh className="h-4 w-4" stroke={1.5} aria-hidden="true" />
           Reset All
         </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <Card className="p-2 bg-card-elevated/50 card-hover">
-          <CardHeader>
-            <CardTitle className="text-sm">Kidney Function</CardTitle>
+        <Card className="bg-card-elevated/50 card-hover">
+          <CardHeader className="pb-2">
+            <CardTitle>Kidney Function</CardTitle>
           </CardHeader>
           <CardContent>
             <fieldset className="radio-fieldset">
@@ -117,7 +115,7 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
                       onChange={(e) =>
                         setKidneyFunction(Number(e.target.value) || 0)
                       }
-                      className="w-16 ml-2"
+                      className="w-24 ml-2"
                       step="1"
                       min={0}
                       max={100}
@@ -152,7 +150,7 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
                           setFractionExcretedRenal(val);
                         }
                       }}
-                      className="w-20"
+                      className="w-24"
                       step="0.1"
                       min="0"
                       max="1"
@@ -185,7 +183,7 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
                         setPatientAge(val);
                       }
                     }}
-                    className="w-20"
+                    className="w-24"
                     min="0"
                   />
                 </div>
@@ -202,7 +200,7 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
                           setPatientCreatinine(val);
                         }
                       }}
-                      className="w-20"
+                      className="w-24"
                       step="0.1"
                       min="0.1"
                     />
@@ -251,61 +249,106 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
           </CardContent>
         </Card>
 
-        <Card className="p-2 bg-card-elevated/50 card-hover">
-          <CardHeader>
-            <CardTitle className="text-sm">Bioavailability</CardTitle>
+        <Card className="bg-card-elevated/50 card-hover">
+          <CardHeader className="pb-2">
+            <CardTitle>Bioavailability</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Route of Administration
+            </p>
           </CardHeader>
           <CardContent>
-            <fieldset className="radio-fieldset">
-              <legend className="sr-only">Bioavailability method</legend>
-              <RadioGroup
-                value={bioavailabilityMethod}
-                onValueChange={(v: string) =>
-                  setBioavailabilityMethod(v as BioavailabilityMethod)
-                }
-                aria-label="Bioavailability calculation method"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="manual" id="bio-manual" />
-                  <Label htmlFor="bio-manual" className="text-sm">
-                    Manual (%)
+            <div className="space-y-3">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="bioavailability-route" className="text-sm">
+                  Route
+                </Label>
+                <Select
+                  value={bioavailabilityMethod}
+                  onValueChange={(v: string) =>
+                    setBioavailabilityMethod(v as BioavailabilityMethod)
+                  }
+                >
+                  <SelectTrigger id="bioavailability-route" className="w-full">
+                    <SelectValue placeholder="Select route" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">Manual Entry</SelectItem>
+                    <SelectItem value="iv">IV - Intravenous (100%)</SelectItem>
+                    <SelectItem value="im">
+                      IM - Intramuscular (~85%)
+                    </SelectItem>
+                    <SelectItem value="sc">SC - Subcutaneous (~70%)</SelectItem>
+                    <SelectItem value="oral">Oral (~50%)</SelectItem>
+                    <SelectItem value="rectal">Rectal (~65%)</SelectItem>
+                    <SelectItem value="sublingual">
+                      Sublingual (~70%)
+                    </SelectItem>
+                    <SelectItem value="transdermal">
+                      Transdermal (~35%)
+                    </SelectItem>
+                    <SelectItem value="inhalation">
+                      Inhalation (~25%)
+                    </SelectItem>
+                    <SelectItem value="other">Other (~75%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {bioavailabilityMethod === "manual" && (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="bioavailability-manual" className="text-sm">
+                    Custom Bioavailability (%)
                   </Label>
-                  {bioavailabilityMethod === "manual" && (
-                    <Input
-                      id="bioavailability-manual"
-                      type="number"
-                      value={bioavailability}
-                      onChange={(e) =>
-                        setBioavailability(Number(e.target.value) || 0)
+                  <Input
+                    id="bioavailability-manual"
+                    type="number"
+                    value={bioavailability}
+                    onChange={(e) =>
+                      setBioavailability(Number(e.target.value) || 0)
+                    }
+                    className="w-24"
+                    step="1"
+                    min={0}
+                    max={100}
+                    aria-label="Bioavailability percentage"
+                  />
+                </div>
+              )}
+
+              {bioavailabilityMethod !== "manual" &&
+                bioavailabilityMethod !== "iv" && (
+                  <div className="warning-note">
+                    <p className="warning-note-title text-sm mb-1">
+                      Literature Range:{" "}
+                      {
+                        BIOAVAILABILITY_DEFAULTS[bioavailabilityMethod].range
+                          .min
                       }
-                      className="w-16 ml-2"
-                      step="1"
-                      min={0}
-                      max={100}
-                      aria-label="Bioavailability percentage"
-                    />
-                  )}
+                      –
+                      {
+                        BIOAVAILABILITY_DEFAULTS[bioavailabilityMethod].range
+                          .max
+                      }
+                      %
+                    </p>
+                    <p className="warning-note-text">
+                      {BIOAVAILABILITY_DEFAULTS[bioavailabilityMethod].caveat}
+                    </p>
+                  </div>
+                )}
+
+              {bioavailabilityMethod === "oral" && (
+                <div className="destructive-note">
+                  <p className="destructive-note-title text-sm">
+                    Oral bioavailability is highly variable (5–99%)
+                  </p>
+                  <p className="destructive-note-text mt-1">
+                    Use drug-specific values when available. Examples:
+                    Propranolol ~26%, Morphine ~30%, Metformin ~50–60%.
+                  </p>
                 </div>
-                <div className="flex items-center space-x-2 mt-2">
-                  <RadioGroupItem value="iv" id="bio-iv" />
-                  <Label htmlFor="bio-iv" className="text-sm">
-                    IV (100%)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 mt-2">
-                  <RadioGroupItem value="oral" id="bio-oral" />
-                  <Label htmlFor="bio-oral" className="text-sm">
-                    Oral (~50%)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 mt-2">
-                  <RadioGroupItem value="other" id="bio-other" />
-                  <Label htmlFor="bio-other" className="text-sm">
-                    Other (~75%)
-                  </Label>
-                </div>
-              </RadioGroup>
-            </fieldset>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -313,34 +356,43 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
       <div className="grid grid-cols-1 gap-4">
         <div className="space-y-2">
           <div className="mt-4 p-4 bg-secondary rounded-lg">
-            <h4 className="font-medium mb-2">Active Parameter Effects</h4>
+            <h4 className="text-sm font-medium mb-2">
+              Active Parameter Effects
+            </h4>
             <ul className="text-sm space-y-1 list-disc pl-4">
-              {bioavailabilityMethod === "manual" && bioavailability < 100 && (
-                <li>
-                  Bioavailability adjustment factor:{" "}
-                  {(100 / bioavailability).toFixed(2)}x
-                </li>
-              )}
-              {bioavailabilityMethod === "oral" && (
-                <li>
-                  Bioavailability adjustment factor: 2x (50% oral
-                  bioavailability)
-                </li>
-              )}
-              {bioavailabilityMethod === "other" && (
-                <li>
-                  Bioavailability adjustment factor: 1.33x (75% bioavailability)
-                </li>
-              )}
+              {bioavailabilityMethod === "manual" &&
+                bioavailability > 0 &&
+                bioavailability < 100 && (
+                  <li>
+                    Bioavailability adjustment factor:{" "}
+                    {(100 / bioavailability).toFixed(2)}x (manual:{" "}
+                    {bioavailability}%)
+                  </li>
+                )}
+              {bioavailabilityMethod !== "manual" &&
+                bioavailabilityMethod !== "iv" && (
+                  <li>
+                    Bioavailability adjustment factor:{" "}
+                    {(
+                      100 /
+                      BIOAVAILABILITY_DEFAULTS[bioavailabilityMethod].value
+                    ).toFixed(2)}
+                    x ({bioavailabilityMethod.toUpperCase()}:{" "}
+                    {BIOAVAILABILITY_DEFAULTS[bioavailabilityMethod].value}%)
+                  </li>
+                )}
               {kidneyFunctionMethod === "manual" && kidneyFunction < 100 && (
                 <li>
-                  Reduced kidney function ({kidneyFunction}%) reduces dose by{" "}
-                  {100 - kidneyFunction}%
+                  Reduced kidney function ({kidneyFunction}%) reduces dose, with
+                  the reduction scaled by the renal fraction (fe ={" "}
+                  {fractionExcretedRenal.toFixed(2)})
                 </li>
               )}
-              {kidneyFunctionMethod === "cockcroft" && (
-                <li>Cockcroft-Gault GFR-based dose adjustment active</li>
-              )}
+              {kidneyFunctionMethod === "cockcroft" &&
+                patientAge > 0 &&
+                patientCreatinine > 0 && (
+                  <li>Cockcroft-Gault GFR-based dose adjustment active</li>
+                )}
               {kidneyFunctionMethod === "none" &&
                 bioavailabilityMethod === "manual" &&
                 bioavailability === 100 && (
@@ -355,27 +407,6 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
                   </li>
                 )}
             </ul>
-          </div>
-
-          <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-            <div className="flex items-start gap-2">
-              <IconAlertCircle
-                className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5"
-                stroke={1.5}
-              />
-              <div>
-                <h4 className="font-medium text-amber-500 mb-1">
-                  Note on Removed Parameters
-                </h4>
-                <p className="text-sm text-muted-foreground">
-                  Protein binding, volume of distribution, molecular weight, and
-                  LogP adjustments were removed in v0.8.0 as they lacked proper
-                  scientific citation and could produce misleading results. For
-                  compound-specific adjustments, use dedicated PBPK modeling
-                  tools.
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </div>

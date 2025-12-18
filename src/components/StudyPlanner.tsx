@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Table,
   TableBody,
@@ -36,8 +37,30 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Trash, Plus, Calculator } from "lucide-react";
-import { Species } from "@/lib/pharmacology/types";
+import {
+  IconTrash,
+  IconPlus,
+  IconCalculator,
+  IconCalendar,
+  IconFileTypeCsv,
+  IconDownload,
+} from "@tabler/icons-react";
+import { Species, type MaterialRequirement } from "@/lib/pharmacology/types";
+import {
+  generateStudySchedule,
+  armConfigToSchedule,
+  downloadSchedule,
+  type ExportFormat,
+} from "@/lib/calendar";
+import type { AdminRoute } from "@/lib/pharmacology/constants";
+import {
+  validateVolume,
+  type VolumeValidationResult,
+} from "@/lib/pharmacology/volumeLimits";
+import {
+  VolumeWarningPanel,
+  VolumeWarningBadge,
+} from "@/components/VolumeWarning";
 
 interface ArmConfig {
   name: string;
@@ -92,6 +115,26 @@ interface ArmRequirement {
     finalConcentration: number;
     concentrationUnit: string;
   }[];
+  /** Volume validation result for NC3Rs/IACUC compliance */
+  volumeValidation?: VolumeValidationResult;
+  /** Detailed material requirements with base/buffer breakdown */
+  materialBreakdown?: MaterialRequirement;
+}
+
+/**
+ * Map UI route names to AdminRoute types
+ * UI uses "oral" but constants use "po" (per os)
+ */
+function mapToAdminRoute(uiRoute: string): AdminRoute {
+  const routeMap: Record<string, AdminRoute> = {
+    oral: "po",
+    iv: "iv",
+    ip: "ip",
+    sc: "sc",
+    im: "im",
+    other: "other",
+  };
+  return routeMap[uiRoute] || "other";
 }
 
 interface StudyPlannerProps {
@@ -140,6 +183,8 @@ export function StudyPlanner({
   const [stockConcentration, setStockConcentration] = useState<number>(10);
   const [stockConcentrationUnit, setStockConcentrationUnit] =
     useState<string>("mg/ml");
+  const [percentType, setPercentType] = useState<"wv" | "ww">("wv");
+  const [density, setDensity] = useState<number>(1.0);
   const [adminRoute, setAdminRoute] = useState<string>("oral");
   const [useDilutions, setUseDilutions] = useState<boolean>(false);
   const [dilutions, setDilutions] = useState<DilutionStep[]>([
@@ -156,6 +201,14 @@ export function StudyPlanner({
   >(null);
   const [totalProductUnit, setTotalProductUnit] = useState<string>("mg");
   const [totalDoses, setTotalDoses] = useState<number | null>(null);
+  const [baseDosesTotal, setBaseDosesTotal] = useState<number | null>(null);
+  const [bufferDosesTotal, setBufferDosesTotal] = useState<number | null>(null);
+
+  // Calendar Export State
+  const [studyName, setStudyName] = useState<string>("DoseFinder Study");
+  const [scheduleStartDate, setScheduleStartDate] = useState<string>(
+    new Date().toISOString().split("T")[0],
+  );
 
   // Update species weight when species changes
   // We use a ref to avoid infinite loops
@@ -359,6 +412,8 @@ export function StudyPlanner({
    * This calculation accounts for various dosing schedules including daily,
    * weekly, monthly, and custom frequencies to determine the total number
    * of doses that will be needed for the entire study duration.
+   *
+   * Includes validation to prevent division by zero and handle edge cases.
    */
   const calculateTotalDoses = (arm: ArmConfig): number => {
     const daysPerUnit: Record<string, number> = {
@@ -367,10 +422,19 @@ export function StudyPlanner({
       months: 30.44, // Average month length for more accurate calculations
     };
 
-    // Calculate total days
-    const totalDays = arm.duration * daysPerUnit[arm.durationUnit];
+    // Validate duration - ensure positive value
+    const safeDuration = Math.max(0, arm.duration || 0);
+    const unitMultiplier = daysPerUnit[arm.durationUnit] ?? 1;
+    const totalDays = safeDuration * unitMultiplier;
 
-    // Calculate doses per day
+    // Validate subjects - ensure at least 0
+    const safeSubjects = Math.max(0, arm.subjects || 0);
+
+    if (totalDays <= 0 || safeSubjects <= 0) {
+      return 0;
+    }
+
+    // Calculate doses per day with validation
     let dosesPerDay = 0;
     if (arm.frequency === "once") dosesPerDay = 1;
     else if (arm.frequency === "twice") dosesPerDay = 2;
@@ -380,26 +444,73 @@ export function StudyPlanner({
     else if (arm.frequency === "monthly")
       dosesPerDay = 1 / 30.44; // Use consistent month length
     else if (arm.frequency === "custom") {
-      const periodInDays =
-        arm.customFrequency.period * daysPerUnit[arm.customFrequency.unit];
-      dosesPerDay = arm.customFrequency.doses / periodInDays;
+      // Validate custom frequency parameters to prevent division by zero
+      const safePeriod = Math.max(1, arm.customFrequency.period || 1);
+      const safeDoses = Math.max(0, arm.customFrequency.doses || 0);
+      const customUnitMultiplier = daysPerUnit[arm.customFrequency.unit] ?? 1;
+      const periodInDays = safePeriod * customUnitMultiplier;
+
+      // Prevent division by zero
+      dosesPerDay = periodInDays > 0 ? safeDoses / periodInDays : 0;
     }
 
-    return Math.ceil(totalDays * dosesPerDay * arm.subjects);
+    // Handle edge case where dosesPerDay is 0 or invalid
+    if (dosesPerDay <= 0 || !isFinite(dosesPerDay)) {
+      return 0;
+    }
+
+    const totalDoses = totalDays * dosesPerDay * safeSubjects;
+
+    // Ensure we return a valid number
+    return isFinite(totalDoses) ? Math.ceil(totalDoses) : 0;
   };
 
   // Calculate total product required for an arm
+  // Includes validation to prevent division by zero and handle edge cases
   const calculateArmRequirement = (
     arm: ArmConfig,
     stockConc: number,
     stockConcUnit: string,
     dilutionSteps: DilutionStep[],
+    route: AdminRoute,
+    bufferDays: number,
+    overagePercent: number,
+    pctType: "wv" | "ww",
+    densityGml: number,
   ): ArmRequirement => {
-    const totalDoses = calculateTotalDoses(arm);
+    // Calculate base doses (for study period)
+    const baseDoses = calculateTotalDoses(arm);
+
+    // Calculate buffer doses (for stability buffer period)
+    // Buffer is additional doses for the stability buffer period
+    const daysPerUnit: Record<string, number> = {
+      days: 1,
+      weeks: 7,
+      months: 30.44,
+    };
+
+    // Validate duration and subjects to prevent division by zero
+    const safeDuration = Math.max(0, arm.duration || 0);
+    const unitMultiplier = daysPerUnit[arm.durationUnit] ?? 1;
+    const studyDurationDays = safeDuration * unitMultiplier;
+    const safeSubjects = Math.max(1, arm.subjects || 1);
+    const safeBufferDays = Math.max(0, bufferDays || 0);
+
+    // Calculate doses per day with division by zero protection
+    let dosesPerDay = 0;
+    if (studyDurationDays > 0 && safeSubjects > 0 && baseDoses > 0) {
+      dosesPerDay = baseDoses / studyDurationDays / safeSubjects;
+    }
+
+    const bufferDoses =
+      isFinite(dosesPerDay) && dosesPerDay > 0
+        ? Math.ceil(safeBufferDays * dosesPerDay * safeSubjects)
+        : 0;
+    const totalDoses = baseDoses + bufferDoses;
 
     // Special handling for placebo and comparator arms
     if (arm.armType === "placebo") {
-      // Placebo arms don't require active product
+      // Placebo arms don't require active product (no volume validation needed)
       return {
         name: arm.name,
         subjects: arm.subjects,
@@ -410,6 +521,17 @@ export function StudyPlanner({
         productUnit: "mg",
         adminVolume: 0, // This will be calculated based on matched treatment arm
         dilutionSteps: [],
+        volumeValidation: undefined,
+        materialBreakdown: {
+          baseDoses,
+          bufferDoses,
+          totalDoses,
+          baseProduct: 0,
+          bufferProduct: 0,
+          totalProduct: 0,
+          wasteAllowance: 0,
+          grandTotal: 0,
+        },
       };
     }
 
@@ -422,21 +544,43 @@ export function StudyPlanner({
       };
       // For comparator arms, we use the provided comparator details
       // but still calculate the volumes
-      let comparatorConcMg = comparatorDetails.concentration;
+      // Validate concentration to prevent division by zero
+      let comparatorConcMg = Math.max(0, comparatorDetails.concentration || 0);
       if (comparatorDetails.concentrationUnit === "mcg/ml")
         comparatorConcMg /= 1000;
       else if (comparatorDetails.concentrationUnit === "percent")
-        comparatorConcMg = comparatorDetails.concentration * 10;
+        comparatorConcMg =
+          Math.max(0, comparatorDetails.concentration || 0) * 10;
 
-      // Convert dose to mg
-      let dosePerSubjectMg = arm.doseLevel;
-      if (arm.doseUnit === "mg/kg") dosePerSubjectMg *= arm.weight;
+      // Ensure we have a valid concentration (minimum 0.0001 to prevent division issues)
+      const safeComparatorConc = Math.max(0.0001, comparatorConcMg);
+
+      // Convert dose to mg with validation
+      const safeDoseLevel = Math.max(0, arm.doseLevel || 0);
+      const safeWeight = Math.max(0.001, arm.weight || 0.001);
+      let dosePerSubjectMg = safeDoseLevel;
+      if (arm.doseUnit === "mg/kg") dosePerSubjectMg *= safeWeight;
       else if (arm.doseUnit === "mcg") dosePerSubjectMg /= 1000;
       else if (arm.doseUnit === "mcg/kg")
-        dosePerSubjectMg = (arm.doseLevel * arm.weight) / 1000;
+        dosePerSubjectMg = (safeDoseLevel * safeWeight) / 1000;
 
-      // Calculate administration volume per dose
-      const adminVolume = dosePerSubjectMg / comparatorConcMg;
+      // Calculate administration volume per dose with division protection
+      const adminVolume =
+        safeComparatorConc > 0 ? dosePerSubjectMg / safeComparatorConc : 0;
+
+      // Validate volume against NC3Rs/IACUC limits
+      const volumeValidation = validateVolume({
+        species: arm.species,
+        route,
+        weightKg: arm.weight,
+        volumeMl: adminVolume,
+      });
+
+      // Calculate base and buffer product for comparator
+      const baseProduct = dosePerSubjectMg * baseDoses;
+      const bufferProduct = dosePerSubjectMg * bufferDoses;
+      const totalProduct = baseProduct + bufferProduct;
+      const wasteAllowance = totalProduct * (overagePercent / 100);
 
       return {
         name: `${arm.name} (${comparatorDetails.name})`,
@@ -448,58 +592,105 @@ export function StudyPlanner({
         productUnit: "mg",
         adminVolume,
         dilutionSteps: [],
+        volumeValidation,
+        materialBreakdown: {
+          baseDoses,
+          bufferDoses,
+          totalDoses,
+          baseProduct,
+          bufferProduct,
+          totalProduct,
+          wasteAllowance,
+          grandTotal: totalProduct + wasteAllowance,
+        },
       };
     }
 
     // Normal treatment arm calculation
-    // Convert dose to mg
-    let dosePerSubjectMg = arm.doseLevel;
-    if (arm.doseUnit === "mg/kg") dosePerSubjectMg *= arm.weight;
+    // Convert dose to mg with validation
+    const safeDoseLevel = Math.max(0, arm.doseLevel || 0);
+    const safeWeight = Math.max(0.001, arm.weight || 0.001);
+    let dosePerSubjectMg = safeDoseLevel;
+    if (arm.doseUnit === "mg/kg") dosePerSubjectMg *= safeWeight;
     else if (arm.doseUnit === "mcg") dosePerSubjectMg /= 1000;
     else if (arm.doseUnit === "mcg/kg")
-      dosePerSubjectMg = (arm.doseLevel * arm.weight) / 1000;
+      dosePerSubjectMg = (safeDoseLevel * safeWeight) / 1000;
 
     // Basic product calculation
-    let productRequired = dosePerSubjectMg * totalDoses;
+    const productRequired = dosePerSubjectMg * totalDoses;
 
-    // Convert stock concentration to mg/mL
-    let stockConcMg = stockConc;
+    // Convert stock concentration to mg/mL with validation
+    const safeStockConc = Math.max(0, stockConc || 0);
+    const safeDensity = Math.max(0.1, densityGml || 1.0);
+    let stockConcMg = safeStockConc;
     if (stockConcUnit === "mcg/ml") {
       stockConcMg /= 1000;
     } else if (stockConcUnit === "mg/g") {
       // mg/g is equivalent to mg/mL assuming density of 1 g/mL
       // For solids or semi-solids, this is a reasonable approximation
-      stockConcMg = stockConc;
+      stockConcMg = safeStockConc;
     } else if (stockConcUnit === "percent") {
-      // Use density factor for percentage conversions
-      stockConcMg = stockConc * 10; // Convert % to mg/mL using default density of 1 g/mL
+      // Percent conversion depends on type:
+      // % w/v (weight/volume): mg/mL = % × 10 (assumes 1 g/mL density for solution)
+      // % w/w (weight/weight): mg/mL = % × density × 10 (uses actual density)
+      if (pctType === "ww") {
+        stockConcMg = safeStockConc * safeDensity * 10;
+      } else {
+        stockConcMg = safeStockConc * 10; // w/v default
+      }
     } else if (stockConcUnit === "g/ml") {
-      stockConcMg = stockConc * 1000;
+      stockConcMg = safeStockConc * 1000;
     }
 
-    // Calculate administration volume per dose
-    const adminVolume = dosePerSubjectMg / stockConcMg;
+    // Ensure we have a valid stock concentration (minimum 0.0001 to prevent division issues)
+    const safeStockConcMg = Math.max(0.0001, stockConcMg);
 
-    // Process dilution steps
+    // Calculate administration volume per dose with division protection
+    const adminVolume =
+      safeStockConcMg > 0 ? dosePerSubjectMg / safeStockConcMg : 0;
+
+    // Process dilution steps with validation
     const calculatedDilutionSteps = [];
-    let currentConc = stockConcMg;
+    let currentConc = safeStockConcMg;
+    const safeOverageFactor = Math.max(0, overagePercent || 0);
     let currentVolume =
-      (productRequired / currentConc) * (1 + overageFactor / 100);
+      currentConc > 0
+        ? (productRequired / currentConc) * (1 + safeOverageFactor / 100)
+        : 0;
 
     for (const dilution of dilutionSteps) {
+      // Validate dilution factor (must be > 0 to prevent division by zero)
+      const safeDilutionFactor = Math.max(1, dilution.factor || 1);
+
       const startVolume = currentVolume;
-      const addedVolume = startVolume * (dilution.factor - 1);
-      currentConc = currentConc / dilution.factor;
+      const addedVolume = startVolume * (safeDilutionFactor - 1);
+      currentConc =
+        safeDilutionFactor > 0 ? currentConc / safeDilutionFactor : currentConc;
       currentVolume = startVolume + addedVolume;
 
       calculatedDilutionSteps.push({
-        startVolume,
-        addedVolume,
+        startVolume: isFinite(startVolume) ? startVolume : 0,
+        addedVolume: isFinite(addedVolume) ? addedVolume : 0,
         vehicle: dilution.vehicle,
-        finalConcentration: currentConc,
+        finalConcentration: isFinite(currentConc) ? currentConc : 0,
         concentrationUnit: "mg/mL",
       });
     }
+
+    // Validate volume against NC3Rs/IACUC limits
+    const volumeValidation = validateVolume({
+      species: arm.species,
+      route,
+      weightKg: arm.weight,
+      volumeMl: adminVolume,
+    });
+
+    // Calculate material breakdown with base/buffer separation
+    const baseProduct = dosePerSubjectMg * baseDoses;
+    const bufferProduct = dosePerSubjectMg * bufferDoses;
+    const totalProduct = baseProduct + bufferProduct;
+    const wasteAllowance = totalProduct * (overagePercent / 100);
+    const grandTotal = totalProduct + wasteAllowance;
 
     return {
       name: arm.name,
@@ -507,23 +698,48 @@ export function StudyPlanner({
       dosePerSubject: dosePerSubjectMg,
       doseUnit: "mg",
       totalDoses,
-      productRequired: productRequired * (1 + overageFactor / 100), // Add overage
+      productRequired: grandTotal, // Now includes buffer and overage
       productUnit: "mg",
       adminVolume,
       dilutionSteps: calculatedDilutionSteps,
+      volumeValidation,
+      materialBreakdown: {
+        baseDoses,
+        bufferDoses,
+        totalDoses,
+        baseProduct,
+        bufferProduct,
+        totalProduct,
+        wasteAllowance,
+        grandTotal,
+      },
     };
   };
 
   // Calculate total requirements using a single reduce operation for better performance
   const calculateRequirements = () => {
+    // Map the UI route to AdminRoute type
+    const mappedRoute = mapToAdminRoute(adminRoute);
+
     // Use a single reduce operation to avoid multiple array iterations
-    const { armReqs, totalProduct, totalDoses } = arms.reduce(
+    const {
+      armReqs,
+      totalProduct,
+      totalDoses,
+      totalBaseDoses,
+      totalBufferDoses,
+    } = arms.reduce(
       (acc, arm) => {
         const req = calculateArmRequirement(
           arm,
           stockConcentration,
           stockConcentrationUnit,
           dilutions,
+          mappedRoute,
+          stabilityBuffer,
+          overageFactor,
+          percentType,
+          density,
         );
         return {
           armReqs: [...acc.armReqs, req],
@@ -531,9 +747,19 @@ export function StudyPlanner({
             acc.totalProduct +
             (arm.armType === "treatment" ? req.productRequired : 0),
           totalDoses: acc.totalDoses + req.totalDoses,
+          totalBaseDoses:
+            acc.totalBaseDoses + (req.materialBreakdown?.baseDoses ?? 0),
+          totalBufferDoses:
+            acc.totalBufferDoses + (req.materialBreakdown?.bufferDoses ?? 0),
         };
       },
-      { armReqs: [] as ArmRequirement[], totalProduct: 0, totalDoses: 0 },
+      {
+        armReqs: [] as ArmRequirement[],
+        totalProduct: 0,
+        totalDoses: 0,
+        totalBaseDoses: 0,
+        totalBufferDoses: 0,
+      },
     );
 
     // Convert to appropriate units
@@ -549,6 +775,8 @@ export function StudyPlanner({
     setTotalProductRequired(finalTotal);
     setTotalProductUnit(finalUnit);
     setTotalDoses(totalDoses);
+    setBaseDosesTotal(totalBaseDoses);
+    setBufferDosesTotal(totalBufferDoses);
   };
 
   // Copy dose from calculator
@@ -597,6 +825,22 @@ export function StudyPlanner({
     setNumArms(numArms + 1);
   };
 
+  // Helper to format frequency for export
+  const formatFrequency = (arm: ArmConfig): string => {
+    if (arm.frequency === "custom") {
+      return `${arm.customFrequency.doses} dose(s) per ${arm.customFrequency.period} ${arm.customFrequency.unit}`;
+    }
+    const freqLabels: Record<string, string> = {
+      once: "Once daily",
+      twice: "Twice daily",
+      thrice: "Three times daily",
+      weekly: "Weekly",
+      biweekly: "Bi-weekly",
+      monthly: "Monthly",
+    };
+    return freqLabels[arm.frequency] || arm.frequency;
+  };
+
   // Handle export function
   const exportStudyPlan = () => {
     if (armRequirements.length === 0) {
@@ -605,28 +849,56 @@ export function StudyPlanner({
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const studyPlan = `DoseFinder Study Planner Report
+=====================================
 Generated: ${new Date().toLocaleString()}
+Export ID: ${timestamp}
 
-Study Design:
------------
-Study Type: ${studyType}
+STUDY DESIGN
+============
+Study Type: ${studyType === "preclinical" ? "Preclinical" : studyType === "phase1" ? "Clinical Phase I" : studyType === "phase2" ? "Clinical Phase II" : "Clinical Phase III"}
 Number of Arms: ${numArms}
 Overage Factor: ${overageFactor}%
 Stability Buffer: ${stabilityBuffer} days
 
-Formulation:
------------
+FORMULATION DETAILS
+===================
 Stock Concentration: ${stockConcentration} ${stockConcentrationUnit}
-Administration Route: ${adminRoute}
-${useDilutions ? `Dilution Steps: ${dilutions.length}` : ""}
+Administration Route: ${adminRoute === "oral" ? "Oral" : adminRoute === "iv" ? "Intravenous" : adminRoute === "ip" ? "Intraperitoneal" : adminRoute === "sc" ? "Subcutaneous" : adminRoute === "im" ? "Intramuscular" : "Other"}
+Dilution Sequence: ${useDilutions ? "Enabled" : "Disabled"}
+${
+  useDilutions
+    ? `Number of Dilution Steps: ${dilutions.length}
+Dilution Factors: ${dilutions.map((d, i) => `Step ${i + 1}: ${d.factor}x (${d.vehicle})`).join(", ")}`
+    : ""
+}
 
-Arm Requirements:
-----------------
+ARM CONFIGURATIONS
+==================
+${arms
+  .map((arm, index) => {
+    const armConfig = `
+--- Arm ${index + 1}: ${arm.name} ---
+Type: ${arm.armType === "treatment" ? "Treatment" : arm.armType === "placebo" ? "Placebo" : "Comparator"}
+Species/Population: ${animals[arm.species]?.name || arm.species}
+Average Weight: ${arm.weight} kg
+Number of Subjects: ${arm.subjects}
+${arm.armType !== "placebo" ? `Dose Level: ${arm.doseLevel} ${arm.doseUnit}` : "Dose Level: N/A (Placebo)"}
+Treatment Duration: ${arm.duration} ${arm.durationUnit}
+Dosing Frequency: ${formatFrequency(arm)}
+${arm.armType === "comparator" && arm.comparatorDetails ? `Comparator: ${arm.comparatorDetails.name} (${arm.comparatorDetails.concentration} ${arm.comparatorDetails.concentrationUnit})` : ""}`;
+
+    return armConfig;
+  })
+  .join("\n")}
+
+CALCULATED REQUIREMENTS
+=======================
 ${armRequirements
   .map((arm, index) => {
     const armType = arms[index].armType;
     let details = `
-Arm: ${arm.name} (${armType === "treatment" ? "Treatment" : armType === "placebo" ? "Placebo" : "Comparator"})
+--- ${arm.name} ---
+Type: ${armType === "treatment" ? "Treatment" : armType === "placebo" ? "Placebo" : "Comparator"}
 Subjects: ${arm.subjects}
 `;
 
@@ -636,45 +908,90 @@ Total Doses: ${arm.totalDoses}
 Product Required: N/A (Placebo)
 `;
     } else if (armType === "comparator") {
-      details += `Dose per Subject: ${arm.dosePerSubject.toFixed(3)} ${arm.doseUnit}
+      details += `Dose per Subject: ${arm.dosePerSubject.toFixed(4)} ${arm.doseUnit}
 Total Doses: ${arm.totalDoses}
 Product: ${arms[index].comparatorDetails?.name || "Comparator"} (${arms[index].comparatorDetails?.concentration || 0} ${arms[index].comparatorDetails?.concentrationUnit || ""})
-Administration Volume: ${arm.adminVolume.toFixed(2)} mL
+Administration Volume: ${arm.adminVolume.toFixed(3)} mL per dose
 `;
     } else {
-      details += `Dose per Subject: ${arm.dosePerSubject.toFixed(3)} ${arm.doseUnit}
-Total Doses: ${arm.totalDoses}
-Product Required: ${arm.productRequired.toFixed(3)} ${arm.productUnit}
-Administration Volume: ${arm.adminVolume.toFixed(2)} mL
-
-${
-  useDilutions && arm.dilutionSteps.length > 0
-    ? `Dilution Steps:
+      details += `Dose per Subject: ${arm.dosePerSubject.toFixed(4)} ${arm.doseUnit}
+Total Doses: ${arm.totalDoses}${arm.materialBreakdown ? ` (Base: ${arm.materialBreakdown.baseDoses}, Buffer: ${arm.materialBreakdown.bufferDoses})` : ""}
+Product Required: ${arm.productRequired.toFixed(4)} ${arm.productUnit}
+Administration Volume: ${arm.adminVolume.toFixed(3)} mL per dose
+`;
+      // Add material breakdown if stability buffer is used
+      if (arm.materialBreakdown && stabilityBuffer > 0) {
+        details += `
+Material Breakdown:
+  Base Product: ${arm.materialBreakdown.baseProduct.toFixed(4)} mg
+  Buffer Product: ${arm.materialBreakdown.bufferProduct.toFixed(4)} mg
+  Waste Allowance (${overageFactor}%): ${arm.materialBreakdown.wasteAllowance.toFixed(4)} mg
+  Grand Total: ${arm.materialBreakdown.grandTotal.toFixed(4)} mg
+`;
+      }
+      if (useDilutions && arm.dilutionSteps.length > 0) {
+        details += `
+Dilution Protocol:
 ${arm.dilutionSteps
   .map(
-    (
-      step,
-      i,
-    ) => `  ${i + 1}. Start with ${step.startVolume.toFixed(2)} mL, add ${step.addedVolume.toFixed(2)} mL of ${step.vehicle}
-     Final concentration: ${step.finalConcentration.toFixed(3)} ${step.concentrationUnit}`,
+    (step, i) => `  Step ${i + 1}:
+    Starting Volume: ${step.startVolume.toFixed(3)} mL
+    Add Vehicle: ${step.addedVolume.toFixed(3)} mL of ${step.vehicle}
+    Final Concentration: ${step.finalConcentration.toFixed(4)} ${step.concentrationUnit}`,
   )
-  .join("\n")}`
-    : ""
-}
+  .join("\n")}
 `;
+      }
     }
 
     return details;
   })
   .join("\n")}
 
-Summary:
---------
+SUMMARY
+=======
 Total Doses to Prepare: ${totalDoses}
-Total Active Compound Required: ${totalProductRequired?.toFixed(3)} ${totalProductUnit}
-Treatment Arms: ${arms.filter((arm) => arm.armType === "treatment").length}
-Placebo Arms: ${arms.filter((arm) => arm.armType === "placebo").length}
-Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
+${
+  stabilityBuffer > 0
+    ? `  Base Study Doses: ${baseDosesTotal}
+  Stability Buffer Doses: ${bufferDosesTotal}
+`
+    : ""
+}Total Active Compound Required: ${totalProductRequired?.toFixed(4)} ${totalProductUnit}
+${
+  stabilityBuffer > 0
+    ? `
+Material Breakdown (Treatment Arms):
+  Base Product: ${armRequirements
+    .filter((_, i) => arms[i].armType === "treatment")
+    .reduce((sum, r) => sum + (r.materialBreakdown?.baseProduct ?? 0), 0)
+    .toFixed(4)} mg
+  Buffer Product: ${armRequirements
+    .filter((_, i) => arms[i].armType === "treatment")
+    .reduce((sum, r) => sum + (r.materialBreakdown?.bufferProduct ?? 0), 0)
+    .toFixed(4)} mg
+  Waste Allowance (${overageFactor}%): ${armRequirements
+    .filter((_, i) => arms[i].armType === "treatment")
+    .reduce((sum, r) => sum + (r.materialBreakdown?.wasteAllowance ?? 0), 0)
+    .toFixed(4)} mg
+`
+    : ""
+}
+Arm Breakdown:
+  Treatment Arms: ${arms.filter((arm) => arm.armType === "treatment").length}
+  Placebo Arms: ${arms.filter((arm) => arm.armType === "placebo").length}
+  Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}
+
+DISCLAIMER
+==========
+FOR RESEARCH AND EDUCATIONAL USE ONLY. This study plan is provided as a
+planning and estimation tool and should NOT be used for clinical dosing
+without proper validation. All calculations MUST be verified before use.
+Drug preparation should follow appropriate laboratory protocols, GLP/GMP
+standards, and regulatory guidelines. Consider species-specific differences,
+formulation stability, and individual variability when applying these
+calculations in actual studies.
+`;
 
     const blob = new Blob([studyPlan], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -685,6 +1002,105 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  /**
+   * Safely parse a date string in YYYY-MM-DD format
+   * Returns current date if parsing fails
+   */
+  const parseScheduleDate = (dateStr: string): Date => {
+    // Handle empty or invalid strings
+    if (!dateStr || typeof dateStr !== "string") {
+      console.warn("Invalid date string, using current date");
+      return new Date();
+    }
+
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) {
+      console.warn(
+        "Invalid date format (expected YYYY-MM-DD), using current date",
+      );
+      return new Date();
+    }
+
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+
+    // Validate parsed values
+    if (isNaN(year) || isNaN(month) || isNaN(day)) {
+      console.warn("Invalid date components, using current date");
+      return new Date();
+    }
+
+    // Validate reasonable date ranges
+    if (
+      year < 1970 ||
+      year > 2100 ||
+      month < 1 ||
+      month > 12 ||
+      day < 1 ||
+      day > 31
+    ) {
+      console.warn("Date out of valid range, using current date");
+      return new Date();
+    }
+
+    const date = new Date(year, month - 1, day, 9, 0, 0);
+
+    // Check if the constructed date is valid
+    if (isNaN(date.getTime())) {
+      console.warn("Invalid date, using current date");
+      return new Date();
+    }
+
+    return date;
+  };
+
+  /**
+   * Export dosing schedule to CSV or ICS calendar format
+   */
+  const exportCalendar = (format: ExportFormat) => {
+    if (armRequirements.length === 0) {
+      return;
+    }
+
+    // Convert arm configs to schedule format
+    const armSchedules = arms.map((arm, index) => {
+      const req = armRequirements[index];
+      return armConfigToSchedule(
+        {
+          name: arm.name,
+          species: arm.species,
+          subjects: arm.subjects,
+          armType: arm.armType,
+          doseLevel: arm.doseLevel,
+          doseUnit: arm.doseUnit,
+          duration: arm.duration,
+          durationUnit: arm.durationUnit,
+          frequency: arm.frequency,
+          customFrequency: arm.customFrequency,
+        },
+        `arm${index + 1}`,
+        req?.adminVolume ?? 0.1,
+      );
+    });
+
+    // Parse start date safely with validation
+    const startDate = parseScheduleDate(scheduleStartDate);
+
+    // Generate schedule
+    const schedule = generateStudySchedule(studyName, armSchedules, {
+      startDate,
+      skipWeekends: false,
+      skipHolidays: false,
+      holidays: [],
+      defaultTime: "09:00",
+      durationMinutes: 15,
+    });
+
+    // Download the file
+    downloadSchedule(schedule, format);
   };
 
   return (
@@ -723,15 +1139,20 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                     value={numArms}
                     onChange={(e) => setNumArms(Number(e.target.value))}
                     min={1}
-                    className="w-20"
+                    className="w-24"
                     aria-describedby="arms-description"
                   />
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => addArm("treatment")}
+                    className="gap-2"
                   >
-                    <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
+                    <IconPlus
+                      className="h-4 w-4"
+                      stroke={1.5}
+                      aria-hidden="true"
+                    />
                     Add Treatment Arm
                   </Button>
                 </div>
@@ -743,26 +1164,40 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                     variant="outline"
                     size="sm"
                     onClick={() => addArm("placebo")}
+                    className="gap-2"
                   >
-                    <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
+                    <IconPlus
+                      className="h-4 w-4"
+                      stroke={1.5}
+                      aria-hidden="true"
+                    />
                     Add Placebo
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => addArm("comparator")}
+                    className="gap-2"
                   >
-                    <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
+                    <IconPlus
+                      className="h-4 w-4"
+                      stroke={1.5}
+                      aria-hidden="true"
+                    />
                     Add Comparator
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={createArmWithCalculatorDose}
-                    className="bg-primary/10"
+                    className="gap-2 bg-primary/10"
                     aria-label="Create arm using dose from calculator"
                   >
-                    <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
+                    <IconPlus
+                      className="h-4 w-4"
+                      stroke={1.5}
+                      aria-hidden="true"
+                    />
                     From Calculator
                   </Button>
                 </div>
@@ -772,9 +1207,9 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
           {/* Extra Parameters */}
           <div className="mt-4">
-            <p className="text-sm font-medium leading-none mb-2">
+            <h3 className="text-base font-semibold mb-2">
               Additional Parameters
-            </p>
+            </h3>
             <div className="grid grid-cols-2 gap-4 mt-2">
               <div>
                 <Label htmlFor="overage-factor" className="text-sm">
@@ -787,7 +1222,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                   onChange={(e) => setOverageFactor(Number(e.target.value))}
                   min={0}
                   max={100}
-                  className="w-20"
+                  className="w-24"
                   placeholder="15"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
@@ -804,7 +1239,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                   value={stabilityBuffer}
                   onChange={(e) => setStabilityBuffer(Number(e.target.value))}
                   min={0}
-                  className="w-20"
+                  className="w-24"
                   placeholder="7"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
@@ -818,11 +1253,11 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
       {/* Arm Configuration Section */}
       {arms.map((arm, index) => (
-        <Card key={index} className="mt-4">
-          <CardHeader className="py-3">
+        <Card key={index}>
+          <CardHeader>
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle className="text-md">
+                <CardTitle>
                   Arm {index + 1}: {arm.name}
                 </CardTitle>
                 <CardDescription>
@@ -884,7 +1319,11 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                   disabled={arms.length <= 1}
                   aria-label={`Remove ${arm.name}`}
                 >
-                  <Trash className="h-4 w-4" aria-hidden="true" />
+                  <IconTrash
+                    className="h-4 w-4"
+                    stroke={1.5}
+                    aria-hidden="true"
+                  />
                 </Button>
               </div>
             </div>
@@ -1074,7 +1513,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
             {/* Comparator Details - Only shown for comparator arms */}
             {arm.armType === "comparator" && (
               <div className="mt-4 p-4 border rounded-md">
-                <h4 className="font-medium mb-3">Comparator Details</h4>
+                <h4 className="text-sm font-medium mb-3">Comparator Details</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Comparator Name</Label>
@@ -1210,7 +1649,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                           )
                         }
                         min={1}
-                        className="w-16"
+                        className="w-24"
                       />
                       <span>per</span>
                       <Input
@@ -1225,7 +1664,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                           )
                         }
                         min={1}
-                        className="w-16"
+                        className="w-24"
                       />
                       <Select
                         value={arm.customFrequency.unit}
@@ -1257,14 +1696,14 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
       ))}
 
       {/* Formulation & Dilution Section */}
-      <Card className="mt-4">
+      <Card>
         <CardHeader>
           <CardTitle>Formulation & Dilution</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
             {/* Drug Concentration */}
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="stock-concentration">Stock Concentration</Label>
               <div className="flex items-center space-x-2">
                 <Input
@@ -1292,10 +1731,90 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                     <SelectItem value="mg/ml">mg/mL</SelectItem>
                     <SelectItem value="mg/g">mg/g</SelectItem>
                     <SelectItem value="mcg/ml">μg/mL</SelectItem>
-                    <SelectItem value="percent">% (w/v)</SelectItem>
+                    <SelectItem value="percent">%</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Percent Type Selector - only shown when percent is selected */}
+              {stockConcentrationUnit === "percent" && (
+                <div className="p-3 bg-secondary/30 rounded-md space-y-3">
+                  <div>
+                    <Label className="text-sm font-medium">Percent Type</Label>
+                    <RadioGroup
+                      value={percentType}
+                      onValueChange={(value) =>
+                        setPercentType(value as "wv" | "ww")
+                      }
+                      className="flex items-center gap-4 mt-1"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="wv" id="pct-wv" />
+                        <Label
+                          htmlFor="pct-wv"
+                          className="font-normal cursor-pointer"
+                        >
+                          % w/v (weight/volume)
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="ww" id="pct-ww" />
+                        <Label
+                          htmlFor="pct-ww"
+                          className="font-normal cursor-pointer"
+                        >
+                          % w/w (weight/weight)
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {percentType === "wv"
+                        ? "w/v: grams of solute per 100 mL of solution (most liquids)"
+                        : "w/w: grams of solute per 100 g of mixture (creams, gels, solids)"}
+                    </p>
+                  </div>
+
+                  {/* Density input - only shown for w/w */}
+                  {percentType === "ww" && (
+                    <div>
+                      <Label htmlFor="density" className="text-sm">
+                        Density (g/mL)
+                      </Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input
+                          id="density"
+                          type="number"
+                          value={density}
+                          onChange={(e) => setDensity(Number(e.target.value))}
+                          min={0.1}
+                          max={10}
+                          step="0.01"
+                          className="w-24"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          Used to convert % w/w to mg/mL
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Formula: mg/mL = {stockConcentration}% × {density} g/mL
+                        × 10 ={" "}
+                        <span className="font-medium">
+                          {(stockConcentration * density * 10).toFixed(2)} mg/mL
+                        </span>
+                      </p>
+                    </div>
+                  )}
+
+                  {percentType === "wv" && (
+                    <p className="text-xs text-muted-foreground">
+                      Formula: mg/mL = {stockConcentration}% × 10 ={" "}
+                      <span className="font-medium">
+                        {(stockConcentration * 10).toFixed(2)} mg/mL
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Administration Route */}
@@ -1395,14 +1914,27 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                           disabled={dilutions.length <= 1}
                           aria-label={`Remove dilution step ${dIndex + 1}`}
                         >
-                          <Trash className="h-4 w-4" aria-hidden="true" />
+                          <IconTrash
+                            className="h-4 w-4"
+                            stroke={1.5}
+                            aria-hidden="true"
+                          />
                         </Button>
                       </div>
                     </div>
                   ))}
 
-                  <Button variant="outline" size="sm" onClick={addDilution}>
-                    <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addDilution}
+                    className="gap-2"
+                  >
+                    <IconPlus
+                      className="h-4 w-4"
+                      stroke={1.5}
+                      aria-hidden="true"
+                    />
                     Add Dilution Step
                   </Button>
                 </div>
@@ -1412,8 +1944,12 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
           {/* Calculate Button */}
           <div className="mt-6 flex justify-center">
-            <Button onClick={calculateRequirements} className="w-1/2">
-              <Calculator className="h-4 w-4 mr-2" aria-hidden="true" />
+            <Button onClick={calculateRequirements} className="w-1/2 gap-2">
+              <IconCalculator
+                className="h-4 w-4"
+                stroke={1.5}
+                aria-hidden="true"
+              />
               Calculate Requirements
             </Button>
           </div>
@@ -1422,7 +1958,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
       {/* Results Section */}
       {totalProductRequired !== null && (
-        <Card className="mt-4">
+        <Card>
           <CardHeader>
             <CardTitle>Study Material Requirements</CardTitle>
           </CardHeader>
@@ -1430,22 +1966,35 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
             {/* Total Study Requirements */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <h3 className="font-semibold mb-2">
+                <h3 className="text-base font-semibold mb-2">
                   Total Active Compound Required
                 </h3>
-                <div className="text-2xl font-bold text-primary">
+                <div className="text-2xl font-bold text-accent">
                   {totalProductRequired.toFixed(3)} {totalProductUnit}
-                  <div className="text-sm text-muted-foreground">
-                    Including {overageFactor}% overage factor
-                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                  <div>Including {overageFactor}% overage factor</div>
+                  {stabilityBuffer > 0 && (
+                    <div>Including {stabilityBuffer} days stability buffer</div>
+                  )}
                 </div>
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">Total Doses to Prepare</h3>
-                <div className="text-2xl font-bold text-orange-500">
+                <h3 className="text-base font-semibold mb-2">
+                  Total Doses to Prepare
+                </h3>
+                <div className="text-2xl font-bold text-accent">
                   {totalDoses}
                 </div>
+                {stabilityBuffer > 0 &&
+                  baseDosesTotal !== null &&
+                  bufferDosesTotal !== null && (
+                    <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                      <div>Base study: {baseDosesTotal} doses</div>
+                      <div>Stability buffer: {bufferDosesTotal} doses</div>
+                    </div>
+                  )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -1457,9 +2006,160 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
               </div>
             </div>
 
+            {/* Calendar Export Section */}
+            <div className="mt-4 p-4 bg-secondary/30 rounded-lg">
+              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                <IconCalendar className="h-4 w-4" stroke={1.5} />
+                Dosing Calendar Export
+              </h4>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div>
+                  <Label htmlFor="study-name">Study Name</Label>
+                  <Input
+                    id="study-name"
+                    type="text"
+                    value={studyName}
+                    onChange={(e) => setStudyName(e.target.value)}
+                    placeholder="Enter study name"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="schedule-start">Start Date</Label>
+                  <Input
+                    id="schedule-start"
+                    type="date"
+                    value={scheduleStartDate}
+                    onChange={(e) => setScheduleStartDate(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportCalendar("csv")}
+                  disabled={armRequirements.length === 0}
+                  className="gap-2"
+                >
+                  <IconFileTypeCsv className="h-4 w-4" stroke={1.5} />
+                  Export CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportCalendar("ics")}
+                  disabled={armRequirements.length === 0}
+                  className="gap-2"
+                >
+                  <IconDownload className="h-4 w-4" stroke={1.5} />
+                  Export ICS Calendar
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                CSV: Spreadsheet with dose schedule. ICS: Import into calendar
+                apps (Outlook, Google Calendar, Apple Calendar).
+              </p>
+            </div>
+
+            {/* Material Breakdown Summary */}
+            {stabilityBuffer > 0 && (
+              <div className="mt-4 p-4 bg-secondary/30 rounded-lg">
+                <h4 className="text-sm font-medium mb-2">
+                  Material Breakdown Summary
+                </h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Component</TableHead>
+                      <TableHead>Doses</TableHead>
+                      <TableHead>Product (mg)</TableHead>
+                      <TableHead>Description</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Base Study</TableCell>
+                      <TableCell>{baseDosesTotal}</TableCell>
+                      <TableCell>
+                        {armRequirements
+                          .filter((_, i) => arms[i].armType === "treatment")
+                          .reduce(
+                            (sum, r) =>
+                              sum + (r.materialBreakdown?.baseProduct ?? 0),
+                            0,
+                          )
+                          .toFixed(3)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        Study duration doses
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">
+                        Stability Buffer
+                      </TableCell>
+                      <TableCell>{bufferDosesTotal}</TableCell>
+                      <TableCell>
+                        {armRequirements
+                          .filter((_, i) => arms[i].armType === "treatment")
+                          .reduce(
+                            (sum, r) =>
+                              sum + (r.materialBreakdown?.bufferProduct ?? 0),
+                            0,
+                          )
+                          .toFixed(3)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {stabilityBuffer} days additional supply
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">
+                        Waste Allowance
+                      </TableCell>
+                      <TableCell>-</TableCell>
+                      <TableCell>
+                        {armRequirements
+                          .filter((_, i) => arms[i].armType === "treatment")
+                          .reduce(
+                            (sum, r) =>
+                              sum + (r.materialBreakdown?.wasteAllowance ?? 0),
+                            0,
+                          )
+                          .toFixed(3)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {overageFactor}% overage
+                      </TableCell>
+                    </TableRow>
+                    <TableRow className="font-bold bg-primary/10">
+                      <TableCell>Grand Total</TableCell>
+                      <TableCell>{totalDoses}</TableCell>
+                      <TableCell>
+                        {armRequirements
+                          .filter((_, i) => arms[i].armType === "treatment")
+                          .reduce(
+                            (sum, r) =>
+                              sum + (r.materialBreakdown?.grandTotal ?? 0),
+                            0,
+                          )
+                          .toFixed(3)}
+                      </TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
             {/* Per Arm Breakdown */}
             <div className="mt-6">
-              <h3 id="arm-breakdown-heading" className="font-semibold mb-2">
+              <h3
+                id="arm-breakdown-heading"
+                className="text-base font-semibold mb-2"
+              >
                 Breakdown by Study Arm
               </h3>
               <Table aria-labelledby="arm-breakdown-heading">
@@ -1471,6 +2171,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                     <TableHead scope="col">Dose per Subject</TableHead>
                     <TableHead scope="col">Total Doses</TableHead>
                     <TableHead scope="col">Product Required</TableHead>
+                    <TableHead scope="col">Volume Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1510,6 +2211,21 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                               ? "N/A"
                               : `Separate from main product`}
                         </TableCell>
+                        <TableCell>
+                          {armType === "placebo" ? (
+                            <span className="text-muted-foreground text-xs">
+                              N/A
+                            </span>
+                          ) : req.volumeValidation ? (
+                            <VolumeWarningBadge
+                              validation={req.volumeValidation}
+                            />
+                          ) : (
+                            <span className="text-muted-foreground text-xs">
+                              -
+                            </span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -1517,10 +2233,43 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
               </Table>
             </div>
 
+            {/* Volume Warnings Section */}
+            {armRequirements.some(
+              (req) => req.volumeValidation && !req.volumeValidation.isValid,
+            ) && (
+              <div className="mt-6">
+                <h3 className="text-base font-semibold mb-2 text-yellow-700 dark:text-yellow-400">
+                  Volume Limit Warnings
+                </h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  The following arms exceed NC3Rs/IACUC recommended volume
+                  limits. Review and consider adjustments before proceeding.
+                </p>
+                <div className="space-y-4">
+                  {armRequirements.map((req, index) => {
+                    if (!req.volumeValidation || req.volumeValidation.isValid) {
+                      return null;
+                    }
+                    return (
+                      <div key={index} className="border rounded-lg p-4">
+                        <h4 className="text-sm font-medium mb-2">
+                          {req.name} - {req.adminVolume.toFixed(3)} mL per dose
+                        </h4>
+                        <VolumeWarningPanel
+                          validation={req.volumeValidation}
+                          className="mt-2"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Dosing Solution Preparation */}
             {useDilutions && (
               <div className="mt-6">
-                <h3 className="font-semibold mb-2">
+                <h3 className="text-base font-semibold mb-2">
                   Dosing Solution Preparation
                 </h3>
                 <Accordion type="single" collapsible className="w-full">

@@ -12,8 +12,10 @@ import {
   COCKCROFT_CONSTANTS,
   GFR_THRESHOLDS,
   CREATININE_CONVERSION,
+  BIOAVAILABILITY_DEFAULTS,
   PatientSex,
   CreatinineUnit,
+  BioavailabilityMethod,
 } from "./types";
 import { SPECIES_DATABASE } from "./species";
 import { validateCalculationInputs } from "./validators";
@@ -481,20 +483,42 @@ export function calculateDose(
     // in v0.8.0 as they lacked proper scientific citation and could produce misleading
     // results. Proper PBPK modeling should be used for these adjustments.
 
-    // Apply bioavailability adjustment (route-dependent)
-    // This is a valid adjustment as bioavailability directly affects systemic exposure
+    /**
+     * Apply bioavailability adjustment (route-dependent)
+     *
+     * Bioavailability (F) directly affects systemic drug exposure and is a scientifically
+     * valid adjustment factor. The formula Dose_oral = Dose_IV / F compensates for
+     * incomplete absorption and first-pass metabolism.
+     *
+     * Literature-based default values are used when a route is specified. These are
+     * conservative estimates - actual bioavailability varies significantly by drug.
+     *
+     * References:
+     * - StatPearls NBK557852: Drug Bioavailability
+     * - StatPearls NBK551679: First-Pass Effect
+     * - PMC10745386: The Bioavailability of Drugs - Current State of Knowledge
+     * - PMC6182494: Subcutaneous Administration of Biotherapeutics
+     * - PMC6805701: Physiological Considerations for Rectal Drug Formulations
+     *
+     * CAVEAT: Oral bioavailability is highly variable (5-99%) depending on the drug.
+     * The 50% default is a conservative middle estimate. Always use drug-specific
+     * values when available from pharmacokinetic studies.
+     */
     let actualBioavailability = params.bioavailability || 100;
-    if (params.bioavailabilityMethod) {
-      switch (params.bioavailabilityMethod) {
-        case "iv":
-          actualBioavailability = 100;
-          break;
-        case "oral":
-          actualBioavailability = 50; // Conservative default
-          break;
-        case "other":
-          actualBioavailability = 75;
-          break;
+    let bioavailabilitySource = "manual";
+
+    if (
+      params.bioavailabilityMethod &&
+      params.bioavailabilityMethod !== "manual"
+    ) {
+      const method = params.bioavailabilityMethod as Exclude<
+        BioavailabilityMethod,
+        "manual"
+      >;
+      const defaultData = BIOAVAILABILITY_DEFAULTS[method];
+      if (defaultData) {
+        actualBioavailability = defaultData.value;
+        bioavailabilitySource = `${method} route (literature default: ${defaultData.range.min}-${defaultData.range.max}%)`;
       }
     }
 
@@ -502,7 +526,7 @@ export function calculateDose(
       const bioavailabilityFactor = actualBioavailability / 100;
       dose /= bioavailabilityFactor;
       steps.push(
-        `Bioavailability (${actualBioavailability}%): ÷ ${bioavailabilityFactor.toFixed(4)} = ${dose.toFixed(4)} mg/kg`,
+        `Bioavailability (${actualBioavailability}%, ${bioavailabilitySource}): ÷ ${bioavailabilityFactor.toFixed(4)} = ${dose.toFixed(4)} mg/kg`,
       );
     }
 
@@ -615,6 +639,12 @@ export function generateChartData(
   params: Partial<CalculationParameters> = {},
   numPoints: number = 50,
 ): ChartDataPoint[] {
+  // Guard against division by zero - baseWeight is used in scaling factor calculations
+  if (baseWeight <= 0) {
+    console.warn("generateChartData: baseWeight must be positive");
+    return [];
+  }
+
   const points: ChartDataPoint[] = [];
   const minWeight = 0.01;
   const maxWeight = 1000;

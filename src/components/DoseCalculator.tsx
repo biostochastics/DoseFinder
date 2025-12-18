@@ -23,6 +23,7 @@ import {
   IconAlertCircle,
   IconCopy,
   IconCheck,
+  IconDownload,
 } from "@tabler/icons-react";
 import { Species, ScalingMethod } from "@/lib/pharmacology/types";
 
@@ -58,6 +59,7 @@ interface DoseCalculatorProps {
   uncertaintyRange: { lower: number; upper: number };
   copySuccess: boolean;
   onCopyToClipboard: () => void;
+  onExportResults: () => void;
 }
 
 export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
@@ -85,6 +87,7 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
     uncertaintyRange,
     copySuccess,
     onCopyToClipboard,
+    onExportResults,
   }) => {
     return (
       <div className="space-y-4">
@@ -191,8 +194,8 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
                     Enter the body weight for the source{" "}
                     {sourceAnimal === "human" ? "patient" : "animal"}. For{" "}
                     {sourceAnimal === "human" ? "humans" : "animals"}, typical
-                    weight range is {animals[sourceAnimal].weight * 0.8} -{" "}
-                    {animals[sourceAnimal].weight * 1.2} kg.
+                    weight range is {(animals[sourceAnimal]?.weight ?? 0) * 0.8}{" "}
+                    - {(animals[sourceAnimal]?.weight ?? 0) * 1.2} kg.
                   </p>
                 </PopoverContent>
               </Popover>
@@ -204,7 +207,7 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
               onChange={(e) =>
                 onSourceWeightChange(parseFloat(e.target.value) || 0)
               }
-              placeholder={`Default: ${animals[sourceAnimal].weight} kg`}
+              placeholder={`Default: ${animals[sourceAnimal]?.weight ?? ""} kg`}
               step="0.001"
               min="0"
             />
@@ -230,8 +233,8 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
                   <p className="text-sm">
                     Enter the body weight for the target{" "}
                     {targetAnimal === "human" ? "patient" : "animal"}. Typical
-                    weight range is {animals[targetAnimal].weight * 0.8} -{" "}
-                    {animals[targetAnimal].weight * 1.2} kg.
+                    weight range is {(animals[targetAnimal]?.weight ?? 0) * 0.8}{" "}
+                    - {(animals[targetAnimal]?.weight ?? 0) * 1.2} kg.
                   </p>
                 </PopoverContent>
               </Popover>
@@ -243,7 +246,7 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
               onChange={(e) =>
                 onTargetWeightChange(parseFloat(e.target.value) || 0)
               }
-              placeholder={`Default: ${animals[targetAnimal].weight} kg`}
+              placeholder={`Default: ${animals[targetAnimal]?.weight ?? ""} kg`}
               step="0.001"
               min="0"
             />
@@ -522,9 +525,19 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
                     ) : (
                       <>
                         <IconCopy className="h-4 w-4" aria-hidden="true" />
-                        Copy Results
+                        Copy
                       </>
                     )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onExportResults}
+                    className="flex items-center gap-2"
+                    aria-label="Export results to file"
+                  >
+                    <IconDownload className="h-4 w-4" aria-hidden="true" />
+                    Export
                   </Button>
                   <span
                     className="sr-only"
@@ -541,7 +554,7 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
                   <p className="text-sm text-muted-foreground mb-2">
                     Calculated Dose
                   </p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-2xl font-bold text-accent">
                     {resultDose.toFixed(3)} mg/kg
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">
@@ -562,22 +575,25 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
                 </div>
 
                 <div
-                  className="p-3 bg-warning/10 border border-warning/20 rounded-lg"
+                  className="warning-note"
                   role="note"
                   aria-label="Important disclaimer"
                 >
-                  <p className="text-sm text-warning-foreground flex items-start gap-2">
+                  <div className="flex items-start gap-2">
                     <IconAlertCircle
-                      className="h-4 w-4 mt-0.5 flex-shrink-0"
+                      className="warning-note-icon"
                       aria-hidden="true"
                     />
-                    <span>
-                      <strong>Disclaimer:</strong> This calculation is for
-                      research purposes only. Always validate doses with
-                      experimental data and consider factors like drug
-                      properties, disease state, and individual variability.
-                    </span>
-                  </p>
+                    <div>
+                      <p className="warning-note-title">Disclaimer</p>
+                      <p className="warning-note-text">
+                        This calculation is for research purposes only. Always
+                        validate doses with experimental data and consider
+                        factors like drug properties, disease state, and
+                        individual variability.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>

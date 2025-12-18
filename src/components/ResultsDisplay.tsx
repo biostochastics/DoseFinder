@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { IconAlertCircle } from "@tabler/icons-react";
-import { cn } from "@/lib/utils";
 import { Species } from "@/lib/pharmacology/types";
+import { formatDose, formatUnit } from "@/lib/units";
 
 interface CalculationSteps {
   calculatedDose: number;
@@ -27,7 +27,6 @@ interface ResultsDisplayProps {
   setShowDilution: (value: boolean) => void;
   dilutionFactor: string;
   handleDilutionChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  isDarkMode: boolean;
 }
 
 export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
@@ -43,14 +42,13 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
     setShowDilution,
     dilutionFactor,
     handleDilutionChange,
-    isDarkMode,
   }) => {
     if (!calculationSteps) return null;
 
     return (
-      <>
+      <div className="space-y-4">
         {/* Dilution Control */}
-        <Card className="bg-secondary mb-4">
+        <Card className="bg-card-elevated/50">
           <CardContent className="pt-6">
             <div className="flex items-center space-x-4 flex-wrap gap-y-2">
               <div className="flex items-center space-x-2">
@@ -58,10 +56,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
                   id="dilution"
                   checked={showDilution}
                   onCheckedChange={setShowDilution}
-                  className={cn(
-                    "bg-primary",
-                    isDarkMode && "data-[state=unchecked]:bg-slate-700",
-                  )}
+                  className="data-[state=unchecked]:bg-muted"
                   aria-describedby="dilution-description"
                 />
                 <Label htmlFor="dilution">Show Dilution</Label>
@@ -92,7 +87,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
 
         {/* Results Card */}
         <Card
-          className="mb-4 card-hover"
+          className="card-hover"
           role="region"
           aria-label="Calculation results summary"
         >
@@ -122,19 +117,21 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
               <div className="space-y-3">
                 <dl>
                   <dt className="result-label">Base Dose</dt>
-                  <dd className="result-value">{baseDose} mg</dd>
+                  <dd className="result-value">
+                    {baseDose} {formatUnit("mg/kg")}
+                  </dd>
                 </dl>
                 <dl>
                   <dt className="result-label">Calculated Dose</dt>
-                  <dd className="result-value text-accent" aria-live="polite">
-                    {calculationSteps.calculatedDose.toFixed(4)} mg
+                  <dd className="result-value" aria-live="polite">
+                    {formatDose(calculationSteps.calculatedDose)}
                   </dd>
                 </dl>
-                {showDilution && Number(dilutionFactor) !== 1 && (
+                {showDilution && (parseFloat(dilutionFactor) || 1) !== 1 && (
                   <dl>
                     <dt className="result-label">Final with Dilution</dt>
-                    <dd className="result-value text-accent">
-                      {calculationSteps.finalDose.toFixed(4)} mg
+                    <dd className="result-value">
+                      {formatDose(calculationSteps.finalDose)}
                     </dd>
                   </dl>
                 )}
@@ -145,7 +142,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
 
         {/* Calculation Steps */}
         <Card
-          className="mb-4 card-hover"
+          className="card-hover"
           role="region"
           aria-label="Calculation methodology"
         >
@@ -153,17 +150,14 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
             <CardTitle>Calculation Steps</CardTitle>
           </CardHeader>
           <CardContent>
-            <div
-              className="p-2 mb-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800"
-              role="note"
-            >
+            <div className="warning-note mb-3" role="note">
               <div className="flex items-start gap-2">
                 <IconAlertCircle
-                  className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0"
+                  className="warning-note-icon"
                   stroke={1.5}
                   aria-hidden="true"
                 />
-                <p className="text-xs text-orange-700 dark:text-orange-300">
+                <p className="text-xs text-muted-foreground">
                   <strong>Note:</strong> Values use species averages with ±30%
                   typical variation. Individual animals may differ
                   significantly.
@@ -179,15 +173,15 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
                   {step.replace(/^\d+\.\s*/, "")}
                 </li>
               ))}
-              {showDilution && Number(dilutionFactor) !== 1 && (
+              {showDilution && (parseFloat(dilutionFactor) || 1) !== 1 && (
                 <li className="ml-2 font-mono text-xs">
-                  {`Final Dose with Dilution: ${calculationSteps.calculatedDose.toFixed(4)} × ${dilutionFactor} = ${calculationSteps.finalDose.toFixed(4)} mg`}
+                  {`Final Dose with Dilution: ${calculationSteps.calculatedDose.toFixed(4)} × ${parseFloat(dilutionFactor) || 1} = ${formatDose(calculationSteps.finalDose)}`}
                 </li>
               )}
             </ol>
           </CardContent>
         </Card>
-      </>
+      </div>
     );
   },
 );

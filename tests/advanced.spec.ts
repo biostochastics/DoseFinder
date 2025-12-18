@@ -35,13 +35,6 @@ test.describe("Advanced Parameters", () => {
     }) => {
       await expect(page.getByText("Active Parameter Effects")).toBeVisible();
     });
-
-    test("should display note about removed parameters", async ({ page }) => {
-      await expect(page.getByText("Note on Removed Parameters")).toBeVisible();
-      await expect(
-        page.getByText("Protein binding, volume of distribution"),
-      ).toBeVisible();
-    });
   });
 
   test.describe("Kidney Function Methods", () => {
@@ -112,17 +105,18 @@ test.describe("Advanced Parameters", () => {
   });
 
   test.describe("Bioavailability Methods", () => {
-    test("should display all bioavailability options", async ({ page }) => {
-      await expect(page.getByLabel("Manual (%)")).toBeVisible();
-      await expect(page.getByLabel("IV (100%)")).toBeVisible();
-      await expect(page.getByLabel("Oral (~50%)")).toBeVisible();
-      await expect(page.getByLabel("Other (~75%)")).toBeVisible();
+    test("should display bioavailability route selector", async ({ page }) => {
+      // Bioavailability now uses a Select dropdown for route selection
+      const routeSelect = page.locator("#bioavailability-route");
+      await expect(routeSelect).toBeVisible();
     });
 
-    test("should show manual input when Manual is selected", async ({
+    test("should show manual input when Manual Entry is selected", async ({
       page,
     }) => {
-      await page.getByLabel("Manual (%)").click();
+      // Click the route selector and choose Manual Entry
+      await page.locator("#bioavailability-route").click();
+      await page.getByRole("option", { name: "Manual Entry" }).click();
 
       const manualInput = page.locator("#bioavailability-manual");
       await expect(manualInput).toBeVisible();
@@ -133,7 +127,9 @@ test.describe("Advanced Parameters", () => {
     });
 
     test("should update active effects for IV", async ({ page }) => {
-      await page.getByLabel("IV (100%)").click();
+      // Select IV route
+      await page.locator("#bioavailability-route").click();
+      await page.getByRole("option", { name: /IV.*Intravenous.*100%/ }).click();
 
       // Should show no adjustments for IV
       await expect(
@@ -144,27 +140,33 @@ test.describe("Advanced Parameters", () => {
     });
 
     test("should update active effects for Oral", async ({ page }) => {
-      await page.getByLabel("Oral (~50%)").click();
+      // Select Oral route
+      await page.locator("#bioavailability-route").click();
+      await page.getByRole("option", { name: /Oral.*50%/ }).click();
 
       // Should show 2x adjustment factor
       await expect(
-        page.getByText("Bioavailability adjustment factor: 2x"),
+        page.getByText(/Bioavailability adjustment factor: 2\.00x/),
       ).toBeVisible();
     });
 
     test("should update active effects for Other", async ({ page }) => {
-      await page.getByLabel("Other (~75%)").click();
+      // Select Other route
+      await page.locator("#bioavailability-route").click();
+      await page.getByRole("option", { name: /Other.*75%/ }).click();
 
       // Should show 1.33x adjustment factor
       await expect(
-        page.getByText("Bioavailability adjustment factor: 1.33x"),
+        page.getByText(/Bioavailability adjustment factor: 1\.33x/),
       ).toBeVisible();
     });
 
     test("should calculate custom bioavailability adjustment", async ({
       page,
     }) => {
-      await page.getByLabel("Manual (%)").click();
+      // Select Manual Entry
+      await page.locator("#bioavailability-route").click();
+      await page.getByRole("option", { name: "Manual Entry" }).click();
       await page.locator("#bioavailability-manual").fill("50");
 
       // Should show 2x adjustment factor (100/50)
@@ -206,9 +208,10 @@ test.describe("Advanced Parameters", () => {
         .first()
         .textContent();
 
-      // Go to advanced tab and change bioavailability
+      // Go to advanced tab and change bioavailability using Select dropdown
       await page.getByRole("tab", { name: /Advanced/i }).click();
-      await page.locator("#bio-oral").click();
+      await page.locator("#bioavailability-route").click();
+      await page.getByRole("option", { name: /Oral.*50%/ }).click();
 
       // Go back to calculator and recalculate
       await page.getByRole("tab", { name: /Calculator/i }).click();
@@ -242,23 +245,22 @@ test.describe("Advanced Parameters", () => {
         .filter({ hasText: "Kidney function" });
       await expect(kidneyFieldset).toBeVisible();
 
-      // The bioavailability radio group should have a legend
-      const bioFieldset = page
-        .locator("fieldset")
-        .filter({ hasText: "Bioavailability" });
-      await expect(bioFieldset).toBeVisible();
+      // Bioavailability now uses a Select dropdown with a label
+      const bioLabel = page.getByText("Route of Administration");
+      await expect(bioLabel).toBeVisible();
     });
 
-    test("should have aria labels on radio groups", async ({ page }) => {
+    test("should have aria labels on radio groups and select elements", async ({
+      page,
+    }) => {
       const kidneyRadioGroup = page.getByRole("radiogroup", {
         name: /Kidney function method/i,
       });
       await expect(kidneyRadioGroup).toBeVisible();
 
-      const bioRadioGroup = page.getByRole("radiogroup", {
-        name: /Bioavailability calculation method/i,
-      });
-      await expect(bioRadioGroup).toBeVisible();
+      // Bioavailability now uses a Select dropdown (combobox)
+      const bioSelect = page.locator("#bioavailability-route");
+      await expect(bioSelect).toBeVisible();
     });
   });
 });

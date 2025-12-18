@@ -295,11 +295,6 @@ select:focus {
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Glow text effect for important values */
-.glow-text {
-  text-shadow: 0 0 10px hsl(var(--accent) / 0.35);
-}
-
 /* Industrial tooltip */
 .tooltip {
   @apply relative;
@@ -441,7 +436,7 @@ textarea:focus-visible,
 
 /* Better visual hierarchy for results */
 .result-value {
-  @apply text-2xl font-bold tabular-nums;
+  @apply text-2xl font-bold tabular-nums text-accent;
 }
 
 .result-label {
@@ -470,4 +465,95 @@ tbody tr:hover {
 [aria-live="polite"],
 [aria-live="assertive"] {
   @apply sr-only;
+}
+
+/* Standardized warning/note box */
+.warning-note {
+  @apply p-3 rounded-lg border;
+  @apply bg-warning/10 border-warning/30;
+}
+
+.warning-note-icon {
+  @apply h-4 w-4 text-warning flex-shrink-0 mt-0.5;
+}
+
+.warning-note-title {
+  @apply font-medium text-warning;
+}
+
+.warning-note-text {
+  @apply text-sm text-muted-foreground;
+}
+
+/* Info note variant */
+.info-note {
+  @apply p-3 rounded-lg border;
+  @apply bg-info/10 border-info/30;
+}
+
+.info-note-icon {
+  @apply h-4 w-4 text-info flex-shrink-0 mt-0.5;
+}
+
+.info-note-title {
+  @apply font-medium text-info;
+}
+
+.info-note-text {
+  @apply text-sm text-muted-foreground;
+}
+
+/* Destructive/error note variant */
+.destructive-note {
+  @apply p-3 rounded-lg border;
+  @apply bg-destructive/10 border-destructive/30;
+}
+
+.destructive-note-icon {
+  @apply h-4 w-4 text-destructive flex-shrink-0 mt-0.5;
+}
+
+.destructive-note-title {
+  @apply font-medium text-destructive;
+}
+
+.destructive-note-text {
+  @apply text-sm text-muted-foreground;
+}
+
+/* Success note variant */
+.success-note {
+  @apply p-3 rounded-lg border;
+  @apply bg-success/10 border-success/30;
+}
+
+.success-note-icon {
+  @apply h-4 w-4 text-success flex-shrink-0 mt-0.5;
+}
+
+.success-note-title {
+  @apply font-medium text-success;
+}
+
+.success-note-text {
+  @apply text-sm text-muted-foreground;
+}
+
+/* Standardized typography hierarchy */
+.section-title {
+  @apply text-base font-semibold;
+}
+
+.subsection-title {
+  @apply text-sm font-medium;
+}
+
+/* Standardized numeric input width */
+.input-numeric {
+  @apply w-24;
+}
+
+/* Standardized button with icon */
+.btn-with-icon {
+  @apply inline-flex items-center gap-2;
 }

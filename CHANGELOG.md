@@ -5,6 +5,143 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2025-12-18
+
+### Added
+
+- **Allometric Scaling Validation**: New Km factor validation for FDA HED calculations
+  - `validateKmFactor()` function validates Km values against biologically plausible ranges
+  - Checks against FDA 2005 Guidance Table 1 expected values (Mouse Km=3 to Human Km=37)
+  - Species-specific validation with expected ranges (e.g., mouse: 2.5-4, dog: 18-22)
+  - Returns detailed validation results with severity levels, messages, and recommendations
+  - `calculateHED()` now supports optional validation via `validateKm` option
+  - `calculateHEDWithValidation()` provides full validation results alongside HED calculation
+  - `calculateFdaFihDose()` automatically generates warnings for:
+    - `INVALID_ANIMAL_KM`: Biologically implausible Km values (Km < 2 or Km > 40)
+    - `KM_OUTSIDE_SPECIES_RANGE`: Valid but atypical Km for the species
+    - `INVALID_HUMAN_KM`: Human Km outside 5% tolerance of 37
+  - New `KM_VALIDATION_RANGES` constants in `constants.ts` with documented ranges
+  - Prevents silent acceptance of biologically implausible HED calculations
+
+### Fixed
+
+- **Critical: Species Key Normalization** - Fixed Km factor lookup failures for camelCase species names
+  - `getKmFactor("miniPig")` now correctly returns 35 (was returning null)
+  - `getKmFactor("guineaPig")` now correctly returns 8 (was returning null)
+  - Normalized all species keys to lowercase in `constants.ts`:
+    - `FDA_KM_FACTORS`, `FDA_VALIDATED_SPECIES`, `FDA_REFERENCE_WEIGHTS`, `FDA_REFERENCE_BSA`
+    - `KM_VALIDATION_RANGES.SPECIES_RANGES`, `VOLUME_LIMITS`
+  - Updated display names in `fda.ts` to match normalized keys
+
+- **Critical: "Once" Frequency Mapping** - Fixed single-dose study schedule generation
+  - "Once" frequency now correctly maps to `type: "once"` (was incorrectly mapping to `type: "daily"`)
+  - Single-dose studies (common in FIH SAD trials) now generate 1 event instead of daily events
+
+- **High: Volume Suggestion Placeholder** - Fixed incorrect concentration recommendations
+  - `validateVolume()` no longer generates misleading concentration suggestions when dose is unknown
+  - Concentration suggestions now only appear when actual dose is provided via `validateDoseVolume()`
+  - Split dose and reduce volume suggestions still work without dose information
+
+### Technical
+
+- All FDA Km values verified against FDA 2005 Guidance Table 1
+- Density formulas and MABEL warnings confirmed correct
+
+## [0.9.3] - 2025-12-18
+
+### Added
+
+- **FIH Calculator Export Button**: New "Export" button for FDA FIH Starting Dose calculations
+  - Full input parameters (modality, species, NOAEL, safety factor, human weight)
+  - Results with HED, MRSD, and total dose
+  - Multi-species comparison table (when applicable)
+  - Recommended MRSD with rationale
+  - All calculation steps with formulas
+  - Warnings and recommendations
+  - Regulatory reference and methodology notes
+  - Comprehensive disclaimer for IND submissions
+- **Dosing Calendar Export (CSV/ICS)**: Export study schedules for trial coordination
+  - CSV format for spreadsheet analysis with date/time, subject ID, arm, dose details
+  - ICS format (RFC 5545) for calendar integration (Outlook, Google Calendar, Apple Calendar)
+  - Configurable study name and start date
+  - Support for all dosing frequencies (daily, BID, TID, weekly, biweekly, monthly, custom)
+  - Automatic subject ID generation with species-based prefixes (M=mouse, R=rat, D=dog, etc.)
+  - Schedule statistics display (total events, subjects, duration)
+  - NC3Rs/IACUC volume limit validation integration
+
+### Changed
+
+- **Consolidated Calculation Hooks**: Removed unused `useCalculations.ts` hook
+  - All calculation logic now consolidated in `useCalculatorState.ts`
+  - Cleaner codebase with no duplicate/dead code
+  - Maintains full calculation, caching, and validation functionality
+
+### Technical
+
+- New `src/lib/calendar/` module with types, generator, and exporters
+- 54 new unit tests for calendar functionality (298 total tests)
+- Robust edge case handling in schedule generation:
+  - Maximum 365-day iteration limit for date skipping
+  - Monthly dosing handles short months (e.g., Feb 28/29 for Jan 31 start)
+  - Maximum 100,000 events per arm safety limit
+  - Maximum 10-year duration validation
+- Build successful with zero TypeScript errors
+
+## [0.9.2] - 2025-12-18
+
+### Added
+
+- **Dose Calculator Export Button**: New "Export" button in Results section downloads comprehensive calculation report
+  - Full parameter documentation (basic and advanced)
+  - Scaling configuration with method descriptions
+  - Results with absolute doses (per kg and total)
+  - All calculation steps numbered
+- **Enhanced Copy to Clipboard**: Now includes all calculator parameters
+  - Scaling method and exponent
+  - Bioavailability method and adjustment factor
+  - Kidney function parameters (method, value, Cockcroft-Gault details if used)
+  - Fraction excreted renal (fe) value
+  - Uncertainty range (±30%)
+
+### Changed
+
+- **Study Planner Export**: Enhanced with full arm configurations
+  - Species/population with weights
+  - Dose level and unit per arm
+  - Treatment duration and dosing frequency
+  - Dilution protocol details
+  - Improved formatting with clear sections
+- **Disclaimers**: All exports (copy and file) now include prominent disclaimers
+  - "FOR RESEARCH AND EDUCATIONAL USE ONLY"
+  - Explicit warnings about clinical use requiring validation
+  - References to regulatory guidelines and experimental verification
+  - GLP/GMP guidance for study planner exports
+
+### Technical
+
+- Added `exportResults` function to `useCalculatorState.ts`
+- Added `onExportResults` prop to `DoseCalculator` component
+- Added `IconDownload` import for export button
+- Build successful with zero TypeScript errors
+
+## [0.9.1] - 2025-12-18
+
+### Fixed
+
+- **AdvancedParameters.tsx**: Guard against division by zero when bioavailability is 0
+- **AdvancedParameters.tsx**: Updated kidney function text to accurately reflect renal fraction (fe) parameter
+- **AdvancedParameters.tsx**: Cockcroft-Gault message now only shows when valid age and creatinine inputs are provided
+- **DoseChart.tsx**: Removed duplicate X-axis rotation transform (had both CSS transform and angle prop)
+- **DoseChart.tsx**: Fixed dilutedDose truthiness check to properly handle zero values
+- **DoseCalculator.tsx**: Added null-safe access for species weight lookups in popover text and placeholders
+- **ResultsDisplay.tsx**: Fixed dilution factor consistency using parseFloat normalization to match calculation logic
+- **calculations.ts**: Added division by zero guard in generateChartData for baseWeight
+
+### Technical
+
+- All linting and formatting passing
+- Improved robustness against edge cases and invalid inputs
+
 ## [0.9.0] - 2025-12-18
 
 ### Security
