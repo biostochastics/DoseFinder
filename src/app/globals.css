@@ -18,7 +18,7 @@
     --secondary: 0 0% 92%;
     --secondary-foreground: 0 0% 18%;
     --muted: 0 0% 88%;
-    --muted-foreground: 0 0% 38%;
+    --muted-foreground: 0 0% 32%; /* Improved contrast ratio for WCAG AA (5.3:1) */
     --accent: 28 86% 52%;
     --accent-foreground: 0 0% 8%;
     --accent-amber: 43 96% 58%;
@@ -36,7 +36,7 @@
     --ring: 28 86% 52%;
     --radius: 0.375rem;
     --surface-elevated: 0 0% 96%;
-    --text-secondary: 0 0% 42%;
+    --text-secondary: 0 0% 35%; /* Improved contrast for WCAG AA */
 
     /* Minimalist Shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
@@ -126,8 +126,11 @@ body {
   min-height: 0;
 }
 
-/* Smooth transitions for theme changes */
-* {
+/* Smooth transitions for theme changes - scoped to avoid performance issues */
+body,
+.card,
+.btn,
+[data-state] {
   @apply transition-colors duration-200;
 }
 
@@ -292,11 +295,6 @@ select:focus {
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Glow text effect for important values */
-.glow-text {
-  text-shadow: 0 0 10px hsl(var(--accent) / 0.35);
-}
-
 /* Industrial tooltip */
 .tooltip {
   @apply relative;
@@ -324,4 +322,238 @@ select:focus {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Screen reader only - visually hidden but accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Enhanced focus indicators for accessibility */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+  @apply sr-only;
+}
+
+.skip-link:focus {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 9999;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  @apply bg-primary text-primary-foreground rounded-md shadow-lg;
+}
+
+/* Required field indicator */
+.required-indicator::after {
+  content: " *";
+  @apply text-destructive font-medium;
+}
+
+/* Disabled button tooltip hint */
+.btn-disabled-hint {
+  @apply relative;
+}
+
+.btn-disabled-hint[data-disabled-reason]::after {
+  content: attr(data-disabled-reason);
+  @apply absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1;
+  @apply bg-popover text-popover-foreground text-xs rounded shadow-md;
+  @apply opacity-0 pointer-events-none transition-opacity duration-200;
+  @apply whitespace-nowrap z-10;
+}
+
+.btn-disabled-hint:hover[data-disabled-reason]::after,
+.btn-disabled-hint:focus-within[data-disabled-reason]::after {
+  @apply opacity-100;
+}
+
+/* Fieldset reset for accessible radio groups */
+fieldset.radio-fieldset {
+  @apply border-0 p-0 m-0;
+}
+
+fieldset.radio-fieldset legend {
+  @apply text-sm font-medium leading-none mb-2;
+}
+
+/* Consistent focus states for all interactive elements */
+[role="button"]:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+}
+
+/* Validation error styles */
+.input-error {
+  @apply border-destructive ring-destructive/20;
+}
+
+.input-error:focus-visible {
+  @apply ring-destructive;
+}
+
+.error-message {
+  @apply text-xs text-destructive mt-1;
+}
+
+/* Success state for copied feedback */
+.copy-success {
+  color: hsl(var(--success));
+}
+
+/* Consistent card hover effects */
+.card-hover {
+  @apply transition-all duration-200 ease-out;
+}
+
+.card-hover:hover {
+  @apply shadow-md -translate-y-0.5;
+}
+
+/* Better visual hierarchy for results */
+.result-value {
+  @apply text-2xl font-bold tabular-nums text-accent;
+}
+
+.result-label {
+  @apply text-sm font-medium text-muted-foreground mb-1;
+}
+
+/* Improved table row hover */
+tbody tr {
+  @apply transition-colors duration-150;
+}
+
+tbody tr:hover {
+  @apply bg-muted/50;
+}
+
+/* Accessible toggle switch label pairing */
+.switch-with-label {
+  @apply flex items-center gap-2 cursor-pointer;
+}
+
+/* Live region for screen reader announcements */
+.sr-live {
+  @apply sr-only;
+}
+
+[aria-live="polite"],
+[aria-live="assertive"] {
+  @apply sr-only;
+}
+
+/* Standardized warning/note box */
+.warning-note {
+  @apply p-3 rounded-lg border;
+  @apply bg-warning/10 border-warning/30;
+}
+
+.warning-note-icon {
+  @apply h-4 w-4 text-warning flex-shrink-0 mt-0.5;
+}
+
+.warning-note-title {
+  @apply font-medium text-warning;
+}
+
+.warning-note-text {
+  @apply text-sm text-muted-foreground;
+}
+
+/* Info note variant */
+.info-note {
+  @apply p-3 rounded-lg border;
+  @apply bg-info/10 border-info/30;
+}
+
+.info-note-icon {
+  @apply h-4 w-4 text-info flex-shrink-0 mt-0.5;
+}
+
+.info-note-title {
+  @apply font-medium text-info;
+}
+
+.info-note-text {
+  @apply text-sm text-muted-foreground;
+}
+
+/* Destructive/error note variant */
+.destructive-note {
+  @apply p-3 rounded-lg border;
+  @apply bg-destructive/10 border-destructive/30;
+}
+
+.destructive-note-icon {
+  @apply h-4 w-4 text-destructive flex-shrink-0 mt-0.5;
+}
+
+.destructive-note-title {
+  @apply font-medium text-destructive;
+}
+
+.destructive-note-text {
+  @apply text-sm text-muted-foreground;
+}
+
+/* Success note variant */
+.success-note {
+  @apply p-3 rounded-lg border;
+  @apply bg-success/10 border-success/30;
+}
+
+.success-note-icon {
+  @apply h-4 w-4 text-success flex-shrink-0 mt-0.5;
+}
+
+.success-note-title {
+  @apply font-medium text-success;
+}
+
+.success-note-text {
+  @apply text-sm text-muted-foreground;
+}
+
+/* Standardized typography hierarchy */
+.section-title {
+  @apply text-base font-semibold;
+}
+
+.subsection-title {
+  @apply text-sm font-medium;
+}
+
+/* Standardized numeric input width */
+.input-numeric {
+  @apply w-24;
+}
+
+/* Standardized button with icon */
+.btn-with-icon {
+  @apply inline-flex items-center gap-2;
 }
