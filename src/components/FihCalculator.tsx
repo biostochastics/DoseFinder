@@ -165,17 +165,40 @@ export function FihCalculator() {
 
   // Calculate FIH dose
   const calculate = useCallback(() => {
-    const effectiveSafetyFactor =
+    const parsedNoael = parseFloat(primaryNoael);
+    const parsedHumanWeight = parseFloat(humanWeight);
+    const parsedSafetyFactor =
       safetyFactor === "custom"
         ? parseFloat(customSafetyFactor)
         : parseFloat(safetyFactor);
 
+    // Validate numeric inputs before proceeding
+    const immediateErrors: string[] = [];
+
+    if (!Number.isFinite(parsedNoael) || parsedNoael <= 0) {
+      immediateErrors.push("NOAEL must be a positive number");
+    }
+
+    if (!Number.isFinite(parsedSafetyFactor) || parsedSafetyFactor < 1) {
+      immediateErrors.push("Safety factor must be at least 1");
+    }
+
+    if (!Number.isFinite(parsedHumanWeight) || parsedHumanWeight <= 0) {
+      immediateErrors.push("Human reference weight must be a positive number");
+    }
+
+    if (immediateErrors.length > 0) {
+      setErrors(immediateErrors);
+      setResult(null);
+      return;
+    }
+
     const input = {
-      noael: parseFloat(primaryNoael),
+      noael: parsedNoael,
       animalSpecies: primarySpecies,
-      safetyFactor: effectiveSafetyFactor,
+      safetyFactor: parsedSafetyFactor,
       modality,
-      humanWeight: parseFloat(humanWeight),
+      humanWeight: parsedHumanWeight,
       additionalSpeciesData:
         additionalSpecies.length > 0 ? additionalSpecies : undefined,
     };
@@ -269,10 +292,16 @@ validation by qualified professionals. Always consult appropriate regulatory
 guidance documents and seek expert advice for IND submissions.
 `;
 
-    navigator.clipboard.writeText(text).then(() => {
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    });
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      })
+      .catch(() => {
+        // Clipboard write failed (permission denied or API unavailable)
+        setCopySuccess(false);
+      });
   }, [
     result,
     primarySpecies,

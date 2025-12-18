@@ -27,7 +27,14 @@ const themeScript = `
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const shouldBeDark = theme === 'dark' || (!theme && prefersDark);
       document.documentElement.classList.toggle('dark', shouldBeDark);
-    } catch (e) {}
+    } catch (e) {
+      // Fallback to light mode if theme detection fails
+      try {
+        document.documentElement.classList.remove('dark');
+      } catch (_) {
+        // If even this fails, let the browser's default styling apply
+      }
+    }
   })();
 `;
 

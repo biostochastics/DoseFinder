@@ -25,7 +25,17 @@ import {
   IconCheck,
   IconDownload,
 } from "@tabler/icons-react";
-import { Species, ScalingMethod } from "@/lib/pharmacology/types";
+import {
+  Species,
+  ScalingMethod,
+  CalculationResult,
+} from "@/lib/pharmacology/types";
+
+// Extended calculation result with additional computed fields
+interface DoseCalculationSteps extends CalculationResult {
+  calculatedDose: number;
+  finalDose: number;
+}
 
 interface DoseCalculatorProps {
   sourceAnimal: string;
@@ -45,16 +55,8 @@ interface DoseCalculatorProps {
   onScalingMethodChange: (value: ScalingMethod) => void;
   onScalingExponentChange: (value: string) => void;
   onCustomExponentValueChange: (value: number) => void;
-  calculateDose: () => void;
-  calculationSteps: {
-    calculatedDose: number;
-    finalDose: number;
-    steps: string[];
-    scalingFactor?: number;
-    methodDescription?: string;
-    warnings?: string[];
-    error?: string;
-  } | null;
+  calculateDose: () => CalculationResult | null;
+  calculationSteps: DoseCalculationSteps | null;
   resultDose: number;
   uncertaintyRange: { lower: number; upper: number };
   copySuccess: boolean;
