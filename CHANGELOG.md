@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.0] - 2025-12-18
 
+### Security
+
+- **Critical**: Patched Next.js from 15.5.4 to 15.5.9 for React2Shell vulnerabilities
+  - CVE-2025-66478 (critical): Remote code execution via crafted RSC payload
+  - CVE-2025-55184 (high): DoS via malicious HTTP request causing server hang
+  - CVE-2025-55183 (medium): Server Action source code exposure via malicious request
+  - CVE-2025-67779 (high): Incomplete fix for CVE-2025-55184 DoS vulnerability
+- Updated eslint-config-next to 15.5.9 for consistency
+
 ### Added
 
 - **Fraction Excreted Unchanged (fe) Parameter**: Proper renal adjustment using scientifically validated formula
