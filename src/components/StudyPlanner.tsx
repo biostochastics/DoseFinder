@@ -97,6 +97,7 @@ interface ArmRequirement {
 interface StudyPlannerProps {
   animals: Record<string, Species>;
   currentDose: number;
+  currentDoseUnit: "mg/kg" | "mg";
   sourceAnimal: string;
   targetAnimal: string;
 }
@@ -104,6 +105,7 @@ interface StudyPlannerProps {
 export function StudyPlanner({
   animals,
   currentDose,
+  currentDoseUnit,
   sourceAnimal, // eslint-disable-line @typescript-eslint/no-unused-vars
   targetAnimal,
 }: StudyPlannerProps) {
@@ -255,7 +257,11 @@ export function StudyPlanner({
   };
 
   // Update arm properties
-  const updateArm = (index: number, property: keyof ArmConfig, value: any) => {
+  const updateArm = (
+    index: number,
+    property: keyof ArmConfig,
+    value: string | number,
+  ) => {
     const updatedArms = [...arms];
 
     // Create updated arm object
@@ -265,7 +271,7 @@ export function StudyPlanner({
     };
 
     // If species changes, update weight
-    if (property === "species" && animals[value]) {
+    if (property === "species" && typeof value === "string" && animals[value]) {
       updatedArm.weight = animals[value].weight;
     }
 
@@ -296,7 +302,7 @@ export function StudyPlanner({
     armIndex: number,
     nestedObj: string,
     property: string,
-    value: any,
+    value: string | number,
   ) => {
     const updatedArms = [...arms];
     updatedArms[armIndex] = {
@@ -304,7 +310,7 @@ export function StudyPlanner({
       [nestedObj]: {
         ...(updatedArms[armIndex][nestedObj as keyof ArmConfig] as Record<
           string,
-          any
+          string | number
         >),
         [property]: value,
       },
@@ -334,7 +340,7 @@ export function StudyPlanner({
   const updateDilution = (
     index: number,
     property: keyof DilutionStep,
-    value: any,
+    value: string | number,
   ) => {
     const updatedDilutions = [...dilutions];
     updatedDilutions[index] = {
@@ -460,6 +466,10 @@ export function StudyPlanner({
     let stockConcMg = stockConc;
     if (stockConcUnit === "mcg/ml") {
       stockConcMg /= 1000;
+    } else if (stockConcUnit === "mg/g") {
+      // mg/g is equivalent to mg/mL assuming density of 1 g/mL
+      // For solids or semi-solids, this is a reasonable approximation
+      stockConcMg = stockConc;
     } else if (stockConcUnit === "percent") {
       // Use density factor for percentage conversions
       stockConcMg = stockConc * 10; // Convert % to mg/mL using default density of 1 g/mL
@@ -547,12 +557,13 @@ export function StudyPlanner({
     const targetWeight = animals[targetAnimal]?.weight || 70;
 
     // Update the arm with the current dose
+    // currentDose is in mg/kg from the calculator
     updatedArms[index] = {
       ...updatedArms[index],
       species: targetAnimal,
       weight: targetWeight,
       doseLevel: currentDose,
-      doseUnit: "mg",
+      doseUnit: currentDoseUnit,
     };
 
     setArms(updatedArms);
@@ -563,6 +574,7 @@ export function StudyPlanner({
     const targetWeight = animals[targetAnimal]?.weight || 70;
 
     // Create a new arm with the current dose
+    // currentDose is in mg/kg from the calculator
     const newArm: ArmConfig = {
       name: `${animals[targetAnimal]?.name || targetAnimal} Dose`,
       species: targetAnimal,
@@ -570,7 +582,7 @@ export function StudyPlanner({
       weight: targetWeight,
       armType: "treatment",
       doseLevel: currentDose,
-      doseUnit: "mg",
+      doseUnit: currentDoseUnit,
       duration: 14,
       durationUnit: "days",
       frequency: "once",
@@ -686,9 +698,9 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
           <div className="grid grid-cols-2 gap-4">
             {/* Study Type Selection */}
             <div>
-              <Label>Study Type</Label>
+              <Label htmlFor="study-type">Study Type</Label>
               <Select value={studyType} onValueChange={setStudyType}>
-                <SelectTrigger>
+                <SelectTrigger id="study-type" aria-label="Select study type">
                   <SelectValue placeholder="Select study type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -702,32 +714,37 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
             {/* Number of Arms */}
             <div>
-              <Label>Number of Arms</Label>
+              <Label htmlFor="num-arms">Number of Arms</Label>
               <div className="flex flex-col space-y-2">
                 <div className="flex items-center space-x-2">
                   <Input
+                    id="num-arms"
                     type="number"
                     value={numArms}
                     onChange={(e) => setNumArms(Number(e.target.value))}
                     min={1}
                     className="w-20"
+                    aria-describedby="arms-description"
                   />
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => addArm("treatment")}
                   >
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
                     Add Treatment Arm
                   </Button>
                 </div>
-                <div className="flex space-x-2">
+                <p id="arms-description" className="sr-only">
+                  Use the buttons below to add different types of study arms
+                </p>
+                <div className="flex space-x-2 flex-wrap gap-y-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => addArm("placebo")}
                   >
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
                     Add Placebo
                   </Button>
                   <Button
@@ -735,7 +752,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                     size="sm"
                     onClick={() => addArm("comparator")}
                   >
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
                     Add Comparator
                   </Button>
                   <Button
@@ -743,8 +760,9 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                     size="sm"
                     onClick={createArmWithCalculatorDose}
                     className="bg-primary/10"
+                    aria-label="Create arm using dose from calculator"
                   >
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
                     From Calculator
                   </Button>
                 </div>
@@ -754,11 +772,16 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
           {/* Extra Parameters */}
           <div className="mt-4">
-            <Label>Additional Parameters</Label>
+            <p className="text-sm font-medium leading-none mb-2">
+              Additional Parameters
+            </p>
             <div className="grid grid-cols-2 gap-4 mt-2">
               <div>
-                <Label className="text-sm">Overage Factor (%)</Label>
+                <Label htmlFor="overage-factor" className="text-sm">
+                  Overage Factor (%)
+                </Label>
                 <Input
+                  id="overage-factor"
                   type="number"
                   value={overageFactor}
                   onChange={(e) => setOverageFactor(Number(e.target.value))}
@@ -772,8 +795,11 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                 </p>
               </div>
               <div>
-                <Label className="text-sm">Stability Buffer (days)</Label>
+                <Label htmlFor="stability-buffer" className="text-sm">
+                  Stability Buffer (days)
+                </Label>
                 <Input
+                  id="stability-buffer"
                   type="number"
                   value={stabilityBuffer}
                   onChange={(e) => setStabilityBuffer(Number(e.target.value))}
@@ -823,11 +849,19 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                           , {animals[targetAnimal]?.weight || 70} kg
                         </p>
                         <p className="text-sm">
-                          Current dose: {currentDose.toFixed(3)} mg (
-                          {(
-                            currentDose / (animals[targetAnimal]?.weight || 70)
-                          ).toFixed(3)}{" "}
-                          mg/kg)
+                          Current dose: {currentDose.toFixed(3)}{" "}
+                          {currentDoseUnit}
+                          {currentDoseUnit === "mg/kg" && (
+                            <>
+                              {" "}
+                              (
+                              {(
+                                currentDose *
+                                (animals[targetAnimal]?.weight || 70)
+                              ).toFixed(3)}{" "}
+                              mg total)
+                            </>
+                          )}
                         </p>
                         <Button
                           size="sm"
@@ -848,8 +882,9 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                   size="sm"
                   onClick={() => removeArm(index)}
                   disabled={arms.length <= 1}
+                  aria-label={`Remove ${arm.name}`}
                 >
-                  <Trash className="h-4 w-4" />
+                  <Trash className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
             </div>
@@ -858,8 +893,9 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
             <div className="grid grid-cols-2 gap-4">
               {/* Arm Name */}
               <div>
-                <Label>Arm Name</Label>
+                <Label htmlFor={`arm-name-${index}`}>Arm Name</Label>
                 <Input
+                  id={`arm-name-${index}`}
                   value={arm.name}
                   onChange={(e) => updateArm(index, "name", e.target.value)}
                   placeholder="e.g., Low Dose"
@@ -868,14 +904,17 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
               {/* Arm Type */}
               <div>
-                <Label>Arm Type</Label>
+                <Label htmlFor={`arm-type-${index}`}>Arm Type</Label>
                 <Select
                   value={arm.armType}
                   onValueChange={(val) =>
                     updateArm(index, "armType", val as ArmConfig["armType"])
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger
+                    id={`arm-type-${index}`}
+                    aria-label={`Arm type for ${arm.name}`}
+                  >
                     <SelectValue placeholder="Select arm type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -888,18 +927,23 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
               {/* Species/Population */}
               <div>
-                <Label>Species/Population</Label>
+                <Label htmlFor={`arm-species-${index}`}>
+                  Species/Population
+                </Label>
                 <Select
                   value={arm.species}
                   onValueChange={(val) => updateArm(index, "species", val)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger
+                    id={`arm-species-${index}`}
+                    aria-label={`Species for ${arm.name}`}
+                  >
                     <SelectValue placeholder="Select species" />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(animals).map(([key, animal]) => (
                       <SelectItem key={key} value={key}>
-                        {(animal as any).name}
+                        {animal.name}
                       </SelectItem>
                     ))}
                     <SelectItem value="custom">Custom</SelectItem>
@@ -909,8 +953,11 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
               {/* Subjects per Arm */}
               <div>
-                <Label>Number of Subjects</Label>
+                <Label htmlFor={`arm-subjects-${index}`}>
+                  Number of Subjects
+                </Label>
                 <Input
+                  id={`arm-subjects-${index}`}
                   type="number"
                   value={arm.subjects}
                   onChange={(e) =>
@@ -922,8 +969,11 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
               {/* Weight */}
               <div>
-                <Label>Average Weight (kg)</Label>
+                <Label htmlFor={`arm-weight-${index}`}>
+                  Average Weight (kg)
+                </Label>
                 <Input
+                  id={`arm-weight-${index}`}
                   type="number"
                   value={arm.weight}
                   onChange={(e) =>
@@ -937,9 +987,10 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
               {/* Dose Level - not shown for placebo */}
               {arm.armType !== "placebo" && (
                 <div>
-                  <Label>Dose Level</Label>
+                  <Label htmlFor={`arm-dose-${index}`}>Dose Level</Label>
                   <div className="flex items-center space-x-2">
                     <Input
+                      id={`arm-dose-${index}`}
                       type="number"
                       value={arm.doseLevel}
                       onChange={(e) =>
@@ -948,6 +999,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                       min={0}
                       step="0.01"
                       className="w-24"
+                      aria-label={`Dose level for ${arm.name}`}
                     />
                     <Select
                       value={arm.doseUnit}
@@ -959,7 +1011,10 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                         )
                       }
                     >
-                      <SelectTrigger className="w-24">
+                      <SelectTrigger
+                        className="w-24"
+                        aria-label={`Dose unit for ${arm.name}`}
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -975,9 +1030,12 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
               {/* Treatment Duration */}
               <div>
-                <Label>Treatment Duration</Label>
+                <Label htmlFor={`arm-duration-${index}`}>
+                  Treatment Duration
+                </Label>
                 <div className="flex items-center space-x-2">
                   <Input
+                    id={`arm-duration-${index}`}
                     type="number"
                     value={arm.duration}
                     onChange={(e) =>
@@ -985,6 +1043,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                     }
                     min={1}
                     className="w-24"
+                    aria-label={`Duration for ${arm.name}`}
                   />
                   <Select
                     value={arm.durationUnit}
@@ -996,7 +1055,10 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                       )
                     }
                   >
-                    <SelectTrigger className="w-24">
+                    <SelectTrigger
+                      className="w-24"
+                      aria-label={`Duration unit for ${arm.name}`}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1203,9 +1265,10 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
           <div className="grid grid-cols-2 gap-4">
             {/* Drug Concentration */}
             <div>
-              <Label>Stock Concentration</Label>
+              <Label htmlFor="stock-concentration">Stock Concentration</Label>
               <div className="flex items-center space-x-2">
                 <Input
+                  id="stock-concentration"
                   type="number"
                   value={stockConcentration}
                   onChange={(e) =>
@@ -1219,7 +1282,10 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                   value={stockConcentrationUnit}
                   onValueChange={setStockConcentrationUnit}
                 >
-                  <SelectTrigger className="w-24">
+                  <SelectTrigger
+                    className="w-24"
+                    aria-label="Stock concentration unit"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1234,9 +1300,12 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
             {/* Administration Route */}
             <div>
-              <Label>Administration Route</Label>
+              <Label htmlFor="admin-route">Administration Route</Label>
               <Select value={adminRoute} onValueChange={setAdminRoute}>
-                <SelectTrigger>
+                <SelectTrigger
+                  id="admin-route"
+                  aria-label="Administration route"
+                >
                   <SelectValue placeholder="Select route" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1281,17 +1350,14 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                             onChange={(e) => {
                               const value = Number(e.target.value);
                               const MAX_DILUTION_FACTOR = 1000; // Maximum allowed dilution factor
+                              // Only update if value is valid; invalid values are silently ignored
+                              // The input's min attribute provides visual feedback for invalid values
                               if (
                                 !isNaN(value) &&
                                 value >= 1 &&
                                 value <= MAX_DILUTION_FACTOR
                               ) {
                                 updateDilution(dIndex, "factor", value);
-                              } else {
-                                // Show warning for invalid values
-                                alert(
-                                  `Dilution factor must be between 1 and ${MAX_DILUTION_FACTOR}`,
-                                );
                               }
                             }}
                             min={1}
@@ -1327,15 +1393,16 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
                           size="sm"
                           onClick={() => removeDilution(dIndex)}
                           disabled={dilutions.length <= 1}
+                          aria-label={`Remove dilution step ${dIndex + 1}`}
                         >
-                          <Trash className="h-4 w-4" />
+                          <Trash className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
                   ))}
 
                   <Button variant="outline" size="sm" onClick={addDilution}>
-                    <Plus className="h-4 w-4 mr-1" />
+                    <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
                     Add Dilution Step
                   </Button>
                 </div>
@@ -1346,7 +1413,7 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
           {/* Calculate Button */}
           <div className="mt-6 flex justify-center">
             <Button onClick={calculateRequirements} className="w-1/2">
-              <Calculator className="h-4 w-4 mr-2" />
+              <Calculator className="h-4 w-4 mr-2" aria-hidden="true" />
               Calculate Requirements
             </Button>
           </div>
@@ -1392,16 +1459,18 @@ Comparator Arms: ${arms.filter((arm) => arm.armType === "comparator").length}`;
 
             {/* Per Arm Breakdown */}
             <div className="mt-6">
-              <h3 className="font-semibold mb-2">Breakdown by Study Arm</h3>
-              <Table>
+              <h3 id="arm-breakdown-heading" className="font-semibold mb-2">
+                Breakdown by Study Arm
+              </h3>
+              <Table aria-labelledby="arm-breakdown-heading">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Arm</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Subjects</TableHead>
-                    <TableHead>Dose per Subject</TableHead>
-                    <TableHead>Total Doses</TableHead>
-                    <TableHead>Product Required</TableHead>
+                    <TableHead scope="col">Arm</TableHead>
+                    <TableHead scope="col">Type</TableHead>
+                    <TableHead scope="col">Subjects</TableHead>
+                    <TableHead scope="col">Dose per Subject</TableHead>
+                    <TableHead scope="col">Total Doses</TableHead>
+                    <TableHead scope="col">Product Required</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

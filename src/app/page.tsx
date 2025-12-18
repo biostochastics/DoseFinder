@@ -60,6 +60,7 @@ export default function Home() {
     resultDose,
     uncertaintyRange,
     resetAll,
+    setCustomExponentValue,
   } = useCalculatorState();
 
   useEffect(() => {
@@ -116,79 +117,99 @@ export default function Home() {
       key="micro"
       className="absolute top-4 right-4 h-6 w-6 text-muted-foreground/20"
       stroke={1}
+      aria-hidden="true"
     />,
     <IconPill
       key="pill"
       className="absolute bottom-4 left-4 h-5 w-5 text-muted-foreground/20"
       stroke={1}
+      aria-hidden="true"
     />,
     <IconVaccine
       key="vac"
       className="absolute top-1/2 right-8 h-6 w-6 text-muted-foreground/20"
       stroke={1}
+      aria-hidden="true"
     />,
     <IconHeartbeat
       key="heart"
       className="absolute bottom-8 right-4 h-5 w-5 text-muted-foreground/20"
       stroke={1}
+      aria-hidden="true"
     />,
     <IconChartLine
       key="chart"
       className="absolute top-8 left-8 h-6 w-6 text-muted-foreground/20"
       stroke={1}
+      aria-hidden="true"
     />,
     <IconStethoscope
       key="steth"
       className="absolute bottom-12 left-1/3 h-5 w-5 text-muted-foreground/20"
       stroke={1}
+      aria-hidden="true"
     />,
     <IconActivity
       key="act"
       className="absolute top-1/3 left-4 h-5 w-5 text-muted-foreground/20"
       stroke={1}
+      aria-hidden="true"
     />,
     <IconTestPipe
       key="test"
       className="absolute top-16 right-1/3 h-5 w-5 text-muted-foreground/20"
       stroke={1}
+      aria-hidden="true"
     />,
     <IconAtom
       key="atom"
       className="absolute bottom-4 right-1/3 h-6 w-6 text-muted-foreground/20"
       stroke={1}
+      aria-hidden="true"
     />,
     <IconDna2
       key="dna"
       className="absolute top-1/4 left-1/4 h-5 w-5 text-muted-foreground/20"
       stroke={1}
+      aria-hidden="true"
     />,
     <IconMedicineSyrup
       key="med"
       className="absolute bottom-16 right-16 h-5 w-5 text-muted-foreground/20"
       stroke={1}
+      aria-hidden="true"
     />,
   ];
 
   return (
     <div className="flex flex-col min-h-screen w-full">
-      <main className="w-full flex-grow p-2">
+      {/* Skip link for keyboard navigation */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+      <main id="main-content" className="w-full flex-grow p-2" role="main">
         <div className="h-full">
           <Card className="h-full bg-card/50 backdrop-blur-sm shadow-lg border-border/50 hover:shadow-xl transition-all duration-300">
             <CardHeader className="space-y-1 py-2 bg-gradient-to-r from-primary/5 to-accent/5 rounded-t-lg">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  DoseFinder
+                <CardTitle asChild>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    DoseFinder
+                  </h1>
                 </CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={toggleTheme}
                   className="hover:bg-primary/10"
+                  aria-label={
+                    isDarkMode ? "Switch to light mode" : "Switch to dark mode"
+                  }
                 >
                   {isDarkMode ? (
-                    <IconSun className="h-4 w-4" />
+                    <IconSun className="h-4 w-4" aria-hidden="true" />
                   ) : (
-                    <IconMoon className="h-4 w-4" />
+                    <IconMoon className="h-4 w-4" aria-hidden="true" />
                   )}
                 </Button>
               </div>
@@ -205,25 +226,23 @@ export default function Home() {
               >
                 <TabsList className="grid w-full grid-cols-5 mb-4 bg-muted/50 p-1 rounded-lg">
                   {[
-                    "calculator",
-                    "advanced",
-                    "studyplanner",
-                    "limitations",
-                    "documentation",
+                    { id: "calculator", label: "Calculator" },
+                    { id: "advanced", label: "Advanced" },
+                    { id: "studyplanner", label: "Study Planner" },
+                    { id: "limitations", label: "Limitations" },
+                    { id: "documentation", label: "Documentation" },
                   ].map((tab) => (
                     <TabsTrigger
-                      key={tab}
-                      value={tab}
+                      key={tab.id}
+                      value={tab.id}
                       className={cn(
                         "flex items-center gap-2 transition-all duration-200",
-                        selectedTab === tab && "bg-background shadow-md",
+                        selectedTab === tab.id && "bg-background shadow-md",
                       )}
+                      aria-label={tab.label}
                     >
-                      {tabIcons[tab]}
-                      <span className="hidden sm:inline">
-                        {tab.charAt(0).toUpperCase() +
-                          tab.slice(1).replace("studyplanner", "Study Planner")}
-                      </span>
+                      {tabIcons[tab.id]}
+                      <span className="hidden sm:inline">{tab.label}</span>
                     </TabsTrigger>
                   ))}
                 </TabsList>
@@ -264,6 +283,7 @@ export default function Home() {
                     baseDose={state.baseDose}
                     scalingMethod={state.scalingMethod}
                     scalingExponent={state.scalingExponent}
+                    customExponentValue={state.customExponentValue}
                     animals={animals}
                     onSourceAnimalChange={(value) =>
                       dispatch({ type: "SET_SOURCE_ANIMAL", payload: value })
@@ -286,6 +306,7 @@ export default function Home() {
                     onScalingExponentChange={(value) =>
                       dispatch({ type: "SET_SCALING_EXPONENT", payload: value })
                     }
+                    onCustomExponentValueChange={setCustomExponentValue}
                     calculateDose={calculateDose}
                     calculationSteps={calculationSteps}
                     resultDose={resultDose}
@@ -308,6 +329,13 @@ export default function Home() {
                     setKidneyFunction={(value) =>
                       dispatch({ type: "SET_KIDNEY_FUNCTION", payload: value })
                     }
+                    fractionExcretedRenal={state.fractionExcretedRenal}
+                    setFractionExcretedRenal={(value) =>
+                      dispatch({
+                        type: "SET_FRACTION_EXCRETED_RENAL",
+                        payload: value,
+                      })
+                    }
                     patientAge={state.patientAge}
                     setPatientAge={(value) =>
                       dispatch({ type: "SET_PATIENT_AGE", payload: value })
@@ -318,6 +346,10 @@ export default function Home() {
                         type: "SET_PATIENT_CREATININE",
                         payload: value,
                       })
+                    }
+                    creatinineUnit={state.creatinineUnit}
+                    setCreatinineUnit={(value) =>
+                      dispatch({ type: "SET_CREATININE_UNIT", payload: value })
                     }
                     patientSex={state.patientSex}
                     setPatientSex={(value) =>
@@ -334,25 +366,6 @@ export default function Home() {
                     setBioavailability={(value) =>
                       dispatch({ type: "SET_BIOAVAILABILITY", payload: value })
                     }
-                    proteinBinding={state.proteinBinding}
-                    setProteinBinding={(value) =>
-                      dispatch({ type: "SET_PROTEIN_BINDING", payload: value })
-                    }
-                    volumeDistribution={state.volumeDistribution}
-                    setVolumeDistribution={(value) =>
-                      dispatch({
-                        type: "SET_VOLUME_DISTRIBUTION",
-                        payload: value,
-                      })
-                    }
-                    molecularWeight={state.molecularWeight}
-                    setMolecularWeight={(value) =>
-                      dispatch({ type: "SET_MOLECULAR_WEIGHT", payload: value })
-                    }
-                    logP={state.logP}
-                    setLogP={(value) =>
-                      dispatch({ type: "SET_LOG_P", payload: value })
-                    }
                     resetAll={resetAll}
                   />
                 </TabsContent>
@@ -360,7 +373,8 @@ export default function Home() {
                 <TabsContent value="studyplanner">
                   <StudyPlanner
                     animals={animals}
-                    currentDose={state.baseDose}
+                    currentDose={resultDose}
+                    currentDoseUnit="mg/kg"
                     sourceAnimal={state.sourceAnimal}
                     targetAnimal={state.targetAnimal}
                   />
@@ -409,28 +423,32 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="py-4 px-4 bg-muted/50 border-t">
+      <footer className="py-4 px-4 bg-muted/50 border-t" role="contentinfo">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-sm text-muted-foreground text-center sm:text-left">
-            <p>© 2024 DoseFinder. For research use only.</p>
+            <p>
+              © {new Date().getFullYear()} DoseFinder. For research use only.
+            </p>
             <p className="text-xs mt-1">
               Always validate calculations with experimental data
             </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <a
               href="https://github.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="p-2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full hover:bg-muted/50"
+              aria-label="View project on GitHub"
             >
-              <IconBrandGithub className="h-5 w-5" />
+              <IconBrandGithub className="h-5 w-5" aria-hidden="true" />
             </a>
             <a
               href="mailto:sergey.kornilov@biostochastics.com"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="p-2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full hover:bg-muted/50"
+              aria-label="Send email to contact"
             >
-              <IconMail className="h-5 w-5" />
+              <IconMail className="h-5 w-5" aria-hidden="true" />
             </a>
           </div>
         </div>

@@ -3,7 +3,28 @@ import { SPECIES_DATABASE } from "@/lib/pharmacology/species";
 import {
   calculateDose as calculateDoseLib,
   generateChartData,
+  calculateCockcroftGFR,
 } from "@/lib/pharmacology/calculations";
+import {
+  CalculationResult,
+  ScalingMethod,
+  ChartDataPoint,
+  PatientSex,
+  BioavailabilityMethod,
+  KidneyFunctionMethod,
+  CreatinineUnit,
+} from "@/lib/pharmacology/types";
+
+// Extended calculation steps with final dose for dilution
+interface CalculationStepsWithDilution extends CalculationResult {
+  calculatedDose: number;
+  finalDose: number;
+}
+
+// Extended chart data point with optional diluted dose
+interface ExtendedChartDataPoint extends ChartDataPoint {
+  dilutedDose?: number;
+}
 
 interface CalculatorState {
   sourceAnimal: string;
@@ -11,21 +32,20 @@ interface CalculatorState {
   sourceWeight: number;
   targetWeight: number;
   baseDose: number;
-  scalingMethod: string;
+  scalingMethod: ScalingMethod;
   scalingExponent: string;
+  customExponentValue: number;
   showDilution: boolean;
   dilutionFactor: string;
-  proteinBinding: number;
   bioavailability: number;
-  bioavailabilityMethod: string;
-  kidneyFunctionMethod: string;
+  bioavailabilityMethod: BioavailabilityMethod;
+  kidneyFunctionMethod: KidneyFunctionMethod;
   kidneyFunction: number;
+  fractionExcretedRenal: number; // fe (0-1)
   patientAge: number;
   patientCreatinine: number;
-  patientSex: string;
-  volumeDistribution: number;
-  molecularWeight: number;
-  logP: number;
+  creatinineUnit: CreatinineUnit;
+  patientSex: PatientSex;
 }
 
 type CalculatorAction =
@@ -34,21 +54,20 @@ type CalculatorAction =
   | { type: "SET_SOURCE_WEIGHT"; payload: number }
   | { type: "SET_TARGET_WEIGHT"; payload: number }
   | { type: "SET_BASE_DOSE"; payload: number }
-  | { type: "SET_SCALING_METHOD"; payload: string }
+  | { type: "SET_SCALING_METHOD"; payload: ScalingMethod }
   | { type: "SET_SCALING_EXPONENT"; payload: string }
+  | { type: "SET_CUSTOM_EXPONENT_VALUE"; payload: number }
   | { type: "SET_DILUTION"; payload: boolean }
   | { type: "SET_DILUTION_FACTOR"; payload: string }
-  | { type: "SET_PROTEIN_BINDING"; payload: number }
   | { type: "SET_BIOAVAILABILITY"; payload: number }
-  | { type: "SET_BIOAVAILABILITY_METHOD"; payload: string }
-  | { type: "SET_KIDNEY_FUNCTION_METHOD"; payload: string }
+  | { type: "SET_BIOAVAILABILITY_METHOD"; payload: BioavailabilityMethod }
+  | { type: "SET_KIDNEY_FUNCTION_METHOD"; payload: KidneyFunctionMethod }
   | { type: "SET_KIDNEY_FUNCTION"; payload: number }
+  | { type: "SET_FRACTION_EXCRETED_RENAL"; payload: number }
   | { type: "SET_PATIENT_AGE"; payload: number }
   | { type: "SET_PATIENT_CREATININE"; payload: number }
-  | { type: "SET_PATIENT_SEX"; payload: string }
-  | { type: "SET_VOLUME_DISTRIBUTION"; payload: number }
-  | { type: "SET_MOLECULAR_WEIGHT"; payload: number }
-  | { type: "SET_LOG_P"; payload: number }
+  | { type: "SET_CREATININE_UNIT"; payload: CreatinineUnit }
+  | { type: "SET_PATIENT_SEX"; payload: PatientSex }
   | { type: "RESET_ALL" };
 
 const initialState: CalculatorState = {
@@ -59,19 +78,18 @@ const initialState: CalculatorState = {
   baseDose: 1,
   scalingMethod: "allometric",
   scalingExponent: "0.75",
+  customExponentValue: 0.75,
   showDilution: false,
   dilutionFactor: "1",
-  proteinBinding: 0,
   bioavailability: 100,
   bioavailabilityMethod: "manual",
   kidneyFunctionMethod: "none",
   kidneyFunction: 100,
+  fractionExcretedRenal: 1.0, // Default: assume 100% renal clearance
   patientAge: 40,
   patientCreatinine: 1,
+  creatinineUnit: "mg/dL",
   patientSex: "male",
-  volumeDistribution: 0,
-  molecularWeight: 0,
-  logP: 0,
 };
 
 function calculatorReducer(
@@ -101,12 +119,12 @@ function calculatorReducer(
       return { ...state, scalingMethod: action.payload };
     case "SET_SCALING_EXPONENT":
       return { ...state, scalingExponent: action.payload };
+    case "SET_CUSTOM_EXPONENT_VALUE":
+      return { ...state, customExponentValue: action.payload };
     case "SET_DILUTION":
       return { ...state, showDilution: action.payload };
     case "SET_DILUTION_FACTOR":
       return { ...state, dilutionFactor: action.payload };
-    case "SET_PROTEIN_BINDING":
-      return { ...state, proteinBinding: action.payload };
     case "SET_BIOAVAILABILITY":
       return { ...state, bioavailability: action.payload };
     case "SET_BIOAVAILABILITY_METHOD":
@@ -115,18 +133,16 @@ function calculatorReducer(
       return { ...state, kidneyFunctionMethod: action.payload };
     case "SET_KIDNEY_FUNCTION":
       return { ...state, kidneyFunction: action.payload };
+    case "SET_FRACTION_EXCRETED_RENAL":
+      return { ...state, fractionExcretedRenal: action.payload };
     case "SET_PATIENT_AGE":
       return { ...state, patientAge: action.payload };
     case "SET_PATIENT_CREATININE":
       return { ...state, patientCreatinine: action.payload };
+    case "SET_CREATININE_UNIT":
+      return { ...state, creatinineUnit: action.payload };
     case "SET_PATIENT_SEX":
       return { ...state, patientSex: action.payload };
-    case "SET_VOLUME_DISTRIBUTION":
-      return { ...state, volumeDistribution: action.payload };
-    case "SET_MOLECULAR_WEIGHT":
-      return { ...state, molecularWeight: action.payload };
-    case "SET_LOG_P":
-      return { ...state, logP: action.payload };
     case "RESET_ALL":
       return initialState;
     default:
@@ -136,36 +152,39 @@ function calculatorReducer(
 
 export function useCalculatorState() {
   const [state, dispatch] = useReducer(calculatorReducer, initialState);
-  const [calculationSteps, setCalculationSteps] = useState<any>(null);
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [calculationSteps, setCalculationSteps] =
+    useState<CalculationStepsWithDilution | null>(null);
+  const [chartData, setChartData] = useState<ExtendedChartDataPoint[]>([]);
   const [copySuccess, setCopySuccess] = useState(false);
 
   const animals = useMemo(() => SPECIES_DATABASE, []);
 
-  const calculateDose = useCallback((): any => {
-    const customExponent =
+  const calculateDose = useCallback((): CalculationResult | null => {
+    // Use stored customExponentValue when "custom" is selected, otherwise parse the preset value
+    const exponentValue =
       state.scalingExponent === "custom"
-        ? parseFloat(prompt("Enter custom exponent (0.5 - 1.0):") || "0.75")
+        ? state.customExponentValue
         : parseFloat(state.scalingExponent);
 
-    // Calculate GFR inline to avoid circular dependency
-    const sexFactor = state.patientSex === "female" ? 0.85 : 1;
-    const gfr =
-      (((140 - state.patientAge) * state.targetWeight) /
-        (72 * state.patientCreatinine)) *
-      sexFactor;
+    // Use centralized GFR calculation from calculations.ts
+    const gfr = calculateCockcroftGFR(
+      state.targetWeight,
+      state.patientAge,
+      state.patientCreatinine,
+      state.patientSex,
+      state.creatinineUnit,
+    );
     const calculatedKidneyFunction = Math.min(100, Math.max(0, gfr));
 
     const result = calculateDoseLib(
       state.sourceWeight,
       state.targetWeight,
       state.baseDose,
-      state.scalingMethod as any,
+      state.scalingMethod,
       state.sourceAnimal,
       state.targetAnimal,
       {
-        scalingExponent: customExponent,
-        proteinBinding: state.proteinBinding,
+        scalingExponent: exponentValue,
         bioavailability:
           state.bioavailabilityMethod === "iv"
             ? 100
@@ -174,20 +193,19 @@ export function useCalculatorState() {
               : state.bioavailabilityMethod === "other"
                 ? 75
                 : state.bioavailability,
-        bioavailabilityMethod: state.bioavailabilityMethod as any,
-        kidneyFunctionMethod: state.kidneyFunctionMethod as any,
+        bioavailabilityMethod: state.bioavailabilityMethod,
+        kidneyFunctionMethod: state.kidneyFunctionMethod,
         kidneyFunction:
           state.kidneyFunctionMethod === "none"
             ? 100
             : state.kidneyFunctionMethod === "manual"
               ? state.kidneyFunction
               : calculatedKidneyFunction,
+        fractionExcretedRenal: state.fractionExcretedRenal,
         patientAge: state.patientAge,
         patientCreatinine: state.patientCreatinine,
-        patientSex: state.patientSex as any,
-        volumeDistribution: state.volumeDistribution,
-        molecularWeight: state.molecularWeight,
-        logP: state.logP,
+        creatinineUnit: state.creatinineUnit,
+        patientSex: state.patientSex,
       },
     );
 
@@ -204,17 +222,19 @@ export function useCalculatorState() {
     const newChartData = generateChartData(
       state.sourceWeight,
       state.baseDose,
-      state.scalingMethod as any,
+      state.scalingMethod,
       state.sourceAnimal,
       {
-        scalingExponent: customExponent,
+        scalingExponent: exponentValue,
       },
     );
 
     if (state.showDilution && dilutionFactorNum !== 1) {
-      newChartData.forEach((point: any) => {
-        point.dilutedDose = point.dose * dilutionFactorNum;
-      });
+      newChartData.forEach(
+        (point: ChartDataPoint & { dilutedDose?: number }) => {
+          point.dilutedDose = point.dose * dilutionFactorNum;
+        },
+      );
     }
 
     setChartData(newChartData);
@@ -252,6 +272,11 @@ ${calculationSteps.steps.join("\n")}
     upper: resultDose * 1.3,
   };
 
+  // Handler for setting custom exponent value from UI input
+  const setCustomExponentValue = useCallback((value: number) => {
+    dispatch({ type: "SET_CUSTOM_EXPONENT_VALUE", payload: value });
+  }, []);
+
   return {
     state,
     dispatch,
@@ -264,5 +289,6 @@ ${calculationSteps.steps.join("\n")}
     resultDose,
     uncertaintyRange,
     resetAll: () => dispatch({ type: "RESET_ALL" }),
+    setCustomExponentValue,
   };
 }

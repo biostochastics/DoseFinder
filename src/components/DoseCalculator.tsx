@@ -24,7 +24,7 @@ import {
   IconCopy,
   IconCheck,
 } from "@tabler/icons-react";
-import { Animal } from "@/lib/pharmacology/types";
+import { Species, ScalingMethod } from "@/lib/pharmacology/types";
 
 interface DoseCalculatorProps {
   sourceAnimal: string;
@@ -32,389 +32,561 @@ interface DoseCalculatorProps {
   sourceWeight: number;
   targetWeight: number;
   baseDose: number;
-  scalingMethod: string;
+  scalingMethod: ScalingMethod;
   scalingExponent: string;
-  animals: Record<string, Animal>;
+  customExponentValue: number;
+  animals: Record<string, Species>;
   onSourceAnimalChange: (value: string) => void;
   onTargetAnimalChange: (value: string) => void;
   onSourceWeightChange: (value: number) => void;
   onTargetWeightChange: (value: number) => void;
   onBaseDoseChange: (value: number) => void;
-  onScalingMethodChange: (value: string) => void;
+  onScalingMethodChange: (value: ScalingMethod) => void;
   onScalingExponentChange: (value: string) => void;
-  calculateDose: () => any;
-  calculationSteps: any;
+  onCustomExponentValueChange: (value: number) => void;
+  calculateDose: () => void;
+  calculationSteps: {
+    calculatedDose: number;
+    finalDose: number;
+    steps: string[];
+    scalingFactor?: number;
+    methodDescription?: string;
+    warnings?: string[];
+    error?: string;
+  } | null;
   resultDose: number;
   uncertaintyRange: { lower: number; upper: number };
   copySuccess: boolean;
   onCopyToClipboard: () => void;
 }
 
-export const DoseCalculator: React.FC<DoseCalculatorProps> = ({
-  sourceAnimal,
-  targetAnimal,
-  sourceWeight,
-  targetWeight,
-  baseDose,
-  scalingMethod,
-  scalingExponent,
-  animals,
-  onSourceAnimalChange,
-  onTargetAnimalChange,
-  onSourceWeightChange,
-  onTargetWeightChange,
-  onBaseDoseChange,
-  onScalingMethodChange,
-  onScalingExponentChange,
-  calculateDose,
-  calculationSteps,
-  resultDose,
-  uncertaintyRange,
-  copySuccess,
-  onCopyToClipboard,
-}) => {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="source-animal" className="flex items-center gap-2">
-            Source Species
-            <Popover>
-              <PopoverTrigger asChild>
-                <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <p className="text-sm">
-                  Select the species from which the dose originates. This is
-                  typically from published studies or existing data. Default
-                  physiological parameters are automatically loaded for the
-                  selected species.
-                </p>
-              </PopoverContent>
-            </Popover>
-          </Label>
-          <Select value={sourceAnimal} onValueChange={onSourceAnimalChange}>
-            <SelectTrigger id="source-animal">
-              <SelectValue placeholder="Select source species" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(animals).map(([key, animal]) => (
-                <SelectItem key={key} value={key}>
-                  {animal.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="target-animal" className="flex items-center gap-2">
-            Target Species
-            <Popover>
-              <PopoverTrigger asChild>
-                <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <p className="text-sm">
-                  Select the target species for dose translation. The calculator
-                  will apply appropriate scaling factors based on physiological
-                  differences between species.
-                </p>
-              </PopoverContent>
-            </Popover>
-          </Label>
-          <Select value={targetAnimal} onValueChange={onTargetAnimalChange}>
-            <SelectTrigger id="target-animal">
-              <SelectValue placeholder="Select target species" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(animals).map(([key, animal]) => (
-                <SelectItem key={key} value={key}>
-                  {animal.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="source-weight" className="flex items-center gap-2">
-            {sourceAnimal === "human" ? "Patient" : "Animal"} Weight (kg)
-            <Popover>
-              <PopoverTrigger asChild>
-                <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <p className="text-sm">
-                  Enter the body weight for the source{" "}
-                  {sourceAnimal === "human" ? "patient" : "animal"}. For{" "}
-                  {sourceAnimal === "human" ? "humans" : "animals"}, typical
-                  weight range is {animals[sourceAnimal].weight * 0.8} -{" "}
-                  {animals[sourceAnimal].weight * 1.2} kg.
-                </p>
-              </PopoverContent>
-            </Popover>
-          </Label>
-          <Input
-            id="source-weight"
-            type="number"
-            value={sourceWeight || ""}
-            onChange={(e) =>
-              onSourceWeightChange(parseFloat(e.target.value) || 0)
-            }
-            placeholder={`Default: ${animals[sourceAnimal].weight} kg`}
-            step="0.001"
-            min="0"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="target-weight" className="flex items-center gap-2">
-            {targetAnimal === "human" ? "Patient" : "Animal"} Weight (kg)
-            <Popover>
-              <PopoverTrigger asChild>
-                <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <p className="text-sm">
-                  Enter the body weight for the target{" "}
-                  {targetAnimal === "human" ? "patient" : "animal"}. Typical
-                  weight range is {animals[targetAnimal].weight * 0.8} -{" "}
-                  {animals[targetAnimal].weight * 1.2} kg.
-                </p>
-              </PopoverContent>
-            </Popover>
-          </Label>
-          <Input
-            id="target-weight"
-            type="number"
-            value={targetWeight || ""}
-            onChange={(e) =>
-              onTargetWeightChange(parseFloat(e.target.value) || 0)
-            }
-            placeholder={`Default: ${animals[targetAnimal].weight} kg`}
-            step="0.001"
-            min="0"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="base-dose" className="flex items-center gap-2">
-          Known Dose (mg/kg)
-          <Popover>
-            <PopoverTrigger asChild>
-              <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-            </PopoverTrigger>
-            <PopoverContent className="w-80">
-              <p className="text-sm">
-                Enter the known dose from the source species in mg/kg. This is
-                the dose that has been validated in the source species and will
-                be translated to the target species.
-              </p>
-            </PopoverContent>
-          </Popover>
-        </Label>
-        <Input
-          id="base-dose"
-          type="number"
-          value={baseDose || ""}
-          onChange={(e) => onBaseDoseChange(parseFloat(e.target.value) || 0)}
-          placeholder="Enter dose in mg/kg"
-          step="0.001"
-          min="0"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label className="flex items-center gap-2">
-          Scaling Method
-          <Popover>
-            <PopoverTrigger asChild>
-              <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-            </PopoverTrigger>
-            <PopoverContent className="w-80">
-              <p className="text-sm font-semibold mb-2">
-                Available scaling methods:
-              </p>
-              <ul className="text-sm space-y-1">
-                <li>
-                  <strong>Allometric:</strong> Uses power law scaling (W^0.75)
-                </li>
-                <li>
-                  <strong>Body Surface Area:</strong> Based on BSA ratios
-                </li>
-                <li>
-                  <strong>Direct:</strong> Linear weight-based scaling
-                </li>
-                <li>
-                  <strong>Brain Weight:</strong> For CNS-active drugs
-                </li>
-                <li>
-                  <strong>Metabolic Rate:</strong> Based on basal metabolism
-                </li>
-              </ul>
-            </PopoverContent>
-          </Popover>
-        </Label>
-        <RadioGroup value={scalingMethod} onValueChange={onScalingMethodChange}>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="allometric" id="allometric" />
-            <Label htmlFor="allometric">Allometric (Recommended)</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="bsa" id="bsa" />
-            <Label htmlFor="bsa">Body Surface Area</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="direct" id="direct" />
-            <Label htmlFor="direct">Direct (Linear)</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="brainWeight" id="brainWeight" />
-            <Label htmlFor="brainWeight">Brain Weight (CNS drugs)</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="metabolic" id="metabolic" />
-            <Label htmlFor="metabolic">Metabolic Rate</Label>
-          </div>
-        </RadioGroup>
-
-        {scalingMethod === "allometric" && (
-          <div className="mt-4 space-y-2">
-            <Label
-              htmlFor="scaling-exponent"
-              className="flex items-center gap-2"
-            >
-              Allometric Exponent
+export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
+  ({
+    sourceAnimal,
+    targetAnimal,
+    sourceWeight,
+    targetWeight,
+    baseDose,
+    scalingMethod,
+    scalingExponent,
+    customExponentValue,
+    animals,
+    onSourceAnimalChange,
+    onTargetAnimalChange,
+    onSourceWeightChange,
+    onTargetWeightChange,
+    onBaseDoseChange,
+    onScalingMethodChange,
+    onScalingExponentChange,
+    onCustomExponentValueChange,
+    calculateDose,
+    calculationSteps,
+    resultDose,
+    uncertaintyRange,
+    copySuccess,
+    onCopyToClipboard,
+  }) => {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="source-animal" className="flex items-center gap-2">
+              Source Species
               <Popover>
                 <PopoverTrigger asChild>
-                  <IconInfoCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="More information about source species"
+                  >
+                    <IconInfoCircle
+                      className="h-4 w-4 text-muted-foreground cursor-help"
+                      aria-hidden="true"
+                    />
+                  </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80">
-                  <p className="text-sm mb-2">Common allometric exponents:</p>
-                  <ul className="text-sm space-y-1">
-                    <li>
-                      <strong>0.75:</strong> Standard metabolic scaling (most
-                      drugs)
-                    </li>
-                    <li>
-                      <strong>0.67:</strong> Surface area scaling
-                    </li>
-                    <li>
-                      <strong>1.0:</strong> Direct proportional scaling
-                    </li>
-                    <li>
-                      <strong>Custom:</strong> Based on specific drug data
-                    </li>
-                  </ul>
+                  <p className="text-sm">
+                    Select the species from which the dose originates. This is
+                    typically from published studies or existing data. Default
+                    physiological parameters are automatically loaded for the
+                    selected species.
+                  </p>
                 </PopoverContent>
               </Popover>
             </Label>
-            <Select
-              value={scalingExponent}
-              onValueChange={onScalingExponentChange}
-            >
-              <SelectTrigger id="scaling-exponent">
-                <SelectValue />
+            <Select value={sourceAnimal} onValueChange={onSourceAnimalChange}>
+              <SelectTrigger id="source-animal">
+                <SelectValue placeholder="Select source species" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="0.75">0.75 (Standard)</SelectItem>
-                <SelectItem value="0.67">0.67 (Surface Area)</SelectItem>
-                <SelectItem value="1.0">1.0 (Linear)</SelectItem>
-                <SelectItem value="custom">Custom</SelectItem>
+                {Object.entries(animals).map(([key, animal]) => (
+                  <SelectItem key={key} value={key}>
+                    {animal.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            {scalingExponent === "custom" && (
-              <Input
-                type="number"
-                placeholder="Enter custom exponent (0.5 - 1.0)"
-                step="0.01"
-                min="0.5"
-                max="1.0"
-                onChange={(e) => onScalingExponentChange(e.target.value)}
-              />
-            )}
           </div>
-        )}
-      </div>
 
-      <Button
-        onClick={calculateDose}
-        className="w-full"
-        disabled={!baseDose || baseDose <= 0}
-      >
-        Calculate Dose
-      </Button>
+          <div className="space-y-2">
+            <Label htmlFor="target-animal" className="flex items-center gap-2">
+              Target Species
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="More information about target species"
+                  >
+                    <IconInfoCircle
+                      className="h-4 w-4 text-muted-foreground cursor-help"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <p className="text-sm">
+                    Select the target species for dose translation. The
+                    calculator will apply appropriate scaling factors based on
+                    physiological differences between species.
+                  </p>
+                </PopoverContent>
+              </Popover>
+            </Label>
+            <Select value={targetAnimal} onValueChange={onTargetAnimalChange}>
+              <SelectTrigger id="target-animal">
+                <SelectValue placeholder="Select target species" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(animals).map(([key, animal]) => (
+                  <SelectItem key={key} value={key}>
+                    {animal.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
-      {calculationSteps && (
-        <Card className="mt-4 border-primary/20 bg-primary/5">
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                Results
-                <IconAlertCircle className="h-5 w-5 text-warning" />
-              </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onCopyToClipboard}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="source-weight" className="flex items-center gap-2">
+              {sourceAnimal === "human" ? "Patient" : "Animal"} Weight (kg)
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="More information about source weight"
+                  >
+                    <IconInfoCircle
+                      className="h-4 w-4 text-muted-foreground cursor-help"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <p className="text-sm">
+                    Enter the body weight for the source{" "}
+                    {sourceAnimal === "human" ? "patient" : "animal"}. For{" "}
+                    {sourceAnimal === "human" ? "humans" : "animals"}, typical
+                    weight range is {animals[sourceAnimal].weight * 0.8} -{" "}
+                    {animals[sourceAnimal].weight * 1.2} kg.
+                  </p>
+                </PopoverContent>
+              </Popover>
+            </Label>
+            <Input
+              id="source-weight"
+              type="number"
+              value={sourceWeight || ""}
+              onChange={(e) =>
+                onSourceWeightChange(parseFloat(e.target.value) || 0)
+              }
+              placeholder={`Default: ${animals[sourceAnimal].weight} kg`}
+              step="0.001"
+              min="0"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="target-weight" className="flex items-center gap-2">
+              {targetAnimal === "human" ? "Patient" : "Animal"} Weight (kg)
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="More information about target weight"
+                  >
+                    <IconInfoCircle
+                      className="h-4 w-4 text-muted-foreground cursor-help"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <p className="text-sm">
+                    Enter the body weight for the target{" "}
+                    {targetAnimal === "human" ? "patient" : "animal"}. Typical
+                    weight range is {animals[targetAnimal].weight * 0.8} -{" "}
+                    {animals[targetAnimal].weight * 1.2} kg.
+                  </p>
+                </PopoverContent>
+              </Popover>
+            </Label>
+            <Input
+              id="target-weight"
+              type="number"
+              value={targetWeight || ""}
+              onChange={(e) =>
+                onTargetWeightChange(parseFloat(e.target.value) || 0)
+              }
+              placeholder={`Default: ${animals[targetAnimal].weight} kg`}
+              step="0.001"
+              min="0"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="base-dose" className="flex items-center gap-2">
+            <span className="required-indicator">Known Dose (mg/kg)</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="More information about known dose"
+                >
+                  <IconInfoCircle
+                    className="h-4 w-4 text-muted-foreground cursor-help"
+                    aria-hidden="true"
+                  />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <p className="text-sm">
+                  Enter the known dose from the source species in mg/kg. This is
+                  the dose that has been validated in the source species and
+                  will be translated to the target species.
+                </p>
+              </PopoverContent>
+            </Popover>
+          </Label>
+          <Input
+            id="base-dose"
+            type="number"
+            value={baseDose || ""}
+            onChange={(e) => onBaseDoseChange(parseFloat(e.target.value) || 0)}
+            placeholder="Enter dose in mg/kg"
+            step="0.001"
+            min="0"
+            aria-required="true"
+            aria-describedby="base-dose-hint"
+          />
+          <p id="base-dose-hint" className="text-xs text-muted-foreground">
+            Required. Enter a positive value to enable calculation.
+          </p>
+        </div>
+
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2">
+            Scaling Method
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="More information about scaling methods"
+                >
+                  <IconInfoCircle
+                    className="h-4 w-4 text-muted-foreground cursor-help"
+                    aria-hidden="true"
+                  />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <p className="text-sm font-semibold mb-2">
+                  Available scaling methods:
+                </p>
+                <ul className="text-sm space-y-1">
+                  <li>
+                    <strong>Allometric:</strong> Customizable power-law scaling
+                    (default W^0.75)
+                  </li>
+                  <li>
+                    <strong>BSA (Km method):</strong> FDA-recommended body
+                    surface area scaling
+                  </li>
+                  <li>
+                    <strong>Direct:</strong> Linear weight-based scaling
+                    (exponent = 1.0)
+                  </li>
+                  <li>
+                    <strong>Metabolic:</strong> Kleiber&apos;s law metabolic
+                    rate scaling (W^0.75)
+                  </li>
+                  <li>
+                    <strong>Brain Weight:</strong> For CNS-active drugs
+                  </li>
+                  <li>
+                    <strong>Life-Span:</strong> For chronic/long-term dosing
+                  </li>
+                  <li>
+                    <strong>Hepatic Flow:</strong> For hepatically cleared drugs
+                  </li>
+                </ul>
+              </PopoverContent>
+            </Popover>
+          </legend>
+          <RadioGroup
+            value={scalingMethod}
+            onValueChange={(v: string) =>
+              onScalingMethodChange(v as ScalingMethod)
+            }
+            aria-label="Scaling method selection"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="allometric" id="allometric" />
+              <Label htmlFor="allometric">Allometric (Recommended)</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="bsa" id="bsa" />
+              <Label htmlFor="bsa">Body Surface Area (Km method)</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="direct" id="direct" />
+              <Label htmlFor="direct">Direct (Linear)</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="metabolic" id="metabolic" />
+              <Label htmlFor="metabolic">
+                Metabolic Rate (Kleiber&apos;s law)
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="brainWeight" id="brainWeight" />
+              <Label htmlFor="brainWeight">Brain Weight (CNS drugs)</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="lifeSpan" id="lifeSpan" />
+              <Label htmlFor="lifeSpan">Life-Span (Chronic dosing)</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="hepaticFlow" id="hepaticFlow" />
+              <Label htmlFor="hepaticFlow">Hepatic Blood Flow</Label>
+            </div>
+          </RadioGroup>
+
+          {scalingMethod === "allometric" && (
+            <div className="mt-4 space-y-2">
+              <Label
+                htmlFor="scaling-exponent"
                 className="flex items-center gap-2"
               >
-                {copySuccess ? (
-                  <>
-                    <IconCheck className="h-4 w-4" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <IconCopy className="h-4 w-4" />
-                    Copy Results
-                  </>
-                )}
-              </Button>
+                Allometric Exponent
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label="More information about allometric exponents"
+                    >
+                      <IconInfoCircle
+                        className="h-4 w-4 text-muted-foreground cursor-help"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80">
+                    <p className="text-sm mb-2">Common allometric exponents:</p>
+                    <ul className="text-sm space-y-1">
+                      <li>
+                        <strong>0.75:</strong> Standard metabolic scaling (most
+                        drugs)
+                      </li>
+                      <li>
+                        <strong>0.67:</strong> Surface area scaling
+                      </li>
+                      <li>
+                        <strong>1.0:</strong> Direct proportional scaling
+                      </li>
+                      <li>
+                        <strong>Custom:</strong> Based on specific drug data
+                      </li>
+                    </ul>
+                  </PopoverContent>
+                </Popover>
+              </Label>
+              <Select
+                value={scalingExponent}
+                onValueChange={onScalingExponentChange}
+              >
+                <SelectTrigger id="scaling-exponent">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.75">0.75 (Standard)</SelectItem>
+                  <SelectItem value="0.67">0.67 (Surface Area)</SelectItem>
+                  <SelectItem value="1.0">1.0 (Linear)</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              {scalingExponent === "custom" && (
+                <div className="space-y-1">
+                  <Label htmlFor="custom-exponent" className="text-sm">
+                    Custom Exponent Value
+                  </Label>
+                  <Input
+                    id="custom-exponent"
+                    type="number"
+                    placeholder="Enter custom exponent (typical: 0.5 - 1.0)"
+                    step="0.01"
+                    min="0"
+                    max="2"
+                    value={customExponentValue}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value) && value >= 0 && value <= 2) {
+                        onCustomExponentValueChange(value);
+                      }
+                    }}
+                    aria-describedby="custom-exponent-hint"
+                  />
+                  <p
+                    id="custom-exponent-hint"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Valid range: 0 to 2. Typical values: 0.67 (surface area),
+                    0.75 (standard), 1.0 (linear)
+                  </p>
+                </div>
+              )}
             </div>
+          )}
+        </fieldset>
 
-            <div className="space-y-4">
-              <div className="p-4 bg-background rounded-lg">
-                <p className="text-sm text-muted-foreground mb-2">
-                  Calculated Dose
-                </p>
-                <p className="text-2xl font-bold">
-                  {resultDose.toFixed(3)} mg/kg
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Range: {uncertaintyRange.lower.toFixed(3)} -{" "}
-                  {uncertaintyRange.upper.toFixed(3)} mg/kg
-                </p>
-              </div>
+        <div
+          className="relative btn-disabled-hint"
+          data-disabled-reason={
+            !baseDose || baseDose <= 0 ? "Enter a dose value first" : undefined
+          }
+        >
+          <Button
+            onClick={calculateDose}
+            className="w-full"
+            disabled={!baseDose || baseDose <= 0}
+            aria-describedby={
+              !baseDose || baseDose <= 0
+                ? "calculate-disabled-reason"
+                : undefined
+            }
+          >
+            Calculate Dose
+          </Button>
+          {(!baseDose || baseDose <= 0) && (
+            <span id="calculate-disabled-reason" className="sr-only">
+              Button is disabled. Enter a dose value to enable calculation.
+            </span>
+          )}
+        </div>
 
-              <div className="space-y-2">
-                <p className="text-sm font-semibold">Calculation Steps:</p>
-                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
-                  {calculationSteps.steps.map((step: string, index: number) => (
-                    <li key={index}>{step}</li>
-                  ))}
-                </ol>
-              </div>
-
-              <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
-                <p className="text-sm text-warning-foreground flex items-start gap-2">
-                  <IconAlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span>
-                    This calculation is for research purposes only. Always
-                    validate doses with experimental data and consider factors
-                    like drug properties, disease state, and individual
-                    variability.
+        {calculationSteps && (
+          <Card
+            className="mt-4 border-primary/20 bg-primary/5"
+            role="region"
+            aria-label="Calculation results"
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between mb-4">
+                <h3 className="text-lg font-semibold">Results</h3>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onCopyToClipboard}
+                    className="flex items-center gap-2"
+                    aria-label={
+                      copySuccess
+                        ? "Results copied to clipboard"
+                        : "Copy results to clipboard"
+                    }
+                  >
+                    {copySuccess ? (
+                      <>
+                        <IconCheck className="h-4 w-4" aria-hidden="true" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <IconCopy className="h-4 w-4" aria-hidden="true" />
+                        Copy Results
+                      </>
+                    )}
+                  </Button>
+                  <span
+                    className="sr-only"
+                    aria-live="polite"
+                    aria-atomic="true"
+                  >
+                    {copySuccess ? "Results copied to clipboard" : ""}
                   </span>
-                </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-};
+
+              <div className="space-y-4">
+                <div className="p-4 bg-background rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Calculated Dose
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {resultDose.toFixed(3)} mg/kg
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Range: {uncertaintyRange.lower.toFixed(3)} -{" "}
+                    {uncertaintyRange.upper.toFixed(3)} mg/kg
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">Calculation Steps:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                    {calculationSteps.steps.map(
+                      (step: string, index: number) => (
+                        <li key={index}>{step}</li>
+                      ),
+                    )}
+                  </ol>
+                </div>
+
+                <div
+                  className="p-3 bg-warning/10 border border-warning/20 rounded-lg"
+                  role="note"
+                  aria-label="Important disclaimer"
+                >
+                  <p className="text-sm text-warning-foreground flex items-start gap-2">
+                    <IconAlertCircle
+                      className="h-4 w-4 mt-0.5 flex-shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span>
+                      <strong>Disclaimer:</strong> This calculation is for
+                      research purposes only. Always validate doses with
+                      experimental data and consider factors like drug
+                      properties, disease state, and individual variability.
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  },
+);
+
+// Set display name for debugging
+DoseCalculator.displayName = "DoseCalculator";

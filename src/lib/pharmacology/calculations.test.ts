@@ -4,6 +4,7 @@ import {
   calculateCockcroftGFR,
   gfrToDoseAdjustment,
   generateChartData,
+  convertCreatinine,
 } from "./calculations";
 import { CalculationParameters } from "./types";
 
@@ -40,23 +41,77 @@ describe("DoseFinder Calculation Tests", () => {
     });
   });
 
-  describe("gfrToDoseAdjustment", () => {
-    it("should return correct adjustment factors for different GFR ranges", () => {
-      expect(gfrToDoseAdjustment(0)).toBe(0.25);
-      expect(gfrToDoseAdjustment(10)).toBe(0.25);
-      expect(gfrToDoseAdjustment(15)).toBe(0.5);
-      expect(gfrToDoseAdjustment(30)).toBe(0.75);
-      expect(gfrToDoseAdjustment(60)).toBe(1.0);
-      expect(gfrToDoseAdjustment(100)).toBe(1.0);
+  describe("convertCreatinine", () => {
+    it("should convert mg/dL to µmol/L correctly", () => {
+      // 1 mg/dL = 88.4 µmol/L
+      expect(convertCreatinine(1, "mg/dL", "umol/L")).toBeCloseTo(88.4, 1);
+      expect(convertCreatinine(2, "mg/dL", "umol/L")).toBeCloseTo(176.8, 1);
     });
 
-    it("should handle boundary values correctly", () => {
-      expect(gfrToDoseAdjustment(14.99)).toBe(0.25);
-      expect(gfrToDoseAdjustment(15)).toBe(0.5);
-      expect(gfrToDoseAdjustment(29.99)).toBe(0.5);
-      expect(gfrToDoseAdjustment(30)).toBe(0.75);
-      expect(gfrToDoseAdjustment(59.99)).toBe(0.75);
-      expect(gfrToDoseAdjustment(60)).toBe(1.0);
+    it("should convert µmol/L to mg/dL correctly", () => {
+      expect(convertCreatinine(88.4, "umol/L", "mg/dL")).toBeCloseTo(1, 2);
+      expect(convertCreatinine(176.8, "umol/L", "mg/dL")).toBeCloseTo(2, 2);
+    });
+
+    it("should return same value when units match", () => {
+      expect(convertCreatinine(1.5, "mg/dL", "mg/dL")).toBe(1.5);
+      expect(convertCreatinine(100, "umol/L", "umol/L")).toBe(100);
+    });
+  });
+
+  describe("calculateCockcroftGFR with creatinine units", () => {
+    it("should handle µmol/L input correctly", () => {
+      // Same patient: 70kg, 40yo, creatinine 1 mg/dL = 88.4 µmol/L
+      const gfrMgDL = calculateCockcroftGFR(70, 40, 1, "male", "mg/dL");
+      const gfrUmolL = calculateCockcroftGFR(70, 40, 88.4, "male", "umol/L");
+      expect(gfrUmolL).toBeCloseTo(gfrMgDL, 0);
+    });
+
+    it("should default to mg/dL when unit not specified", () => {
+      const gfrDefault = calculateCockcroftGFR(70, 40, 1, "male");
+      const gfrExplicit = calculateCockcroftGFR(70, 40, 1, "male", "mg/dL");
+      expect(gfrDefault).toBe(gfrExplicit);
+    });
+  });
+
+  describe("gfrToDoseAdjustment", () => {
+    it("should use proper formula with fe parameter", () => {
+      // With fe=1.0 (100% renal), GFR 60/120 = 0.5 renal function
+      // Factor = 1 - 1.0 * (1 - 0.5) = 0.5
+      expect(gfrToDoseAdjustment(60, 1.0, 120)).toBeCloseTo(0.5, 2);
+
+      // With fe=0.5 (50% renal), same GFR
+      // Factor = 1 - 0.5 * (1 - 0.5) = 0.75
+      expect(gfrToDoseAdjustment(60, 0.5, 120)).toBeCloseTo(0.75, 2);
+
+      // With fe=0 (no renal clearance), should be 1.0 regardless of GFR
+      expect(gfrToDoseAdjustment(30, 0, 120)).toBe(1.0);
+      expect(gfrToDoseAdjustment(0, 0, 120)).toBe(1.0);
+    });
+
+    it("should return 1.0 for normal GFR regardless of fe", () => {
+      // GFR >= normal means renal function ratio = 1, so factor = 1
+      expect(gfrToDoseAdjustment(120, 1.0, 120)).toBe(1.0);
+      expect(gfrToDoseAdjustment(150, 0.8, 120)).toBe(1.0);
+    });
+
+    it("should clamp fe to valid range", () => {
+      // fe > 1 should be clamped to 1
+      expect(gfrToDoseAdjustment(60, 2.0, 120)).toBeCloseTo(0.5, 2);
+      // fe < 0 should be clamped to 0
+      expect(gfrToDoseAdjustment(60, -0.5, 120)).toBe(1.0);
+    });
+
+    it("should enforce minimum adjustment factor of 0.1", () => {
+      // Even with GFR=0 and fe=1, minimum is 0.1
+      expect(gfrToDoseAdjustment(0, 1.0, 120)).toBe(0.1);
+    });
+
+    it("should work with default fe=1.0 for backward compatibility", () => {
+      // Without fe parameter, defaults to 1.0 (100% renal)
+      const withDefault = gfrToDoseAdjustment(60);
+      const withExplicit = gfrToDoseAdjustment(60, 1.0, 120);
+      expect(withDefault).toBeCloseTo(withExplicit, 2);
     });
   });
 
@@ -100,29 +155,28 @@ describe("DoseFinder Calculation Tests", () => {
 
   describe("calculateDose - Allometric Scaling", () => {
     it("should calculate standard allometric scaling (mouse to human)", () => {
-      // Formula: baseDose * (targetWeight / sourceWeight) ^ 0.75
-      // 1 * (70 / 0.02) ^ 0.75 = 1 * 3500 ^ 0.75 ≈ 455.04
+      // Corrected formula for mg/kg to mg/kg conversion:
+      // (mg/kg)_target = (mg/kg)_source × (W_target/W_source)^(b-1)
+      // With b = 0.75, exponent = -0.25
+      // 1 * (70 / 0.02) ^ -0.25 = 1 * 3500 ^ -0.25 ≈ 0.130
+      // This correctly shows larger animals need LOWER mg/kg doses
       const result = calculateDose(0.02, 70, 1, "allometric", "mouse", "human");
-      expect(result.dose).toBeCloseTo(455.04, 1);
+      expect(result.dose).toBeCloseTo(0.13, 2);
       expect(result.methodDescription).toContain("Allometric scaling");
+      expect(result.methodDescription).toContain(
+        "dose conversion exponent -0.25",
+      );
     });
 
-    it("should adjust for molecular weight", () => {
-      const params: Partial<CalculationParameters> = { molecularWeight: 800 };
-      const result = calculateDose(
-        0.02,
-        70,
-        1,
-        "allometric",
-        "mouse",
-        "human",
-        params,
-      );
-      expect(result.methodDescription).toContain("MW adjustment");
-      expect(result.methodDescription).toContain("0.7");
+    it("should scale doses correctly in reverse (human to mouse)", () => {
+      // Human to mouse: larger mg/kg dose needed for smaller animals
+      // 1 * (0.02 / 70) ^ -0.25 = 1 * (0.000286)^-0.25 ≈ 7.69
+      const result = calculateDose(70, 0.02, 1, "allometric", "human", "mouse");
+      expect(result.dose).toBeCloseTo(7.69, 1);
     });
 
     it("should use custom scaling exponent", () => {
+      // Custom exponent 0.67 → dose conversion exponent = -0.33
       const params: Partial<CalculationParameters> = { scalingExponent: 0.67 };
       const result = calculateDose(
         0.02,
@@ -134,17 +188,31 @@ describe("DoseFinder Calculation Tests", () => {
         params,
       );
       expect(result.dose).toBeGreaterThan(0);
-      expect(result.dose).not.toBeCloseTo(444.8, 0); // Different from default 0.75
+      expect(result.methodDescription).toContain(
+        "dose conversion exponent -0.33",
+      );
+    });
+
+    it("should handle direct scaling (exponent 1.0) correctly", () => {
+      // Direct scaling: exponent 1.0 → dose conversion exponent = 0.0
+      // Same mg/kg dose regardless of species weight
+      const result = calculateDose(0.02, 70, 1, "direct", "mouse", "human");
+      expect(result.dose).toBeCloseTo(1.0, 4); // Same dose
+      expect(result.methodDescription).toContain("Direct");
     });
   });
 
   describe("calculateDose - BSA Scaling", () => {
-    it("should calculate BSA-based scaling correctly", () => {
-      // Mouse BSA: 0.006 m², Human BSA: 1.9 m²
-      // 1 * (1.9 / 0.006) ≈ 316.67
+    it("should calculate BSA-based scaling correctly using Km method", () => {
+      // FDA Km method: Target Dose = Source Dose × (Source Km / Target Km)
+      // Mouse: weight = 0.02 kg, bsa = 0.006 m², Km = 0.02/0.006 = 3.333
+      // Human: weight = 70 kg, bsa = 1.9 m², Km = 70/1.9 = 36.842
+      // Target Dose = 1 × (3.333 / 36.842) ≈ 0.0905
       const result = calculateDose(0.02, 70, 1, "bsa", "mouse", "human");
-      expect(result.dose).toBeCloseTo(316.67, 1);
-      expect(result.methodDescription).toBe("BSA-based scaling");
+      expect(result.dose).toBeCloseTo(0.0905, 3);
+      expect(result.methodDescription).toBe(
+        "BSA-based scaling using Km factors (FDA method)",
+      );
     });
 
     it("should handle same species BSA calculation", () => {
@@ -164,54 +232,89 @@ describe("DoseFinder Calculation Tests", () => {
         "human",
       );
       expect(result.dose).toBeGreaterThan(0);
-      expect(result.methodDescription).toBe("Brain weight scaling");
+      expect(result.methodDescription).toBe(
+        "Brain weight scaling (experimental)",
+      );
     });
 
-    it("should handle equal weights gracefully", () => {
+    it("should handle equal weights gracefully with warning", () => {
       const result = calculateDose(70, 70, 1, "brainWeight", "human", "human");
       // Should handle the edge case without crashing
       expect(result).toBeDefined();
+      expect(result.dose).toBe(1); // Factor = 0, so dose = baseDose * weightRatio^0 = baseDose * 1 = 1
+      expect(isFinite(result.dose)).toBe(true);
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings).toContain(
+        "Source and target weights are nearly equal; scaling factor set to 0",
+      );
     });
   });
 
-  describe("calculateDose - Advanced Parameters", () => {
-    it("should apply protein binding adjustment", () => {
-      const baseResult = calculateDose(
-        0.02,
-        70,
-        1,
-        "allometric",
-        "mouse",
-        "human",
-      );
-      const params: Partial<CalculationParameters> = { proteinBinding: 90 };
-      const adjustedResult = calculateDose(
-        0.02,
-        70,
-        1,
-        "allometric",
-        "mouse",
-        "human",
-        params,
-      );
-
-      // 90% binding means only 10% active
-      expect(adjustedResult.dose).toBeCloseTo(baseResult.dose * 0.1, 1);
+  describe("calculateDose - Life-Span Scaling", () => {
+    it("should calculate life-span scaling", () => {
+      const result = calculateDose(0.02, 70, 1, "lifeSpan", "mouse", "human");
+      expect(result.dose).toBeGreaterThan(0);
+      expect(result.methodDescription).toBe("Life-span scaling (experimental)");
     });
 
-    it("should prevent negative doses with high protein binding", () => {
-      const params: Partial<CalculationParameters> = { proteinBinding: 99.9 };
+    it("should handle equal weights gracefully with warning", () => {
+      const result = calculateDose(70, 70, 1, "lifeSpan", "human", "human");
+      // Should handle the edge case without crashing
+      expect(result).toBeDefined();
+      expect(result.dose).toBe(1); // Factor = 0, so dose = baseDose * weightRatio^0 = baseDose * 1 = 1
+      expect(isFinite(result.dose)).toBe(true);
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings).toContain(
+        "Source and target weights are nearly equal; scaling factor set to 0",
+      );
+    });
+
+    it("should produce finite doses for typical species pairs", () => {
+      const result = calculateDose(0.15, 70, 10, "lifeSpan", "rat", "human");
+      expect(isFinite(result.dose)).toBe(true);
+      expect(result.dose).toBeGreaterThan(0);
+    });
+  });
+
+  describe("calculateDose - Hepatic Flow Scaling", () => {
+    it("should calculate hepatic clearance scaling", () => {
       const result = calculateDose(
         0.02,
         70,
         1,
-        "allometric",
+        "hepaticFlow",
         "mouse",
         "human",
-        params,
       );
       expect(result.dose).toBeGreaterThan(0);
+      expect(result.methodDescription).toBe(
+        "Hepatic clearance scaling (experimental)",
+      );
     });
+
+    it("should handle equal weights gracefully with warning", () => {
+      const result = calculateDose(70, 70, 1, "hepaticFlow", "human", "human");
+      // Should handle the edge case without crashing
+      expect(result).toBeDefined();
+      expect(result.dose).toBe(1); // Factor = 0, so dose = baseDose * weightRatio^0 = baseDose * 1 = 1
+      expect(isFinite(result.dose)).toBe(true);
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings).toContain(
+        "Source and target weights are nearly equal; scaling factor set to 0",
+      );
+    });
+
+    it("should produce finite doses for typical species pairs", () => {
+      const result = calculateDose(0.15, 70, 10, "hepaticFlow", "rat", "human");
+      expect(isFinite(result.dose)).toBe(true);
+      expect(result.dose).toBeGreaterThan(0);
+    });
+  });
+
+  describe("calculateDose - Advanced Parameters", () => {
+    // Note: Protein binding, Vd, and LogP adjustments were removed in v0.8.0
+    // as they lacked proper scientific citation. Only bioavailability and
+    // kidney function adjustments are retained as scientifically valid.
 
     it("should apply bioavailability adjustment", () => {
       const baseResult = calculateDose(
@@ -234,7 +337,7 @@ describe("DoseFinder Calculation Tests", () => {
       );
 
       // 50% bioavailability means dose should be doubled
-      expect(adjustedResult.dose).toBeCloseTo(baseResult.dose * 2, 1);
+      expect(adjustedResult.dose).toBeCloseTo(baseResult.dose * 2, 2);
     });
 
     it("should handle bioavailability method presets", () => {
@@ -265,13 +368,14 @@ describe("DoseFinder Calculation Tests", () => {
       );
 
       // Oral should be double IV (50% vs 100% bioavailability)
-      expect(oralResult.dose).toBeCloseTo(ivResult.dose * 2, 1);
+      expect(oralResult.dose).toBeCloseTo(ivResult.dose * 2, 2);
     });
 
-    it("should apply kidney function adjustment", () => {
+    it("should apply kidney function adjustment with fe=1 (100% renal)", () => {
       const params: Partial<CalculationParameters> = {
         kidneyFunctionMethod: "manual",
         kidneyFunction: 50,
+        fractionExcretedRenal: 1.0, // 100% renally cleared
       };
       const baseResult = calculateDose(
         0.02,
@@ -291,7 +395,64 @@ describe("DoseFinder Calculation Tests", () => {
         params,
       );
 
-      expect(adjustedResult.dose).toBeCloseTo(baseResult.dose * 0.5, 1);
+      // With fe=1.0 and 50% renal function: factor = 1 - 1*(1-0.5) = 0.5
+      expect(adjustedResult.dose).toBeCloseTo(baseResult.dose * 0.5, 2);
+    });
+
+    it("should apply kidney function adjustment with fe=0.5 (50% renal)", () => {
+      const params: Partial<CalculationParameters> = {
+        kidneyFunctionMethod: "manual",
+        kidneyFunction: 50,
+        fractionExcretedRenal: 0.5, // 50% renally cleared
+      };
+      const baseResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+      );
+      const adjustedResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        params,
+      );
+
+      // With fe=0.5 and 50% renal function: factor = 1 - 0.5*(1-0.5) = 0.75
+      expect(adjustedResult.dose).toBeCloseTo(baseResult.dose * 0.75, 2);
+    });
+
+    it("should not adjust for fe=0 (hepatically cleared drug)", () => {
+      const params: Partial<CalculationParameters> = {
+        kidneyFunctionMethod: "manual",
+        kidneyFunction: 20, // Severe renal impairment
+        fractionExcretedRenal: 0, // Hepatically cleared
+      };
+      const baseResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+      );
+      const adjustedResult = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        params,
+      );
+
+      // With fe=0: factor = 1 - 0*(1-0.2) = 1.0 (no adjustment)
+      expect(adjustedResult.dose).toBeCloseTo(baseResult.dose, 2);
     });
 
     it("should apply Cockcroft-Gault kidney adjustment", () => {
@@ -319,10 +480,9 @@ describe("DoseFinder Calculation Tests", () => {
 
     it("should apply multiple adjustments correctly", () => {
       const params: Partial<CalculationParameters> = {
-        proteinBinding: 50, // 50% active
-        bioavailability: 50, // Double dose
+        bioavailability: 50, // Double dose (÷ 0.5)
         kidneyFunctionMethod: "manual",
-        kidneyFunction: 80, // 80% dose
+        kidneyFunction: 80, // 80% dose (× 0.8)
       };
 
       const baseResult = calculateDose(
@@ -343,8 +503,8 @@ describe("DoseFinder Calculation Tests", () => {
         params,
       );
 
-      // Expected: base * 0.5 (protein) * 2 (bioavailability) * 0.8 (kidney) = base * 0.8
-      expect(adjustedResult.dose).toBeCloseTo(baseResult.dose * 0.8, 1);
+      // Expected: base * 2 (bioavailability) * 0.8 (kidney) = base * 1.6
+      expect(adjustedResult.dose).toBeCloseTo(baseResult.dose * 1.6, 2);
     });
   });
 
@@ -377,12 +537,16 @@ describe("DoseFinder Calculation Tests", () => {
   describe("Edge Cases and Error Handling", () => {
     it("should handle division by zero in logarithmic calculations", () => {
       // When weights are equal, log(1) = 0, which could cause division by zero
+      // All log-based methods (brainWeight, lifeSpan, hepaticFlow) are protected
       const result = calculateDose(70, 70, 1, "lifeSpan", "human", "human");
       expect(result).toBeDefined();
-      // Should either handle gracefully or return an error
+      expect(isFinite(result.dose)).toBe(true);
+      expect(result.dose).toBe(1); // Factor = 0 when weights are equal
     });
 
-    it("should handle very small dose values", () => {
+    it("should handle scaling from large to small species", () => {
+      // Human to mouse: with corrected formula, dose should increase
+      // 1000 mg/kg * (0.02/70)^-0.25 ≈ 7690 mg/kg
       const result = calculateDose(
         70,
         0.02,
@@ -391,11 +555,12 @@ describe("DoseFinder Calculation Tests", () => {
         "human",
         "mouse",
       );
-      expect(result.dose).toBeGreaterThan(0);
-      expect(result.dose).toBeLessThan(1000);
+      expect(result.dose).toBeGreaterThan(1000); // Should increase for smaller species
+      expect(isFinite(result.dose)).toBe(true);
     });
 
     it("should handle extreme scaling factors", () => {
+      // Exponent 2.0 → dose conversion exponent = 1.0
       const params: Partial<CalculationParameters> = { scalingExponent: 2 };
       const result = calculateDose(
         0.02,
@@ -411,12 +576,9 @@ describe("DoseFinder Calculation Tests", () => {
     });
 
     it("should validate against mathematical errors", () => {
-      // Test with parameters that might cause NaN or Infinity
+      // Test with extreme bioavailability values
       const params: Partial<CalculationParameters> = {
-        bioavailability: 0.1, // Very low, but not zero
-        proteinBinding: 99.9, // Very high
-        logP: 10, // Extreme value
-        molecularWeight: 100000, // Very large
+        bioavailability: 0.1, // Very low, should cause large dose increase
       };
 
       const result = calculateDose(
@@ -434,8 +596,7 @@ describe("DoseFinder Calculation Tests", () => {
 
     it("should provide warnings for unusual parameters", () => {
       const params: Partial<CalculationParameters> = {
-        proteinBinding: 98,
-        bioavailability: 5,
+        bioavailability: 5, // Very low bioavailability
       };
 
       const result = calculateDose(

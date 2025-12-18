@@ -8,32 +8,69 @@ import {
   ScalingMethod,
   CalculationParameters,
   CalculationResult,
+  ChartDataPoint,
   COCKCROFT_CONSTANTS,
   GFR_THRESHOLDS,
+  CREATININE_CONVERSION,
   PatientSex,
+  CreatinineUnit,
 } from "./types";
 import { SPECIES_DATABASE } from "./species";
 import { validateCalculationInputs } from "./validators";
 
 /**
+ * Convert creatinine between mg/dL and µmol/L
+ * Standard conversion: 1 mg/dL = 88.4 µmol/L
+ * Based on creatinine molecular weight: 113.12 g/mol
+ */
+export function convertCreatinine(
+  value: number,
+  fromUnit: CreatinineUnit,
+  toUnit: CreatinineUnit,
+): number {
+  if (fromUnit === toUnit) return value;
+  if (fromUnit === "mg/dL" && toUnit === "umol/L") {
+    return value * CREATININE_CONVERSION.mgdL_to_umolL;
+  }
+  // umol/L to mg/dL
+  return value * CREATININE_CONVERSION.umolL_to_mgdL;
+}
+
+/**
  * Calculate Cockcroft-Gault GFR for kidney function assessment
+ *
+ * Formula: GFR = ((140 - age) × weight) / (72 × creatinine) [× 0.85 if female]
+ *
+ * Note: Creatinine must be in mg/dL. If provided in µmol/L, use the
+ * creatinineUnit parameter to auto-convert.
+ *
+ * Reference: Cockcroft DW, Gault MH. Prediction of creatinine clearance
+ * from serum creatinine. Nephron. 1976;16(1):31-41.
  */
 export function calculateCockcroftGFR(
   weightKg: number,
   age: number,
   creatinine: number,
   sex: PatientSex,
+  creatinineUnit: CreatinineUnit = "mg/dL",
 ): number {
   try {
     if (weightKg <= 0 || age <= 0 || creatinine <= 0) {
       return 0;
     }
 
+    // Convert creatinine to mg/dL if provided in µmol/L
+    const creatinineInMgDL =
+      creatinineUnit === "umol/L"
+        ? convertCreatinine(creatinine, "umol/L", "mg/dL")
+        : creatinine;
+
     const { ageFactor, creatinineMultiplier, femaleAdjustment } =
       COCKCROFT_CONSTANTS;
 
     let gfr =
-      ((ageFactor - age) * weightKg) / (creatinineMultiplier * creatinine);
+      ((ageFactor - age) * weightKg) /
+      (creatinineMultiplier * creatinineInMgDL);
 
     if (sex === "female") {
       gfr *= femaleAdjustment;
@@ -47,9 +84,58 @@ export function calculateCockcroftGFR(
 }
 
 /**
- * Convert GFR to dose adjustment factor
+ * Convert GFR to dose adjustment factor using proper renal adjustment formula
+ *
+ * Formula: Dose_adj = Dose_normal × (1 - fe × (1 - RenalFunctionRatio))
+ *
+ * Where:
+ * - fe = fraction excreted unchanged in urine (0 to 1)
+ *   - fe = 1.0: 100% renally cleared (e.g., aminoglycosides)
+ *   - fe = 0.5: 50% renally cleared
+ *   - fe = 0.0: no renal clearance (hepatically cleared)
+ * - RenalFunctionRatio = patient GFR / normal GFR (capped at 1.0)
+ *
+ * When fe = 1.0 (default), this matches traditional GFR-based adjustments.
+ *
+ * References:
+ * - Rowland M, Tozer TN. Clinical Pharmacokinetics. 4th ed. Lippincott Williams & Wilkins; 2011.
+ * - Matzke GR, et al. Drug dosing consideration in patients with acute and chronic kidney disease.
+ *   Kidney Int. 2011;80(11):1122-1137.
+ *
+ * @param gfr - Glomerular filtration rate (mL/min)
+ * @param fe - Fraction excreted unchanged in urine (0-1). Default is 1.0 (100% renal clearance)
+ * @param normalGfr - Normal GFR for comparison. Default is 120 mL/min.
+ * @returns Dose adjustment factor (0-1, where 1.0 = no adjustment needed)
  */
-export function gfrToDoseAdjustment(gfr: number): number {
+export function gfrToDoseAdjustment(
+  gfr: number,
+  fe: number = 1.0,
+  normalGfr: number = 120,
+): number {
+  // Validate fe
+  const validFe = Math.max(0, Math.min(1, fe));
+
+  // If no renal clearance (fe = 0), no dose adjustment needed
+  if (validFe === 0) return 1.0;
+
+  // Calculate renal function ratio (capped at 1.0)
+  const renalFunctionRatio = Math.min(1.0, Math.max(0, gfr / normalGfr));
+
+  // Apply the proper formula: 1 - fe × (1 - renalFunctionRatio)
+  // This preserves the non-renally cleared portion
+  const adjustmentFactor = 1 - validFe * (1 - renalFunctionRatio);
+
+  // Ensure minimum of 0.1 (90% reduction) for safety
+  return Math.max(0.1, adjustmentFactor);
+}
+
+/**
+ * Legacy GFR-based dose adjustment using categorical thresholds
+ * Retained for backward compatibility and simple use cases
+ *
+ * @deprecated Use gfrToDoseAdjustment with fe parameter for accurate adjustments
+ */
+export function gfrToDoseAdjustmentCategorical(gfr: number): number {
   if (gfr <= 0) return 0.25;
   if (gfr >= GFR_THRESHOLDS.normal) return 1.0;
   if (gfr >= GFR_THRESHOLDS.mild) return 0.75;
@@ -58,39 +144,54 @@ export function gfrToDoseAdjustment(gfr: number): number {
 }
 
 /**
- * Calculate allometric scaling factor
+ * Calculate allometric scaling factor for mg/kg to mg/kg conversion
+ *
+ * For interspecies dose scaling in mg/kg units, the correct exponent is (b - 1)
+ * where b is the allometric exponent (typically 0.75 for clearance).
+ *
+ * Derivation:
+ * - Clearance scales as CL ∝ W^b (where b ≈ 0.75)
+ * - For equivalent exposure: Dose_target/CL_target = Dose_source/CL_source
+ * - This gives: Dose_target = Dose_source × (CL_target/CL_source)
+ * - In mg/kg: (mg/kg)_target = (mg/kg)_source × (W_target/W_source)^(b-1)
+ *
+ * With b = 0.75, the dose conversion exponent is -0.25
+ * This means larger animals need LOWER mg/kg doses (which is biologically correct)
+ *
+ * References:
+ * - Sharma V, McNeill JH. Br J Pharmacol. 2009;157(6):907-921
+ * - Mahmood I, Balian JD. Toxicol Appl Pharmacol. 1996;140(2):253-258
+ * - FDA Guidance for Industry (2005): Estimating Maximum Safe Starting Dose
  */
-function calculateAllometricScaling(
-  weightRatio: number,
-  exponent: number,
-  molecularWeight?: number,
-): { factor: number; description: string } {
-  let scalingFactor = exponent;
-  let description = `Allometric scaling (${exponent})`;
+function calculateAllometricScaling(exponent: number): {
+  factor: number;
+  description: string;
+} {
+  // For mg/kg to mg/kg conversion, use (exponent - 1)
+  const doseConversionExponent = exponent - 1;
+  const description = `Allometric scaling (clearance exponent ${exponent}, dose conversion exponent ${doseConversionExponent.toFixed(2)})`;
 
-  if (molecularWeight && molecularWeight > 0) {
-    // Adjust exponent based on molecular weight
-    if (molecularWeight > 700) {
-      scalingFactor = 0.7;
-    } else if (molecularWeight > 400) {
-      scalingFactor = 0.75;
-    } else {
-      scalingFactor = 0.8;
-    }
-    description = `Allometric scaling with MW adjustment (${molecularWeight} g/mol → ${scalingFactor})`;
-  }
-
-  return { factor: scalingFactor, description };
+  return { factor: doseConversionExponent, description };
 }
 
 /**
  * Calculate brain weight scaling factor
+ *
+ * This method estimates dose scaling based on brain-to-body weight ratios,
+ * assuming CNS drug distribution correlates with relative brain size.
+ *
+ * EXPERIMENTAL: This method is theoretical and lacks broad clinical validation.
+ * Consider only for CNS-targeted compounds as a rough approximation.
+ *
+ * References:
+ * - Boxenbaum H, DiLea C. J Clin Pharmacol. 1995;35(10):957-966.
+ * - Mahmood I. J Pharm Sci. 1999;88(11):1101-1106.
  */
 function calculateBrainWeightScaling(
   sourceSpecies: Species,
   targetSpecies: Species,
   weightRatio: number,
-): { factor: number; description: string } {
+): { factor: number; description: string; warning?: string } {
   const sourceBrain = sourceSpecies.brainWeight;
   const targetBrain = targetSpecies.brainWeight;
 
@@ -98,19 +199,40 @@ function calculateBrainWeightScaling(
     throw new Error("Invalid brain weights");
   }
 
+  // Guard against division by zero when weights are nearly equal
+  if (Math.abs(weightRatio - 1) < 1e-4) {
+    return {
+      factor: 0,
+      description: "Brain weight scaling (experimental)",
+      warning:
+        "Source and target weights are nearly equal; scaling factor set to 0",
+    };
+  }
+
   const factor =
     ((2 / 3) * Math.log(targetBrain / sourceBrain)) / Math.log(weightRatio);
-  return { factor, description: "Brain weight scaling" };
+  return { factor, description: "Brain weight scaling (experimental)" };
 }
 
 /**
  * Calculate life-span scaling factor
+ *
+ * This method adjusts doses based on relative species life spans, under the
+ * assumption that drug exposure/toxicity correlates with lifetime duration.
+ * Primarily used for chronic dosing studies and carcinogenicity assessment.
+ *
+ * EXPERIMENTAL: This method is highly theoretical. Life-span correlations
+ * with drug exposure are complex and species-specific.
+ *
+ * References:
+ * - Travis CC, White RK. Risk Anal. 1988;8(1):119-125.
+ * - Boxenbaum H. Drug Metab Rev. 1984;15(5-6):1071-1121.
  */
 function calculateLifeSpanScaling(
   sourceSpecies: Species,
   targetSpecies: Species,
   weightRatio: number,
-): { factor: number; description: string } {
+): { factor: number; description: string; warning?: string } {
   const sourceLife = sourceSpecies.lifeSpan;
   const targetLife = targetSpecies.lifeSpan;
 
@@ -118,18 +240,38 @@ function calculateLifeSpanScaling(
     throw new Error("Invalid life spans");
   }
 
+  // Guard against division by zero when weights are nearly equal
+  if (Math.abs(weightRatio - 1) < 1e-4) {
+    return {
+      factor: 0,
+      description: "Life-span scaling (experimental)",
+      warning:
+        "Source and target weights are nearly equal; scaling factor set to 0",
+    };
+  }
+
   const factor = Math.log(targetLife / sourceLife) / Math.log(weightRatio);
-  return { factor, description: "Life-span scaling" };
+  return { factor, description: "Life-span scaling (experimental)" };
 }
 
 /**
- * Calculate hepatic flow scaling factor
+ * Calculate hepatic clearance scaling factor
+ *
+ * This method scales doses based on hepatic blood flow and extraction ratio
+ * to account for differences in hepatic drug clearance between species.
+ *
+ * EXPERIMENTAL: This method lacks extensive clinical validation. Results should
+ * be interpreted with caution and validated with compound-specific data.
+ *
+ * References:
+ * - Boxenbaum H. J Pharmacokinet Biopharm. 1980;8(2):165-176.
+ * - Lave T, et al. Pharm Res. 1999;16(7):1013-1021.
  */
-function calculateHepaticFlowScaling(
+function calculateHepaticClearanceScaling(
   sourceSpecies: Species,
   targetSpecies: Species,
   weightRatio: number,
-): { factor: number; description: string } {
+): { factor: number; description: string; warning?: string } {
   const sourceFlow = sourceSpecies.hepaticFlow;
   const targetFlow = targetSpecies.hepaticFlow;
   const sourceHepRatio = sourceSpecies.hepaticClearance / sourceFlow;
@@ -139,10 +281,20 @@ function calculateHepaticFlowScaling(
     throw new Error("Invalid hepatic flow values");
   }
 
+  // Guard against division by zero when weights are nearly equal
+  if (Math.abs(weightRatio - 1) < 1e-4) {
+    return {
+      factor: 0,
+      description: "Hepatic clearance scaling (experimental)",
+      warning:
+        "Source and target weights are nearly equal; scaling factor set to 0",
+    };
+  }
+
   const factor =
     Math.log((targetFlow * targetHepRatio) / (sourceFlow * sourceHepRatio)) /
     Math.log(weightRatio);
-  return { factor, description: "Hepatic blood flow scaling" };
+  return { factor, description: "Hepatic clearance scaling (experimental)" };
 }
 
 /**
@@ -160,10 +312,26 @@ function calculateBSAScaling(
     throw new Error("Invalid BSA values");
   }
 
-  const dose = baseDose * (targetBSA / sourceBSA);
-  const step = `BSA scaling: ${baseDose} mg × (${targetBSA.toFixed(3)} / ${sourceBSA.toFixed(3)}) = ${dose.toFixed(4)} mg`;
+  // Calculate Km factors (Weight/BSA) per FDA guidance
+  // Km is used for proper BSA-based interspecies dose conversion
+  const sourceKm = sourceSpecies.weight / sourceBSA;
+  const targetKm = targetSpecies.weight / targetBSA;
 
-  return { dose, description: "BSA-based scaling", step };
+  if (sourceKm <= 0 || targetKm <= 0) {
+    throw new Error(
+      "Invalid Km values; check weight and BSA for source/target species",
+    );
+  }
+
+  // Correct formula: Target dose = Source dose × (Source Km / Target Km)
+  const dose = baseDose * (sourceKm / targetKm);
+  const step = `BSA scaling (Km method): ${baseDose} mg/kg × (Km_source: ${sourceKm.toFixed(2)} / Km_target: ${targetKm.toFixed(2)}) = ${dose.toFixed(4)} mg/kg`;
+
+  return {
+    dose,
+    description: "BSA-based scaling using Km factors (FDA method)",
+    step,
+  };
 }
 
 /**
@@ -220,16 +388,8 @@ export function calculateDose(
     const steps: string[] = [];
     const warnings = validation.warnings;
 
-    // Prevent division by zero in logarithmic calculations
-    if (
-      Math.abs(weightRatio - 1) < 0.0001 &&
-      method !== "allometric" &&
-      method !== "bsa"
-    ) {
-      warnings.push(
-        "Source and target weights are nearly equal. Some scaling methods may be inaccurate",
-      );
-    }
+    // Note: Division by zero protection for logarithmic methods (brainWeight, lifeSpan, hepaticFlow)
+    // is handled in the individual scaling functions which return warnings when weightRatio ≈ 1
 
     // Calculate base scaling
     if (method === "bsa") {
@@ -246,12 +406,27 @@ export function calculateDose(
       switch (method) {
         case "allometric": {
           const result = calculateAllometricScaling(
-            weightRatio,
             params.scalingExponent || 0.75,
-            params.molecularWeight,
           );
           scalingFactor = result.factor;
           methodDescription = result.description;
+          break;
+        }
+        case "direct": {
+          // Direct/Linear scaling uses exponent 1.0 → dose conversion exponent 0.0
+          // This means mg/kg dose stays the same regardless of species weight
+          const result = calculateAllometricScaling(1.0);
+          scalingFactor = result.factor;
+          methodDescription =
+            "Direct (linear) scaling: same mg/kg dose across species";
+          break;
+        }
+        case "metabolic": {
+          // Metabolic rate scaling uses exponent 0.75 (Kleiber's law)
+          const result = calculateAllometricScaling(0.75);
+          scalingFactor = result.factor;
+          methodDescription =
+            "Metabolic rate scaling (Kleiber's law, clearance exponent 0.75)";
           break;
         }
         case "brainWeight": {
@@ -262,6 +437,9 @@ export function calculateDose(
           );
           scalingFactor = result.factor;
           methodDescription = result.description;
+          if (result.warning) {
+            warnings.push(result.warning);
+          }
           break;
         }
         case "lifeSpan": {
@@ -272,16 +450,22 @@ export function calculateDose(
           );
           scalingFactor = result.factor;
           methodDescription = result.description;
+          if (result.warning) {
+            warnings.push(result.warning);
+          }
           break;
         }
         case "hepaticFlow": {
-          const result = calculateHepaticFlowScaling(
+          const result = calculateHepaticClearanceScaling(
             sourceSpecies,
             targetSpecies,
             weightRatio,
           );
           scalingFactor = result.factor;
           methodDescription = result.description;
+          if (result.warning) {
+            warnings.push(result.warning);
+          }
           break;
         }
       }
@@ -289,20 +473,16 @@ export function calculateDose(
       // Apply scaling factor
       dose = baseDose * Math.pow(weightRatio, scalingFactor);
       steps.push(
-        `Base scaling: ${baseDose} mg × (${weightRatio.toFixed(4)}^${scalingFactor.toFixed(4)}) = ${dose.toFixed(4)} mg`,
+        `Base scaling: ${baseDose} mg/kg × (${weightRatio.toFixed(4)})^(${scalingFactor.toFixed(4)}) = ${dose.toFixed(4)} mg/kg`,
       );
     }
 
-    // Apply protein binding adjustment
-    if (params.proteinBinding && params.proteinBinding > 0) {
-      const proteinBindingFactor = (100 - params.proteinBinding) / 100;
-      dose *= proteinBindingFactor;
-      steps.push(
-        `Protein binding (${params.proteinBinding}%): × ${proteinBindingFactor.toFixed(4)} = ${dose.toFixed(4)} mg`,
-      );
-    }
+    // Note: Protein binding, Volume of distribution, and LogP adjustments were removed
+    // in v0.8.0 as they lacked proper scientific citation and could produce misleading
+    // results. Proper PBPK modeling should be used for these adjustments.
 
-    // Apply bioavailability adjustment
+    // Apply bioavailability adjustment (route-dependent)
+    // This is a valid adjustment as bioavailability directly affects systemic exposure
     let actualBioavailability = params.bioavailability || 100;
     if (params.bioavailabilityMethod) {
       switch (params.bioavailabilityMethod) {
@@ -310,7 +490,7 @@ export function calculateDose(
           actualBioavailability = 100;
           break;
         case "oral":
-          actualBioavailability = 50;
+          actualBioavailability = 50; // Conservative default
           break;
         case "other":
           actualBioavailability = 75;
@@ -322,21 +502,34 @@ export function calculateDose(
       const bioavailabilityFactor = actualBioavailability / 100;
       dose /= bioavailabilityFactor;
       steps.push(
-        `Bioavailability (${actualBioavailability}%): ÷ ${bioavailabilityFactor.toFixed(4)} = ${dose.toFixed(4)} mg`,
+        `Bioavailability (${actualBioavailability}%): ÷ ${bioavailabilityFactor.toFixed(4)} = ${dose.toFixed(4)} mg/kg`,
       );
     }
 
-    // Apply kidney function adjustment
+    // Apply kidney function adjustment (for renally cleared drugs)
+    // Uses fe (fraction excreted unchanged) for accurate renal adjustment
+    // Formula: Dose_adj = Dose_normal × (1 - fe × (1 - RenalFunctionRatio))
+    const fe = params.fractionExcretedRenal ?? 1.0; // Default to 100% renal clearance
+    const creatinineUnit = params.creatinineUnit ?? "mg/dL";
+
     if (
       params.kidneyFunctionMethod === "manual" &&
       params.kidneyFunction !== undefined
     ) {
-      const kidneyFactor =
+      // Manual kidney function (0-100%) with fe adjustment
+      const renalFunctionRatio =
         Math.max(0, Math.min(100, params.kidneyFunction)) / 100;
+      const kidneyFactor = 1 - fe * (1 - renalFunctionRatio);
       dose *= kidneyFactor;
-      steps.push(
-        `Manual kidney function: × ${kidneyFactor.toFixed(4)} = ${dose.toFixed(4)} mg`,
-      );
+      if (fe < 1.0) {
+        steps.push(
+          `Manual kidney function (${params.kidneyFunction}%, fe=${fe.toFixed(2)}): × ${kidneyFactor.toFixed(4)} = ${dose.toFixed(4)} mg/kg`,
+        );
+      } else {
+        steps.push(
+          `Manual kidney function (${params.kidneyFunction}%): × ${kidneyFactor.toFixed(4)} = ${dose.toFixed(4)} mg/kg`,
+        );
+      }
     } else if (
       params.kidneyFunctionMethod === "cockcroft" &&
       params.patientAge &&
@@ -348,35 +541,25 @@ export function calculateDose(
         params.patientAge,
         params.patientCreatinine,
         params.patientSex,
+        creatinineUnit,
       );
 
       if (gfr > 0) {
-        const fraction = gfrToDoseAdjustment(gfr);
+        const fraction = gfrToDoseAdjustment(gfr, fe);
         dose *= fraction;
-        steps.push(
-          `Cockcroft-Gault GFR (${gfr.toFixed(1)} mL/min): × ${fraction.toFixed(2)} = ${dose.toFixed(4)} mg`,
-        );
+        const unitLabel = creatinineUnit === "umol/L" ? "µmol/L" : "mg/dL";
+        if (fe < 1.0) {
+          steps.push(
+            `Cockcroft-Gault GFR (${gfr.toFixed(1)} mL/min, creatinine in ${unitLabel}, fe=${fe.toFixed(2)}): × ${fraction.toFixed(2)} = ${dose.toFixed(4)} mg/kg`,
+          );
+        } else {
+          steps.push(
+            `Cockcroft-Gault GFR (${gfr.toFixed(1)} mL/min): × ${fraction.toFixed(2)} = ${dose.toFixed(4)} mg/kg`,
+          );
+        }
       } else {
         warnings.push("Invalid GFR calculation inputs");
       }
-    }
-
-    // Apply volume of distribution adjustment
-    if (params.volumeDistribution && params.volumeDistribution > 0) {
-      const volumeFactor = params.volumeDistribution / targetSpecies.weight;
-      dose *= volumeFactor;
-      steps.push(
-        `Volume distribution (${params.volumeDistribution} L/kg): × ${volumeFactor.toFixed(4)} = ${dose.toFixed(4)} mg`,
-      );
-    }
-
-    // Apply lipophilicity adjustment
-    if (params.logP && params.logP !== 0) {
-      const lipophilicityFactor = 1 + Math.abs(params.logP) * 0.1;
-      dose *= lipophilicityFactor;
-      steps.push(
-        `Lipophilicity (LogP ${params.logP}): × ${lipophilicityFactor.toFixed(4)} = ${dose.toFixed(4)} mg`,
-      );
     }
 
     // Final dose validation
@@ -414,8 +597,15 @@ export function calculateDose(
   }
 }
 
+// ChartDataPoint is exported from types.ts
+
 /**
  * Generate chart data points for visualization
+ *
+ * NOTE: Interpolation is only scientifically valid for allometric scaling,
+ * which uses weight ratios directly. Methods that depend on species-specific
+ * physiological data (BSA, brain weight, life span, hepatic flow) only show
+ * actual species data points to avoid misleading visualizations.
  */
 export function generateChartData(
   baseWeight: number,
@@ -424,12 +614,12 @@ export function generateChartData(
   sourceAnimalKey: string,
   params: Partial<CalculationParameters> = {},
   numPoints: number = 50,
-): any[] {
-  const points: any[] = [];
+): ChartDataPoint[] {
+  const points: ChartDataPoint[] = [];
   const minWeight = 0.01;
   const maxWeight = 1000;
 
-  // Add actual animal data points
+  // Add actual animal data points (always included for all methods)
   for (const [key, species] of Object.entries(SPECIES_DATABASE)) {
     const result = calculateDose(
       baseWeight,
@@ -452,50 +642,50 @@ export function generateChartData(
     }
   }
 
-  // Add interpolated points for smooth curve
-  for (let i = 0; i <= numPoints; i++) {
-    const logMin = Math.log10(minWeight);
-    const logMax = Math.log10(maxWeight);
-    const logWeight = logMin + (logMax - logMin) * (i / numPoints);
-    const weight = Math.pow(10, logWeight);
+  // Only interpolate for allometric scaling - other methods depend on
+  // species-specific physiological data that cannot be interpolated
+  const canInterpolate = method === "allometric";
 
-    // Skip if too close to an actual animal point
-    const tooClose = points.some(
-      (p) => Math.abs(p.weight - weight) < weight * 0.01,
-    );
+  if (canInterpolate) {
+    // Add interpolated points for smooth curve using corrected allometric formula
+    // For mg/kg to mg/kg: (mg/kg)_target = (mg/kg)_source × (W_target/W_source)^(b-1)
+    const clearanceExponent = params.scalingExponent ?? 0.75;
+    const doseConversionExponent = clearanceExponent - 1; // -0.25 for standard 0.75
 
-    if (!tooClose) {
-      // Find closest animal for calculation
-      const closestAnimal = Object.entries(SPECIES_DATABASE).reduce(
-        (prev, curr) => {
-          return Math.abs(curr[1].weight - weight) <
-            Math.abs(prev[1].weight - weight)
-            ? curr
-            : prev;
-        },
-      )[0];
+    for (let i = 0; i <= numPoints; i++) {
+      const logMin = Math.log10(minWeight);
+      const logMax = Math.log10(maxWeight);
+      const logWeight = logMin + (logMax - logMin) * (i / numPoints);
+      const weight = Math.pow(10, logWeight);
 
-      const result = calculateDose(
-        baseWeight,
-        weight,
-        baseDose,
-        method,
-        sourceAnimalKey,
-        closestAnimal,
-        params,
+      // Skip if too close to an actual animal point
+      const tooClose = points.some(
+        (p) => Math.abs(p.weight - weight) < weight * 0.01,
       );
 
-      if (result.dose > 0 && isFinite(result.dose)) {
-        points.push({
-          name: `interpolated_${i}`,
-          weight,
-          dose: result.dose,
-          isAnimal: false,
-          label: "",
-        });
+      if (!tooClose) {
+        // Calculate using corrected allometric formula with (exponent - 1)
+        const scalingFactor = Math.pow(
+          weight / baseWeight,
+          doseConversionExponent,
+        );
+        const dose = baseDose * scalingFactor;
+
+        if (dose > 0 && isFinite(dose)) {
+          points.push({
+            name: `interpolated_${i}`,
+            weight,
+            dose,
+            isAnimal: false,
+            label: "",
+          });
+        }
       }
     }
   }
 
   return points.sort((a, b) => a.weight - b.weight);
 }
+
+// Re-export ChartDataPoint for backwards compatibility
+export type { ChartDataPoint } from "./types";
