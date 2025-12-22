@@ -635,6 +635,19 @@ tbody tr:hover {
   @apply inline-flex items-center gap-2;
 }
 
+/* Number input spinner arrows - theme responsive */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 1;
+  height: 1.5em;
+}
+
+/* Dark mode spinner styling */
+.dark input[type="number"]::-webkit-inner-spin-button,
+.dark input[type="number"]::-webkit-outer-spin-button {
+  filter: invert(1);
+}
+
 /* Loading state container - use with aria-busy="true" */
 [aria-busy="true"] {
   position: relative;

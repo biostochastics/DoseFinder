@@ -293,6 +293,30 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
             </Popover>
           </Label>
           <div className="flex gap-2">
+            <ToggleGroup
+              type="single"
+              value={doseInputUnit}
+              onValueChange={(value) => {
+                if (value) onDoseInputUnitChange(value as DoseInputUnit);
+              }}
+              className="border rounded-md h-8"
+              aria-label="Dose unit selection"
+            >
+              <ToggleGroupItem
+                value="mg/kg"
+                aria-label="Per kilogram dose"
+                className="text-[10px] px-1.5 h-7"
+              >
+                mg/kg
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="mg"
+                aria-label="Total absolute dose"
+                className="text-[10px] px-1.5 h-7"
+              >
+                mg
+              </ToggleGroupItem>
+            </ToggleGroup>
             <Input
               id="base-dose"
               type="number"
@@ -307,30 +331,6 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
               aria-describedby="base-dose-hint"
               className="flex-1"
             />
-            <ToggleGroup
-              type="single"
-              value={doseInputUnit}
-              onValueChange={(value) => {
-                if (value) onDoseInputUnitChange(value as DoseInputUnit);
-              }}
-              className="border rounded-md"
-              aria-label="Dose unit selection"
-            >
-              <ToggleGroupItem
-                value="mg/kg"
-                aria-label="Per kilogram dose"
-                className="text-xs px-2"
-              >
-                mg/kg
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="mg"
-                aria-label="Total absolute dose"
-                className="text-xs px-2"
-              >
-                mg
-              </ToggleGroupItem>
-            </ToggleGroup>
           </div>
           <p id="base-dose-hint" className="text-xs text-muted-foreground">
             {doseInputUnit === "mg"
