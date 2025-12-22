@@ -212,7 +212,14 @@ export default function Home() {
             <CardHeader className="space-y-1 py-2 bg-gradient-to-r from-primary/5 to-accent/5 rounded-t-lg">
               <div className="flex items-center justify-between">
                 <CardTitle asChild>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent flex items-center gap-2 group">
+                    <span className="logo-icon-wrapper">
+                      <IconCalculator
+                        className="h-6 w-6 text-accent logo-icon"
+                        stroke={1.5}
+                        aria-hidden="true"
+                      />
+                    </span>
                     DoseFinder
                   </h1>
                 </CardTitle>
