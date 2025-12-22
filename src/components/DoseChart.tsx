@@ -86,6 +86,40 @@ export const DoseChart: React.FC<DoseChartProps> = React.memo(
                   )
                   .join("; ")}.`}
             </p>
+            {/* Accessible data table for screen readers - visually hidden */}
+            <table
+              className="sr-only"
+              aria-label="Dose scaling data in tabular format"
+            >
+              <caption>
+                Dose values for each species using {scalingMethod} scaling
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Species</th>
+                  <th scope="col">Weight (kg)</th>
+                  <th scope="col">Dose (mg)</th>
+                  {chartData.some((d) => d.dilutedDose !== undefined) && (
+                    <th scope="col">Diluted Dose (mg)</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {chartData
+                  .filter((d) => d.isAnimal && d.label)
+                  .map((d, i) => (
+                    <tr key={i}>
+                      <td>{d.label}</td>
+                      <td>{d.weight.toFixed(3)}</td>
+                      <td>{d.dose.toFixed(4)}</td>
+                      {d.dilutedDose !== undefined &&
+                        d.dilutedDose !== null && (
+                          <td>{d.dilutedDose.toFixed(4)}</td>
+                        )}
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={chartData}

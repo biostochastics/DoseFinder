@@ -324,6 +324,83 @@ select:focus {
   }
 }
 
+/* High contrast mode support (Windows) */
+@media (forced-colors: active) {
+  /* Ensure focus indicators are visible */
+  :focus-visible {
+    outline: 3px solid CanvasText !important;
+    outline-offset: 2px !important;
+  }
+
+  /* Ensure buttons have visible borders */
+  button,
+  [role="button"] {
+    border: 1px solid ButtonText !important;
+  }
+
+  /* Ensure disabled states are distinguishable */
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    border-style: dashed !important;
+    opacity: 0.5 !important;
+  }
+
+  /* Ensure links are visible */
+  a {
+    text-decoration: underline !important;
+  }
+
+  /* Ensure form inputs have visible borders */
+  input,
+  select,
+  textarea {
+    border: 1px solid CanvasText !important;
+  }
+
+  /* Ensure cards and containers have visible boundaries */
+  .card,
+  [role="region"],
+  [role="alert"] {
+    border: 1px solid CanvasText !important;
+  }
+
+  /* Ensure badges and status indicators are visible */
+  .badge,
+  [role="status"] {
+    border: 1px solid CanvasText !important;
+  }
+
+  /* Ensure switch/toggle controls are visible */
+  [role="switch"] {
+    border: 2px solid CanvasText !important;
+  }
+
+  [role="switch"][data-state="checked"] {
+    background: Highlight !important;
+  }
+
+  /* Ensure table structure is visible */
+  table,
+  th,
+  td {
+    border: 1px solid CanvasText !important;
+  }
+
+  /* Ensure icons in buttons remain visible */
+  button svg,
+  [role="button"] svg {
+    forced-color-adjust: auto;
+  }
+
+  /* Warning/alert containers */
+  .warning-note,
+  .info-note,
+  .destructive-note,
+  .success-note {
+    border: 2px solid CanvasText !important;
+  }
+}
+
 /* Screen reader only - visually hidden but accessible */
 .sr-only {
   position: absolute;
@@ -556,4 +633,26 @@ tbody tr:hover {
 /* Standardized button with icon */
 .btn-with-icon {
   @apply inline-flex items-center gap-2;
+}
+
+/* Loading state container - use with aria-busy="true" */
+[aria-busy="true"] {
+  position: relative;
+  pointer-events: none;
+}
+
+[aria-busy="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: hsl(var(--background) / 0.5);
+  backdrop-filter: blur(1px);
+  z-index: 10;
+}
+
+/* Hide loading overlay in reduced motion mode */
+@media (prefers-reduced-motion: reduce) {
+  [aria-busy="true"]::after {
+    backdrop-filter: none;
+  }
 }

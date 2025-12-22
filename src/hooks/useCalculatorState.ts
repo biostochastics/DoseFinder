@@ -42,12 +42,16 @@ interface ExtendedChartDataPoint extends ChartDataPoint {
   dilutedDose?: number;
 }
 
+/** Unit for dose input - either per-kg or total absolute dose */
+export type DoseInputUnit = "mg/kg" | "mg";
+
 interface CalculatorState {
   sourceAnimal: string;
   targetAnimal: string;
   sourceWeight: number;
   targetWeight: number;
   baseDose: number;
+  doseInputUnit: DoseInputUnit;
   scalingMethod: ScalingMethod;
   scalingExponent: string;
   customExponentValue: number;
@@ -70,6 +74,7 @@ type CalculatorAction =
   | { type: "SET_SOURCE_WEIGHT"; payload: number }
   | { type: "SET_TARGET_WEIGHT"; payload: number }
   | { type: "SET_BASE_DOSE"; payload: number }
+  | { type: "SET_DOSE_INPUT_UNIT"; payload: DoseInputUnit }
   | { type: "SET_SCALING_METHOD"; payload: ScalingMethod }
   | { type: "SET_SCALING_EXPONENT"; payload: string }
   | { type: "SET_CUSTOM_EXPONENT_VALUE"; payload: number }
@@ -92,6 +97,7 @@ const initialState: CalculatorState = {
   sourceWeight: 0.02,
   targetWeight: 70,
   baseDose: 1,
+  doseInputUnit: "mg/kg",
   scalingMethod: "allometric",
   scalingExponent: "0.75",
   customExponentValue: 0.75,
@@ -131,6 +137,24 @@ function calculatorReducer(
       return { ...state, targetWeight: action.payload };
     case "SET_BASE_DOSE":
       return { ...state, baseDose: action.payload };
+    case "SET_DOSE_INPUT_UNIT": {
+      // Convert dose value when switching units
+      const newUnit = action.payload;
+      if (newUnit === state.doseInputUnit) return state;
+
+      let newBaseDose = state.baseDose;
+      if (newUnit === "mg" && state.doseInputUnit === "mg/kg") {
+        // Converting from mg/kg to mg: multiply by weight
+        newBaseDose = state.baseDose * state.sourceWeight;
+      } else if (newUnit === "mg/kg" && state.doseInputUnit === "mg") {
+        // Converting from mg to mg/kg: divide by weight
+        newBaseDose =
+          state.sourceWeight > 0
+            ? state.baseDose / state.sourceWeight
+            : state.baseDose;
+      }
+      return { ...state, doseInputUnit: newUnit, baseDose: newBaseDose };
+    }
     case "SET_SCALING_METHOD":
       return { ...state, scalingMethod: action.payload };
     case "SET_SCALING_EXPONENT":
@@ -182,6 +206,14 @@ export function useCalculatorState() {
         ? state.customExponentValue
         : parseFloat(state.scalingExponent);
 
+    // Convert baseDose to mg/kg if user entered total mg
+    const baseDosePerKg =
+      state.doseInputUnit === "mg"
+        ? state.sourceWeight > 0
+          ? state.baseDose / state.sourceWeight
+          : 0
+        : state.baseDose;
+
     // Use centralized GFR calculation from calculations.ts
     const gfr = calculateCockcroftGFR(
       state.targetWeight,
@@ -195,7 +227,7 @@ export function useCalculatorState() {
     const result = calculateDoseLib(
       state.sourceWeight,
       state.targetWeight,
-      state.baseDose,
+      baseDosePerKg,
       state.scalingMethod,
       state.sourceAnimal,
       state.targetAnimal,
@@ -233,7 +265,7 @@ export function useCalculatorState() {
 
     const newChartData = generateChartData(
       state.sourceWeight,
-      state.baseDose,
+      baseDosePerKg,
       state.scalingMethod,
       state.sourceAnimal,
       {
@@ -466,6 +498,14 @@ through appropriate preclinical and clinical studies before human use.
     upper: resultDose * 1.3,
   };
 
+  // Compute baseDose in mg/kg for display (normalized from whatever unit user entered)
+  const baseDosePerKg =
+    state.doseInputUnit === "mg"
+      ? state.sourceWeight > 0
+        ? state.baseDose / state.sourceWeight
+        : 0
+      : state.baseDose;
+
   // Handler for setting custom exponent value from UI input
   const setCustomExponentValue = useCallback((value: number) => {
     dispatch({ type: "SET_CUSTOM_EXPONENT_VALUE", payload: value });
@@ -483,6 +523,7 @@ through appropriate preclinical and clinical studies before human use.
     animals,
     resultDose,
     uncertaintyRange,
+    baseDosePerKg,
     resetAll: () => dispatch({ type: "RESET_ALL" }),
     setCustomExponentValue,
   };

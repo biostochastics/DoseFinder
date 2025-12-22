@@ -286,7 +286,12 @@ export function VolumeWarningPanel({
               className="text-xs text-primary hover:underline inline-flex items-center gap-1"
             >
               NC3Rs Administration Guidelines
-              <IconExternalLink className="h-3 w-3" stroke={1.5} />
+              <IconExternalLink
+                className="h-3 w-3"
+                stroke={1.5}
+                aria-hidden="true"
+              />
+              <span className="sr-only">(opens in new tab)</span>
             </a>
           </div>
         </CollapsibleContent>
@@ -319,9 +324,13 @@ export function VolumeWarningBadge({
 }) {
   if (validation.isValid) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-        <IconInfoCircle className="h-3 w-3" stroke={1.5} />
-        Volume OK
+      <span
+        className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400"
+        role="status"
+        aria-label="Volume within acceptable limits"
+      >
+        <IconInfoCircle className="h-3 w-3" stroke={1.5} aria-hidden="true" />
+        <span aria-hidden="true">✓</span> Volume OK
       </span>
     );
   }
@@ -335,11 +344,31 @@ export function VolumeWarningBadge({
       className={`inline-flex items-center gap-1 text-xs ${
         hasCritical ? "text-destructive" : "text-warning"
       }`}
+      role="status"
+      aria-label={
+        hasCritical
+          ? "Critical: Volume limit exceeded"
+          : "Warning: Volume limit exceeded"
+      }
     >
       {hasCritical ? (
-        <IconAlertTriangle className="h-3 w-3" stroke={1.5} />
+        <>
+          <IconAlertTriangle
+            className="h-3 w-3"
+            stroke={1.5}
+            aria-hidden="true"
+          />
+          <span aria-hidden="true">✗</span>
+        </>
       ) : (
-        <IconAlertCircle className="h-3 w-3" stroke={1.5} />
+        <>
+          <IconAlertCircle
+            className="h-3 w-3"
+            stroke={1.5}
+            aria-hidden="true"
+          />
+          <span aria-hidden="true">!</span>
+        </>
       )}
       Volume Limit Exceeded
     </span>

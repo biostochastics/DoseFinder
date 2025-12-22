@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
+import { useAnnounce, LiveRegion } from "@/hooks/useAnnounce";
 import {
   Card,
   CardContent,
@@ -45,6 +46,7 @@ import {
   IconBook,
   IconExternalLink,
 } from "@tabler/icons-react";
+import { Math } from "@/components/ui/math";
 import {
   calculateFdaFihDose,
   getSupportedSpecies,
@@ -138,6 +140,13 @@ export function FihCalculator() {
   const [errors, setErrors] = useState<string[]>([]);
   const [copySuccess, setCopySuccess] = useState(false);
 
+  // Accessibility: Screen reader announcements
+  const { announcement, announce } = useAnnounce();
+
+  // Ref for error focus management
+  const primaryNoaelRef = useRef<HTMLInputElement>(null);
+  const errorContainerRef = useRef<HTMLDivElement>(null);
+
   // Get supported species
   const supportedSpecies = useMemo(() => getSupportedSpecies(), []);
 
@@ -190,6 +199,14 @@ export function FihCalculator() {
     if (immediateErrors.length > 0) {
       setErrors(immediateErrors);
       setResult(null);
+      // Announce errors and focus on first error field
+      announce(
+        `Validation failed. ${immediateErrors.length} error${immediateErrors.length > 1 ? "s" : ""}: ${immediateErrors[0]}`,
+      );
+      // Focus on the error container or first input
+      setTimeout(() => {
+        errorContainerRef.current?.focus();
+      }, 100);
       return;
     }
 
@@ -208,12 +225,27 @@ export function FihCalculator() {
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
       setResult(null);
+      // Announce validation errors
+      announce(
+        `Validation failed. ${validationErrors.length} error${validationErrors.length > 1 ? "s" : ""}: ${validationErrors[0]}`,
+      );
+      setTimeout(() => {
+        errorContainerRef.current?.focus();
+      }, 100);
       return;
     }
 
     setErrors([]);
     const calculationResult = calculateFdaFihDose(input);
     setResult(calculationResult);
+
+    // Announce successful calculation
+    if (calculationResult.mrsd > 0) {
+      announce(
+        `Calculation complete. Maximum Recommended Starting Dose: ${calculationResult.mrsd.toFixed(4)} mg/kg, ` +
+          `which equals ${calculationResult.mrsdTotal.toFixed(2)} mg for a ${calculationResult.humanWeight} kg adult.`,
+      );
+    }
   }, [
     primarySpecies,
     primaryNoael,
@@ -222,6 +254,7 @@ export function FihCalculator() {
     modality,
     humanWeight,
     additionalSpecies,
+    announce,
   ]);
 
   // Copy results to clipboard
@@ -440,6 +473,9 @@ This tool does not replace regulatory consultation or expert review.
 
   return (
     <div className="space-y-4">
+      {/* Screen reader live region for dynamic announcements */}
+      <LiveRegion announcement={announcement} />
+
       {/* Introduction */}
       <Card>
         <CardHeader>
@@ -451,12 +487,15 @@ This tool does not replace regulatory consultation or expert review.
         </CardHeader>
         <CardContent>
           <div className="p-3 bg-muted/50 rounded-md text-sm">
-            <p className="font-medium mb-1">Methodology</p>
-            <p className="text-muted-foreground">
-              HED (mg/kg) = Animal NOAEL × (Animal Km / Human Km)
-              <br />
-              MRSD (mg/kg) = HED / Safety Factor
-            </p>
+            <p className="font-medium mb-2">Methodology</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Math altText="Human Equivalent Dose in milligrams per kilogram equals NOAEL times the ratio of animal Km to human Km">{String.raw`\text{HED (mg/kg)} = \text{NOAEL} \times \frac{K_m^{\text{animal}}}{K_m^{\text{human}}}`}</Math>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Math altText="Maximum Recommended Starting Dose in milligrams per kilogram equals Human Equivalent Dose divided by Safety Factor">{String.raw`\text{MRSD (mg/kg)} = \frac{\text{HED}}{\text{Safety Factor}}`}</Math>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -515,6 +554,7 @@ This tool does not replace regulatory consultation or expert review.
             <div>
               <Label htmlFor="primary-noael">NOAEL (mg/kg)</Label>
               <Input
+                ref={primaryNoaelRef}
                 id="primary-noael"
                 type="number"
                 value={primaryNoael}
@@ -522,6 +562,13 @@ This tool does not replace regulatory consultation or expert review.
                 min={0}
                 step="0.1"
                 placeholder="e.g., 100"
+                aria-invalid={
+                  errors.length > 0 &&
+                  (!primaryNoael || parseFloat(primaryNoael) <= 0)
+                }
+                aria-describedby={
+                  errors.length > 0 ? "fih-validation-errors" : undefined
+                }
               />
             </div>
           </div>
@@ -664,13 +711,27 @@ This tool does not replace regulatory consultation or expert review.
 
           {/* Validation Errors */}
           {errors.length > 0 && (
-            <Alert className="border-destructive/40 bg-destructive/10">
-              <IconAlertTriangle className="h-4 w-4" stroke={1.5} />
+            <Alert
+              ref={errorContainerRef}
+              className="border-destructive/40 bg-destructive/10"
+              role="alert"
+              aria-live="assertive"
+              id="fih-validation-errors"
+              tabIndex={-1}
+            >
+              <IconAlertTriangle
+                className="h-4 w-4"
+                stroke={1.5}
+                aria-hidden="true"
+              />
               <AlertTitle className="text-sm font-medium">
                 Validation Errors
               </AlertTitle>
               <AlertDescription>
-                <ul className="list-disc list-inside text-sm mt-1">
+                <ul
+                  className="list-disc list-inside text-sm mt-1"
+                  aria-label="List of validation errors"
+                >
                   {errors.map((error, i) => (
                     <li key={i}>{error}</li>
                   ))}
@@ -700,7 +761,18 @@ This tool does not replace regulatory consultation or expert review.
           )}
 
           {/* Main Results */}
-          <Card>
+          <Card
+            className="scroll-mt-4"
+            role="region"
+            aria-label="First-in-Human calculation results"
+            tabIndex={-1}
+          >
+            {/* Screen reader announcement for new results */}
+            <div className="sr-only" aria-live="polite" aria-atomic="true">
+              Calculation complete. Maximum Recommended Starting Dose:{" "}
+              {result.mrsd.toFixed(4)} mg/kg, which equals{" "}
+              {(result.mrsd * 60).toFixed(2)} mg for a 60 kg adult.
+            </div>
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
@@ -715,8 +787,17 @@ This tool does not replace regulatory consultation or expert review.
                     size="sm"
                     onClick={copyResults}
                     className="gap-2"
+                    aria-label={
+                      copySuccess
+                        ? "Results copied to clipboard"
+                        : "Copy results to clipboard"
+                    }
                   >
-                    <IconClipboardCopy className="h-4 w-4" stroke={1.5} />
+                    <IconClipboardCopy
+                      className="h-4 w-4"
+                      stroke={1.5}
+                      aria-hidden="true"
+                    />
                     {copySuccess ? "Copied!" : "Copy"}
                   </Button>
                   <Button
@@ -726,7 +807,11 @@ This tool does not replace regulatory consultation or expert review.
                     className="gap-2"
                     aria-label="Export results to file"
                   >
-                    <IconDownload className="h-4 w-4" stroke={1.5} />
+                    <IconDownload
+                      className="h-4 w-4"
+                      stroke={1.5}
+                      aria-hidden="true"
+                    />
                     Export
                   </Button>
                 </div>
@@ -784,16 +869,23 @@ This tool does not replace regulatory consultation or expert review.
               {result.multiSpeciesResults &&
                 result.multiSpeciesResults.length > 1 && (
                   <div className="mb-4">
-                    <p className="text-sm font-medium mb-2">
+                    <p
+                      className="text-sm font-medium mb-2"
+                      id="species-comparison-heading"
+                    >
                       Species Comparison
                     </p>
-                    <Table>
+                    <Table aria-labelledby="species-comparison-heading">
+                      <caption className="sr-only">
+                        Comparison of NOAEL, HED, and MRSD values across
+                        different species
+                      </caption>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Species</TableHead>
-                          <TableHead>NOAEL (mg/kg)</TableHead>
-                          <TableHead>HED (mg/kg)</TableHead>
-                          <TableHead>MRSD (mg/kg)</TableHead>
+                          <TableHead scope="col">Species</TableHead>
+                          <TableHead scope="col">NOAEL (mg/kg)</TableHead>
+                          <TableHead scope="col">HED (mg/kg)</TableHead>
+                          <TableHead scope="col">MRSD (mg/kg)</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -866,7 +958,12 @@ This tool does not replace regulatory consultation or expert review.
                   className="text-xs text-primary hover:underline inline-flex items-center gap-1"
                 >
                   View Document
-                  <IconExternalLink className="h-3 w-3" stroke={1.5} />
+                  <IconExternalLink
+                    className="h-3 w-3"
+                    stroke={1.5}
+                    aria-hidden="true"
+                  />
+                  <span className="sr-only">(opens in new tab)</span>
                 </a>
               )}
             </CardContent>

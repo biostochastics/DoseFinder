@@ -25,11 +25,15 @@ import {
   IconCheck,
   IconDownload,
 } from "@tabler/icons-react";
+import { Badge } from "@/components/ui/badge";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Species,
   ScalingMethod,
   CalculationResult,
 } from "@/lib/pharmacology/types";
+import { formatMass } from "@/lib/units";
+import type { DoseInputUnit } from "@/hooks/useCalculatorState";
 
 // Extended calculation result with additional computed fields
 interface DoseCalculationSteps extends CalculationResult {
@@ -43,6 +47,9 @@ interface DoseCalculatorProps {
   sourceWeight: number;
   targetWeight: number;
   baseDose: number;
+  doseInputUnit: DoseInputUnit;
+  onDoseInputUnitChange: (unit: DoseInputUnit) => void;
+  baseDosePerKg: number;
   scalingMethod: ScalingMethod;
   scalingExponent: string;
   customExponentValue: number;
@@ -71,6 +78,9 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
     sourceWeight,
     targetWeight,
     baseDose,
+    doseInputUnit,
+    onDoseInputUnitChange,
+    baseDosePerKg,
     scalingMethod,
     scalingExponent,
     customExponentValue,
@@ -257,7 +267,9 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
 
         <div className="space-y-2">
           <Label htmlFor="base-dose" className="flex items-center gap-2">
-            <span className="required-indicator">Known Dose (mg/kg)</span>
+            <span className="required-indicator">
+              Known Dose ({doseInputUnit})
+            </span>
             <Popover>
               <PopoverTrigger asChild>
                 <button
@@ -273,26 +285,59 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
               </PopoverTrigger>
               <PopoverContent className="w-80">
                 <p className="text-sm">
-                  Enter the known dose from the source species in mg/kg. This is
-                  the dose that has been validated in the source species and
-                  will be translated to the target species.
+                  Enter the known dose from the source species. You can enter
+                  either per-kg dose (mg/kg) or total absolute dose (mg) and
+                  toggle between them.
                 </p>
               </PopoverContent>
             </Popover>
           </Label>
-          <Input
-            id="base-dose"
-            type="number"
-            value={baseDose || ""}
-            onChange={(e) => onBaseDoseChange(parseFloat(e.target.value) || 0)}
-            placeholder="Enter dose in mg/kg"
-            step="0.001"
-            min="0"
-            aria-required="true"
-            aria-describedby="base-dose-hint"
-          />
+          <div className="flex gap-2">
+            <Input
+              id="base-dose"
+              type="number"
+              value={baseDose || ""}
+              onChange={(e) =>
+                onBaseDoseChange(parseFloat(e.target.value) || 0)
+              }
+              placeholder={`Enter dose in ${doseInputUnit}`}
+              step="0.001"
+              min="0"
+              aria-required="true"
+              aria-describedby="base-dose-hint"
+              className="flex-1"
+            />
+            <ToggleGroup
+              type="single"
+              value={doseInputUnit}
+              onValueChange={(value) => {
+                if (value) onDoseInputUnitChange(value as DoseInputUnit);
+              }}
+              className="border rounded-md"
+              aria-label="Dose unit selection"
+            >
+              <ToggleGroupItem
+                value="mg/kg"
+                aria-label="Per kilogram dose"
+                className="text-xs px-2"
+              >
+                mg/kg
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="mg"
+                aria-label="Total absolute dose"
+                className="text-xs px-2"
+              >
+                mg
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
           <p id="base-dose-hint" className="text-xs text-muted-foreground">
-            Required. Enter a positive value to enable calculation.
+            {doseInputUnit === "mg"
+              ? sourceWeight > 0
+                ? `Total dose for ${sourceWeight} kg source. Equivalent: ${baseDosePerKg.toFixed(4)} mg/kg`
+                : "Total dose entered. Set a positive source weight to see the per-kg equivalent."
+              : "Per-kilogram dose. Toggle to enter total mg instead."}
           </p>
         </div>
 
@@ -500,11 +545,17 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
 
         {calculationSteps && (
           <Card
-            className="mt-4 border-primary/20 bg-primary/5"
+            className="mt-4 border-primary/20 bg-primary/5 scroll-mt-4"
             role="region"
             aria-label="Calculation results"
+            tabIndex={-1}
           >
             <CardContent className="pt-6">
+              {/* Screen reader announcement for new results */}
+              <div className="sr-only" aria-live="polite" aria-atomic="true">
+                Calculation complete. Result: {resultDose.toFixed(4)} mg/kg for{" "}
+                {animals[targetAnimal]?.name || targetAnimal}
+              </div>
               <div className="flex items-start justify-between mb-4">
                 <h3 className="text-lg font-semibold">Results</h3>
                 <div className="flex items-center gap-2">
@@ -563,6 +614,32 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
                     Range: {uncertaintyRange.lower.toFixed(3)} -{" "}
                     {uncertaintyRange.upper.toFixed(3)} mg/kg
                   </p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <Badge
+                      variant="secondary"
+                      aria-label={`Source total dose: ${formatMass(
+                        doseInputUnit === "mg"
+                          ? baseDose
+                          : baseDosePerKg * sourceWeight,
+                        true,
+                      )}`}
+                    >
+                      Source Total:{" "}
+                      {formatMass(
+                        doseInputUnit === "mg"
+                          ? baseDose
+                          : baseDosePerKg * sourceWeight,
+                        true,
+                      )}
+                    </Badge>
+                    <Badge
+                      variant="default"
+                      aria-label={`Target total dose: ${formatMass(resultDose * targetWeight, true)}`}
+                    >
+                      Target Total:{" "}
+                      {formatMass(resultDose * targetWeight, true)}
+                    </Badge>
+                  </div>
                 </div>
 
                 <div className="space-y-2">

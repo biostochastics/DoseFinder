@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useAnnounce, LiveRegion } from "@/hooks/useAnnounce";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -152,6 +153,9 @@ export function StudyPlanner({
   sourceAnimal, // eslint-disable-line @typescript-eslint/no-unused-vars
   targetAnimal,
 }: StudyPlannerProps) {
+  // Accessibility: Screen reader announcements for dynamic content
+  const { announcement, announce } = useAnnounce();
+
   // Study Design State
   const [studyType, setStudyType] = useState<string>("preclinical");
   const [numArms, setNumArms] = useState<number>(1);
@@ -297,15 +301,18 @@ export function StudyPlanner({
 
     setArms([...arms, newArm]);
     setNumArms(numArms + 1);
+    announce(`Added ${type} arm: ${newName}`);
   };
 
   // Remove an arm
   const removeArm = (index: number) => {
     if (arms.length > 1) {
+      const removedName = arms[index].name;
       const updatedArms = [...arms];
       updatedArms.splice(index, 1);
       setArms(updatedArms);
       setNumArms(numArms - 1);
+      announce(`Removed arm: ${removedName}`);
     }
   };
 
@@ -777,6 +784,11 @@ export function StudyPlanner({
     setTotalDoses(totalDoses);
     setBaseDosesTotal(totalBaseDoses);
     setBufferDosesTotal(totalBufferDoses);
+
+    // Announce results to screen readers
+    announce(
+      `Calculation complete. Total product required: ${finalTotal.toFixed(3)} ${finalUnit}. Total doses: ${totalDoses}.`,
+    );
   };
 
   // Copy dose from calculator
@@ -1105,6 +1117,9 @@ calculations in actual studies.
 
   return (
     <div className="space-y-4">
+      {/* Screen reader live region for dynamic announcements */}
+      <LiveRegion announcement={announcement} />
+
       {/* Study Design Section */}
       <Card>
         <CardHeader>
@@ -2066,16 +2081,23 @@ calculations in actual studies.
             {/* Material Breakdown Summary */}
             {stabilityBuffer > 0 && (
               <div className="mt-4 p-4 bg-secondary/30 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">
+                <h4
+                  className="text-sm font-medium mb-2"
+                  id="material-breakdown-heading"
+                >
                   Material Breakdown Summary
                 </h4>
-                <Table>
+                <Table aria-labelledby="material-breakdown-heading">
+                  <caption className="sr-only">
+                    Breakdown of study materials including base doses, stability
+                    buffer, and waste allowance
+                  </caption>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Component</TableHead>
-                      <TableHead>Doses</TableHead>
-                      <TableHead>Product (mg)</TableHead>
-                      <TableHead>Description</TableHead>
+                      <TableHead scope="col">Component</TableHead>
+                      <TableHead scope="col">Doses</TableHead>
+                      <TableHead scope="col">Product (mg)</TableHead>
+                      <TableHead scope="col">Description</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2163,6 +2185,10 @@ calculations in actual studies.
                 Breakdown by Study Arm
               </h3>
               <Table aria-labelledby="arm-breakdown-heading">
+                <caption className="sr-only">
+                  Detailed breakdown of dosing requirements for each study arm
+                  including subjects, doses, and volume compliance status
+                </caption>
                 <TableHeader>
                   <TableRow>
                     <TableHead scope="col">Arm</TableHead>
@@ -2279,13 +2305,17 @@ calculations in actual studies.
                         Arm {index + 1}: {req.name}
                       </AccordionTrigger>
                       <AccordionContent>
-                        <Table>
+                        <Table
+                          aria-label={`Dilution preparation steps for ${req.name}`}
+                        >
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Step</TableHead>
-                              <TableHead>Starting Volume</TableHead>
-                              <TableHead>Add Vehicle</TableHead>
-                              <TableHead>Final Concentration</TableHead>
+                              <TableHead scope="col">Step</TableHead>
+                              <TableHead scope="col">Starting Volume</TableHead>
+                              <TableHead scope="col">Add Vehicle</TableHead>
+                              <TableHead scope="col">
+                                Final Concentration
+                              </TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
