@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { Species } from "@/lib/pharmacology/types";
-import { formatDose, formatUnit } from "@/lib/units";
+import { formatDose, formatUnit, formatMass } from "@/lib/units";
 
 interface CalculationSteps {
   calculatedDose: number;
@@ -21,7 +22,7 @@ interface ResultsDisplayProps {
   targetAnimal: string;
   sourceWeight: number;
   targetWeight: number;
-  baseDose: number;
+  baseDosePerKg: number;
   animals: Record<string, Species>;
   showDilution: boolean;
   setShowDilution: (value: boolean) => void;
@@ -36,7 +37,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
     targetAnimal,
     sourceWeight,
     targetWeight,
-    baseDose,
+    baseDosePerKg,
     animals,
     showDilution,
     setShowDilution,
@@ -103,6 +104,13 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
                   <span className="block text-sm text-muted-foreground font-normal mt-1">
                     {sourceWeight} kg
                   </span>
+                  <Badge
+                    variant="secondary"
+                    className="mt-2"
+                    aria-label={`Source total dose: ${formatMass(baseDosePerKg * sourceWeight, true)}`}
+                  >
+                    Total: {formatMass(baseDosePerKg * sourceWeight, true)}
+                  </Badge>
                 </dd>
               </dl>
               <dl>
@@ -112,13 +120,24 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
                   <span className="block text-sm text-muted-foreground font-normal mt-1">
                     {targetWeight} kg
                   </span>
+                  <Badge
+                    variant="default"
+                    className="mt-2"
+                    aria-label={`Target total dose: ${formatMass(calculationSteps.calculatedDose * targetWeight, true)}`}
+                  >
+                    Total:{" "}
+                    {formatMass(
+                      calculationSteps.calculatedDose * targetWeight,
+                      true,
+                    )}
+                  </Badge>
                 </dd>
               </dl>
               <div className="space-y-3">
                 <dl>
                   <dt className="result-label">Base Dose</dt>
                   <dd className="result-value">
-                    {baseDose} {formatUnit("mg/kg")}
+                    {baseDosePerKg.toFixed(4)} {formatUnit("mg/kg")}
                   </dd>
                 </dl>
                 <dl>

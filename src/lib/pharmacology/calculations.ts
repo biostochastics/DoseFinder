@@ -99,23 +99,36 @@ export function calculateCockcroftGFR(
  *
  * When fe = 1.0 (default), this matches traditional GFR-based adjustments.
  *
+ * IMPORTANT: The minAdjustmentFactor parameter sets a floor on dose reduction.
+ * Default is 0 (no floor) for accurate pharmacokinetic calculations.
+ * Some clinical contexts may require a safety floor (e.g., 0.1 for 90% max reduction).
+ * For drugs requiring >90% dose reduction in severe renal impairment, ensure
+ * minAdjustmentFactor is set appropriately or left at 0.
+ *
  * References:
  * - Rowland M, Tozer TN. Clinical Pharmacokinetics. 4th ed. Lippincott Williams & Wilkins; 2011.
  * - Matzke GR, et al. Drug dosing consideration in patients with acute and chronic kidney disease.
  *   Kidney Int. 2011;80(11):1122-1137.
  *
  * @param gfr - Glomerular filtration rate (mL/min)
- * @param fe - Fraction excreted unchanged in urine (0-1). Default is 1.0 (100% renal clearance)
+ * @param fe - Fraction excreted unchanged in urine (0-1). Default is 0 (no renal adjustment).
+ *        Must be explicitly set for renally-cleared drugs to avoid incorrect adjustments.
  * @param normalGfr - Normal GFR for comparison. Default is 120 mL/min.
+ * @param minAdjustmentFactor - Minimum adjustment factor floor (0-1). Default is 0 (no floor).
+ *        Set to 0.1 for 90% max reduction, 0.25 for 75% max reduction, etc.
  * @returns Dose adjustment factor (0-1, where 1.0 = no adjustment needed)
  */
 export function gfrToDoseAdjustment(
   gfr: number,
-  fe: number = 1.0,
+  fe: number = 0,
   normalGfr: number = 120,
+  minAdjustmentFactor: number = 0,
 ): number {
   // Validate fe
   const validFe = Math.max(0, Math.min(1, fe));
+
+  // Validate minAdjustmentFactor (must be between 0 and 1)
+  const validMinFactor = Math.max(0, Math.min(1, minAdjustmentFactor));
 
   // If no renal clearance (fe = 0), no dose adjustment needed
   if (validFe === 0) return 1.0;
@@ -127,8 +140,8 @@ export function gfrToDoseAdjustment(
   // This preserves the non-renally cleared portion
   const adjustmentFactor = 1 - validFe * (1 - renalFunctionRatio);
 
-  // Ensure minimum of 0.1 (90% reduction) for safety
-  return Math.max(0.1, adjustmentFactor);
+  // Apply configurable floor if set (0 = no floor for accurate PK)
+  return Math.max(validMinFactor, adjustmentFactor);
 }
 
 /**
@@ -533,7 +546,10 @@ export function calculateDose(
     // Apply kidney function adjustment (for renally cleared drugs)
     // Uses fe (fraction excreted unchanged) for accurate renal adjustment
     // Formula: Dose_adj = Dose_normal × (1 - fe × (1 - RenalFunctionRatio))
-    const fe = params.fractionExcretedRenal ?? 1.0; // Default to 100% renal clearance
+    // SAFETY: Default to 0 (no renal adjustment) for opt-in behavior.
+    // User must actively specify fe to get renal dose adjustments, preventing
+    // incorrect dose reductions for hepatically-cleared drugs.
+    const fe = params.fractionExcretedRenal ?? 0;
     const creatinineUnit = params.creatinineUnit ?? "mg/dL";
 
     if (

@@ -4,7 +4,7 @@
  * Tests schedule generation and export functionality
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   generateStudySchedule,
   armConfigToSchedule,
@@ -707,6 +707,9 @@ describe("Edge Cases - generateStudySchedule", () => {
   });
 
   it("handles invalid start date gracefully", () => {
+    // Suppress expected warning for this edge case test
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
     const schedule = generateStudySchedule("Test", [testArm], {
       startDate: new Date("invalid-date"),
     });
@@ -717,6 +720,12 @@ describe("Edge Cases - generateStudySchedule", () => {
     schedule.events.forEach((event) => {
       expect(isNaN(event.dateTime.getTime())).toBe(false);
     });
+
+    // Verify warning was called and restore
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Invalid start date provided, using current date",
+    );
+    warnSpy.mockRestore();
   });
 
   it("handles monthly frequency for Jan 31 start date", () => {
@@ -764,6 +773,9 @@ describe("Edge Cases - generateStudySchedule", () => {
   });
 
   it("prevents infinite loop when all days are holidays", () => {
+    // Suppress expected warning for this edge case test
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
     // Create a schedule where we try to skip all dates
     const arm: ArmSchedule = {
       ...testArm,
@@ -789,6 +801,10 @@ describe("Edge Cases - generateStudySchedule", () => {
     // Should complete without hanging (safety limit kicks in)
     // The schedule may have events or be empty depending on safety behavior
     expect(schedule).toBeDefined();
+
+    // Verify warning was called about the safety limit
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });
 

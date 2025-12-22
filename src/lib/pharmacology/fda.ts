@@ -467,6 +467,29 @@ export function calculateFdaFihDose(input: FihDoseInput): FihDoseResult {
   // Default human reference weight
   const humanWeight = input.humanWeight ?? 60;
 
+  // Runtime guard: NOAEL must be positive and finite
+  // This is a safety-critical check independent of upstream validation
+  if (!Number.isFinite(input.noael) || input.noael <= 0) {
+    warnings.push({
+      code: "INVALID_NOAEL",
+      severity: "critical",
+      message: `NOAEL must be a positive number (received: ${input.noael})`,
+      recommendation: "Verify NOAEL value from toxicology study data",
+    });
+    return {
+      hed: 0,
+      mrsd: 0,
+      mrsdTotal: 0,
+      humanWeight,
+      animalKm: 0,
+      humanKm: FDA_KM_FACTORS.human,
+      safetyFactor: input.safetyFactor,
+      steps: [],
+      warnings,
+      regulatoryReference: REGULATORY_REFERENCES.FDA_2005.title,
+    };
+  }
+
   // Validate and normalize species
   const normalizedSpecies = input.animalSpecies
     .toLowerCase()
@@ -520,7 +543,7 @@ export function calculateFdaFihDose(input: FihDoseInput): FihDoseResult {
   );
   const humanKmValidation = validateKmFactor(humanKm, undefined, true);
 
-  // Add warning/error for invalid animal Km
+  // Halt on invalid animal Km - critical safety check
   if (!animalKmValidation.isValid) {
     warnings.push({
       code: "INVALID_ANIMAL_KM",
@@ -528,8 +551,21 @@ export function calculateFdaFihDose(input: FihDoseInput): FihDoseResult {
       message: animalKmValidation.message,
       recommendation: animalKmValidation.recommendation,
     });
+    // Return error result - invalid Km would produce meaningless/dangerous doses
+    return {
+      hed: 0,
+      mrsd: 0,
+      mrsdTotal: 0,
+      humanWeight,
+      animalKm,
+      humanKm,
+      safetyFactor: input.safetyFactor,
+      steps: [],
+      warnings,
+      regulatoryReference: REGULATORY_REFERENCES.FDA_2005.title,
+    };
   } else if (!animalKmValidation.isWithinSpeciesRange) {
-    // Valid but outside expected species range
+    // Valid but outside expected species range - warn but continue
     warnings.push({
       code: "KM_OUTSIDE_SPECIES_RANGE",
       severity: "warning",
@@ -538,7 +574,7 @@ export function calculateFdaFihDose(input: FihDoseInput): FihDoseResult {
     });
   }
 
-  // Add warning/error for invalid human Km (shouldn't happen with defaults, but check anyway)
+  // Halt on invalid human Km - critical safety check
   if (!humanKmValidation.isValid) {
     warnings.push({
       code: "INVALID_HUMAN_KM",
@@ -546,6 +582,19 @@ export function calculateFdaFihDose(input: FihDoseInput): FihDoseResult {
       message: humanKmValidation.message,
       recommendation: humanKmValidation.recommendation,
     });
+    // Return error result - invalid human Km would produce meaningless/dangerous doses
+    return {
+      hed: 0,
+      mrsd: 0,
+      mrsdTotal: 0,
+      humanWeight,
+      animalKm,
+      humanKm,
+      safetyFactor: input.safetyFactor,
+      steps: [],
+      warnings,
+      regulatoryReference: REGULATORY_REFERENCES.FDA_2005.title,
+    };
   }
 
   // Check modality and add appropriate warnings
@@ -559,7 +608,7 @@ export function calculateFdaFihDose(input: FihDoseInput): FihDoseResult {
     });
   }
 
-  // Validate safety factor
+  // Validate safety factor - must be ≥1 (halt calculation, not just warn)
   if (input.safetyFactor < 1) {
     warnings.push({
       code: "INVALID_SAFETY_FACTOR",
@@ -567,6 +616,19 @@ export function calculateFdaFihDose(input: FihDoseInput): FihDoseResult {
       message: "Safety factor must be ≥1",
       recommendation: "Use standard safety factors: 3, 10, 30, or 100",
     });
+    // Return error result - safety factor <1 would produce dangerously inflated doses
+    return {
+      hed: 0,
+      mrsd: 0,
+      mrsdTotal: 0,
+      humanWeight,
+      animalKm: animalKm ?? 0,
+      humanKm,
+      safetyFactor: input.safetyFactor,
+      steps: [],
+      warnings,
+      regulatoryReference: REGULATORY_REFERENCES.FDA_2005.title,
+    };
   }
 
   // Add safety factor guidance
@@ -664,18 +726,44 @@ export function calculateFdaFihDose(input: FihDoseInput): FihDoseResult {
       mrsd,
     });
 
-    // Calculate for additional species
+    // Calculate for additional species with NOAEL validation
     for (const speciesData of input.additionalSpeciesData) {
+      // Validate additional species NOAEL (must be positive and finite)
+      if (!Number.isFinite(speciesData.noael) || speciesData.noael <= 0) {
+        warnings.push({
+          code: "INVALID_ADDITIONAL_NOAEL",
+          severity: "warning",
+          message: `Additional species "${speciesData.species}" has invalid NOAEL (${speciesData.noael}); excluded from comparison`,
+          recommendation: "NOAEL must be a positive number",
+        });
+        continue; // Skip this species - don't corrupt the conservative selection
+      }
+
       const speciesKm = getKmFactor(speciesData.species);
       if (speciesKm) {
         const speciesHed = calculateHED(speciesData.noael, speciesKm, humanKm);
         const speciesMrsd = calculateMRSD(speciesHed, input.safetyFactor);
-        multiSpeciesResults.push({
-          species: speciesData.species,
-          noael: speciesData.noael,
-          hed: speciesHed,
-          mrsd: speciesMrsd,
-        });
+
+        // Verify calculated values are valid before adding
+        if (
+          Number.isFinite(speciesHed) &&
+          Number.isFinite(speciesMrsd) &&
+          speciesMrsd > 0
+        ) {
+          multiSpeciesResults.push({
+            species: speciesData.species,
+            noael: speciesData.noael,
+            hed: speciesHed,
+            mrsd: speciesMrsd,
+          });
+        } else {
+          warnings.push({
+            code: "INVALID_ADDITIONAL_CALCULATION",
+            severity: "warning",
+            message: `Calculation for "${speciesData.species}" produced invalid result; excluded from comparison`,
+            recommendation: "Verify input values for this species",
+          });
+        }
       } else {
         warnings.push({
           code: "UNKNOWN_ADDITIONAL_SPECIES",

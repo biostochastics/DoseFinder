@@ -62,6 +62,7 @@ export default function Home() {
     animals,
     resultDose,
     uncertaintyRange,
+    baseDosePerKg,
     resetAll,
     setCustomExponentValue,
   } = useCalculatorState();
@@ -91,12 +92,20 @@ export default function Home() {
   };
 
   const tabIcons: { [key: string]: React.ReactNode } = {
-    calculator: <IconCalculator className="h-4 w-4" stroke={1.5} />,
-    fih: <IconUserHeart className="h-4 w-4" stroke={1.5} />,
-    advanced: <IconFlask className="h-4 w-4" stroke={1.5} />,
-    studyplanner: <IconClipboard className="h-4 w-4" stroke={1.5} />,
-    limitations: <IconBooks className="h-4 w-4" stroke={1.5} />,
-    documentation: <IconFileText className="h-4 w-4" stroke={1.5} />,
+    calculator: (
+      <IconCalculator className="h-4 w-4" stroke={1.5} aria-hidden="true" />
+    ),
+    fih: <IconUserHeart className="h-4 w-4" stroke={1.5} aria-hidden="true" />,
+    advanced: <IconFlask className="h-4 w-4" stroke={1.5} aria-hidden="true" />,
+    studyplanner: (
+      <IconClipboard className="h-4 w-4" stroke={1.5} aria-hidden="true" />
+    ),
+    limitations: (
+      <IconBooks className="h-4 w-4" stroke={1.5} aria-hidden="true" />
+    ),
+    documentation: (
+      <IconFileText className="h-4 w-4" stroke={1.5} aria-hidden="true" />
+    ),
   };
 
   const getGradientClass = (tab: string) => {
@@ -188,13 +197,17 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen w-full">
+    <div className="flex flex-col min-h-screen w-full bg-background">
       {/* Skip link for keyboard navigation */}
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
-      <main id="main-content" className="w-full flex-grow p-2" role="main">
-        <div className="h-full">
+      <main
+        id="main-content"
+        className="w-full flex-grow p-2 lg:p-4"
+        role="main"
+      >
+        <div className="h-full w-full lg:w-[70%] xl:w-[65%] mx-auto">
           <Card className="h-full bg-card/50 backdrop-blur-sm shadow-lg border-border/50 hover:shadow-xl transition-all duration-300">
             <CardHeader className="space-y-1 py-2 bg-gradient-to-r from-primary/5 to-accent/5 rounded-t-lg">
               <div className="flex items-center justify-between">
@@ -264,7 +277,10 @@ export default function Home() {
                   {decorativeIcons}
                   <div className="relative z-10 bg-background/95 rounded-lg p-0.5">
                     <div className="flex items-center gap-2 px-3 py-1.5 text-sm">
-                      <IconChevronRight className="h-3 w-3 text-muted-foreground" />
+                      <IconChevronRight
+                        className="h-3 w-3 text-muted-foreground"
+                        aria-hidden="true"
+                      />
                       <span className="text-muted-foreground">
                         {selectedTab === "calculator" &&
                           "Standard dose scaling between species"}
@@ -294,6 +310,11 @@ export default function Home() {
                     sourceWeight={state.sourceWeight}
                     targetWeight={state.targetWeight}
                     baseDose={state.baseDose}
+                    doseInputUnit={state.doseInputUnit}
+                    onDoseInputUnitChange={(value) =>
+                      dispatch({ type: "SET_DOSE_INPUT_UNIT", payload: value })
+                    }
+                    baseDosePerKg={baseDosePerKg}
                     scalingMethod={state.scalingMethod}
                     scalingExponent={state.scalingExponent}
                     customExponentValue={state.customExponentValue}
@@ -415,7 +436,7 @@ export default function Home() {
                   targetAnimal={state.targetAnimal}
                   sourceWeight={state.sourceWeight}
                   targetWeight={state.targetWeight}
-                  baseDose={state.baseDose}
+                  baseDosePerKg={baseDosePerKg}
                   animals={animals}
                   showDilution={state.showDilution}
                   setShowDilution={(value) =>
@@ -453,7 +474,7 @@ export default function Home() {
               target="_blank"
               rel="noopener noreferrer"
               className="p-2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full hover:bg-muted/50"
-              aria-label="View project on GitHub"
+              aria-label="View project on GitHub (opens in new tab)"
             >
               <IconBrandGithub className="h-5 w-5" aria-hidden="true" />
             </a>

@@ -102,16 +102,22 @@ describe("DoseFinder Calculation Tests", () => {
       expect(gfrToDoseAdjustment(60, -0.5, 120)).toBe(1.0);
     });
 
-    it("should enforce minimum adjustment factor of 0.1", () => {
-      // Even with GFR=0 and fe=1, minimum is 0.1
-      expect(gfrToDoseAdjustment(0, 1.0, 120)).toBe(0.1);
+    it("should apply configurable minimum adjustment factor floor", () => {
+      // With minAdjustmentFactor=0.1, floor is enforced
+      expect(gfrToDoseAdjustment(0, 1.0, 120, 0.1)).toBe(0.1);
+      // Without floor (default=0), allows full reduction
+      expect(gfrToDoseAdjustment(0, 1.0, 120)).toBe(0);
+      expect(gfrToDoseAdjustment(0, 1.0, 120, 0)).toBe(0);
     });
 
-    it("should work with default fe=1.0 for backward compatibility", () => {
-      // Without fe parameter, defaults to 1.0 (100% renal)
+    it("should default to fe=0 for safe opt-in behavior", () => {
+      // Without fe parameter, defaults to 0 (no renal adjustment)
+      // This prevents incorrect dose reductions for hepatically-cleared drugs
       const withDefault = gfrToDoseAdjustment(60);
+      expect(withDefault).toBe(1.0); // No adjustment when fe=0
+      // With explicit fe=1.0, adjustment is applied
       const withExplicit = gfrToDoseAdjustment(60, 1.0, 120);
-      expect(withDefault).toBeCloseTo(withExplicit, 2);
+      expect(withExplicit).toBeCloseTo(0.5, 2); // 50% adjustment for GFR=60
     });
   });
 
@@ -605,7 +611,8 @@ describe("DoseFinder Calculation Tests", () => {
       const params: Partial<CalculationParameters> = {
         bioavailability: 50, // Double dose (÷ 0.5)
         kidneyFunctionMethod: "manual",
-        kidneyFunction: 80, // 80% dose (× 0.8)
+        kidneyFunction: 80, // 80% kidney function
+        fractionExcretedRenal: 1.0, // Must specify fe for renal adjustment (fe defaults to 0)
       };
 
       const baseResult = calculateDose(
@@ -626,7 +633,7 @@ describe("DoseFinder Calculation Tests", () => {
         params,
       );
 
-      // Expected: base * 2 (bioavailability) * 0.8 (kidney) = base * 1.6
+      // Expected: base * 2 (bioavailability) * 0.8 (kidney with fe=1.0) = base * 1.6
       expect(adjustedResult.dose).toBeCloseTo(baseResult.dose * 1.6, 2);
     });
   });
