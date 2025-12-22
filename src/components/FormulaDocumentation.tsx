@@ -49,8 +49,8 @@ export function FormulaDocumentation() {
                   {String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \left(\frac{W_{\text{target}}}{W_{\text{source}}}\right)^b`}
                 </Formula>
                 <p>
-                  where <Math altText="b">b</Math> is the allometric exponent (typically{" "}
-                  <Math altText="0.75">0.75</Math>)
+                  where <Math altText="b">b</Math> is the allometric exponent
+                  (typically <Math altText="0.75">0.75</Math>)
                 </p>
                 <p className="text-muted-foreground">
                   <strong>Basis:</strong> Metabolic rate scales with body mass
@@ -86,8 +86,9 @@ export function FormulaDocumentation() {
                   </Math>
                 </p>
                 <p className="text-muted-foreground">
-                  <strong>Basis:</strong> Brain weight (<Math altText="B">B</Math>) scales
-                  differently than body weight across species
+                  <strong>Basis:</strong> Brain weight (
+                  <Math altText="B">B</Math>) scales differently than body
+                  weight across species
                 </p>
                 <p className="text-muted-foreground">
                   <strong>Best for:</strong> CNS-active drugs, psychotropics,
@@ -95,8 +96,8 @@ export function FormulaDocumentation() {
                 </p>
                 <p className="text-warning font-medium">
                   <strong>Note:</strong> The{" "}
-                  <Math altText="two-thirds">{String.raw`\frac{2}{3}`}</Math> coefficient is
-                  empirical and may vary by drug class
+                  <Math altText="two-thirds">{String.raw`\frac{2}{3}`}</Math>{" "}
+                  coefficient is empirical and may vary by drug class
                 </p>
                 <p className="text-muted-foreground text-xs">
                   <strong>Ref:</strong> Mahmood I, Balian JD. (1996).{" "}
@@ -118,8 +119,8 @@ export function FormulaDocumentation() {
                   {String.raw`b = \frac{\ln\left(\dfrac{\tau_{\text{target}}}{\tau_{\text{source}}}\right)}{\ln\left(\dfrac{W_{\text{target}}}{W_{\text{source}}}\right)}`}
                 </Formula>
                 <p>
-                  where <Math altText="tau">{String.raw`\tau`}</Math> = maximum life span.
-                  Then:{" "}
+                  where <Math altText="tau">{String.raw`\tau`}</Math> = maximum
+                  life span. Then:{" "}
                   <Math altText="Target dose equals source dose times weight ratio raised to power b">
                     {String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \left(\frac{W_{\text{target}}}{W_{\text{source}}}\right)^b`}
                   </Math>
@@ -156,8 +157,10 @@ export function FormulaDocumentation() {
                   {String.raw`b = \frac{\ln\left(\dfrac{Q_h \cdot E_h}{Q_h \cdot E_h}\bigg|_{\text{target/source}}\right)}{\ln\left(\dfrac{W_{\text{target}}}{W_{\text{source}}}\right)}`}
                 </Formula>
                 <p>
-                  where <Math altText="Q sub h">{String.raw`Q_h`}</Math> = hepatic blood flow,{" "}
-                  <Math altText="E sub h">{String.raw`E_h`}</Math> = extraction ratio
+                  where <Math altText="Q sub h">{String.raw`Q_h`}</Math> =
+                  hepatic blood flow,{" "}
+                  <Math altText="E sub h">{String.raw`E_h`}</Math> = extraction
+                  ratio
                 </p>
                 <p className="text-muted-foreground">
                   <strong>Basis:</strong> Clearance of high-extraction drugs
@@ -263,12 +266,15 @@ export function FormulaDocumentation() {
               recommends using allometric scaling with appropriate safety
               factors. The HED (Human Equivalent Dose) is calculated as:
             </p>
-            <Formula className="mt-2" altText="Human Equivalent Dose equals animal dose times the ratio of animal weight to human weight, raised to the power of 1 minus b">
+            <Formula
+              className="mt-2"
+              altText="Human Equivalent Dose equals animal dose times the ratio of animal weight to human weight, raised to the power of 1 minus b"
+            >
               {String.raw`\text{HED} = \text{Dose}_{\text{animal}} \times \left(\frac{W_{\text{animal}}}{W_{\text{human}}}\right)^{1-b}`}
             </Formula>
             <p className="text-sm mt-2">
-              where <Math altText="b equals 0.67">{String.raw`b = 0.67`}</Math> for scaling based on
-              body surface area normalization.
+              where <Math altText="b equals 0.67">{String.raw`b = 0.67`}</Math>{" "}
+              for scaling based on body surface area normalization.
             </p>
           </div>
         </CardContent>

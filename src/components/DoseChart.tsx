@@ -112,9 +112,10 @@ export const DoseChart: React.FC<DoseChartProps> = React.memo(
                       <td>{d.label}</td>
                       <td>{d.weight.toFixed(3)}</td>
                       <td>{d.dose.toFixed(4)}</td>
-                      {d.dilutedDose !== undefined && d.dilutedDose !== null && (
-                        <td>{d.dilutedDose.toFixed(4)}</td>
-                      )}
+                      {d.dilutedDose !== undefined &&
+                        d.dilutedDose !== null && (
+                          <td>{d.dilutedDose.toFixed(4)}</td>
+                        )}
                     </tr>
                   ))}
               </tbody>

@@ -618,13 +618,17 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
                     <Badge
                       variant="secondary"
                       aria-label={`Source total dose: ${formatMass(
-                        doseInputUnit === "mg" ? baseDose : baseDosePerKg * sourceWeight,
+                        doseInputUnit === "mg"
+                          ? baseDose
+                          : baseDosePerKg * sourceWeight,
                         true,
                       )}`}
                     >
                       Source Total:{" "}
                       {formatMass(
-                        doseInputUnit === "mg" ? baseDose : baseDosePerKg * sourceWeight,
+                        doseInputUnit === "mg"
+                          ? baseDose
+                          : baseDosePerKg * sourceWeight,
                         true,
                       )}
                     </Badge>
