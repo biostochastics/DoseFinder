@@ -45,12 +45,12 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">Most Common</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <Formula>
+                <Formula altText="Target dose equals source dose times the ratio of target weight to source weight, raised to the power b">
                   {String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \left(\frac{W_{\text{target}}}{W_{\text{source}}}\right)^b`}
                 </Formula>
                 <p>
-                  where <Math>b</Math> is the allometric exponent (typically{" "}
-                  <Math>0.75</Math>)
+                  where <Math altText="b">b</Math> is the allometric exponent (typically{" "}
+                  <Math altText="0.75">0.75</Math>)
                 </p>
                 <p className="text-muted-foreground">
                   <strong>Basis:</strong> Metabolic rate scales with body mass
@@ -76,17 +76,17 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">CNS Drugs</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <Formula>
+                <Formula altText="b equals two-thirds times the natural log of target brain weight over source brain weight, divided by the natural log of target body weight over source body weight">
                   {String.raw`b = \frac{2}{3} \times \frac{\ln\left(\dfrac{B_{\text{target}}}{B_{\text{source}}}\right)}{\ln\left(\dfrac{W_{\text{target}}}{W_{\text{source}}}\right)}`}
                 </Formula>
                 <p>
                   Then:{" "}
-                  <Math>
+                  <Math altText="Target dose equals source dose times weight ratio raised to power b">
                     {String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \left(\frac{W_{\text{target}}}{W_{\text{source}}}\right)^b`}
                   </Math>
                 </p>
                 <p className="text-muted-foreground">
-                  <strong>Basis:</strong> Brain weight (<Math>B</Math>) scales
+                  <strong>Basis:</strong> Brain weight (<Math altText="B">B</Math>) scales
                   differently than body weight across species
                 </p>
                 <p className="text-muted-foreground">
@@ -95,7 +95,7 @@ export function FormulaDocumentation() {
                 </p>
                 <p className="text-warning font-medium">
                   <strong>Note:</strong> The{" "}
-                  <Math>{String.raw`\frac{2}{3}`}</Math> coefficient is
+                  <Math altText="two-thirds">{String.raw`\frac{2}{3}`}</Math> coefficient is
                   empirical and may vary by drug class
                 </p>
                 <p className="text-muted-foreground text-xs">
@@ -114,13 +114,13 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">Theoretical</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <Formula>
+                <Formula altText="b equals the natural log of target lifespan over source lifespan, divided by the natural log of target weight over source weight">
                   {String.raw`b = \frac{\ln\left(\dfrac{\tau_{\text{target}}}{\tau_{\text{source}}}\right)}{\ln\left(\dfrac{W_{\text{target}}}{W_{\text{source}}}\right)}`}
                 </Formula>
                 <p>
-                  where <Math>{String.raw`\tau`}</Math> = maximum life span.
+                  where <Math altText="tau">{String.raw`\tau`}</Math> = maximum life span.
                   Then:{" "}
-                  <Math>
+                  <Math altText="Target dose equals source dose times weight ratio raised to power b">
                     {String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \left(\frac{W_{\text{target}}}{W_{\text{source}}}\right)^b`}
                   </Math>
                 </p>
@@ -152,12 +152,12 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">High-Extraction Drugs</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <Formula>
+                <Formula altText="b equals the natural log of target hepatic clearance over source hepatic clearance, divided by the natural log of weight ratio">
                   {String.raw`b = \frac{\ln\left(\dfrac{Q_h \cdot E_h}{Q_h \cdot E_h}\bigg|_{\text{target/source}}\right)}{\ln\left(\dfrac{W_{\text{target}}}{W_{\text{source}}}\right)}`}
                 </Formula>
                 <p>
-                  where <Math>{String.raw`Q_h`}</Math> = hepatic blood flow,{" "}
-                  <Math>{String.raw`E_h`}</Math> = extraction ratio
+                  where <Math altText="Q sub h">{String.raw`Q_h`}</Math> = hepatic blood flow,{" "}
+                  <Math altText="E sub h">{String.raw`E_h`}</Math> = extraction ratio
                 </p>
                 <p className="text-muted-foreground">
                   <strong>Basis:</strong> Clearance of high-extraction drugs
@@ -165,7 +165,7 @@ export function FormulaDocumentation() {
                 </p>
                 <p className="text-muted-foreground">
                   <strong>Best for:</strong> Drugs with hepatic extraction ratio{" "}
-                  <Math>{String.raw`E_h > 0.7`}</Math>
+                  <Math altText="E sub h greater than 0.7">{String.raw`E_h > 0.7`}</Math>
                 </p>
                 <p className="text-warning font-medium">
                   <strong>Important:</strong> Only valid for flow-limited drugs
@@ -186,12 +186,12 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">Oncology Standard</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <Formula>
+                <Formula altText="Target dose equals source dose times target BSA divided by source BSA">
                   {String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \frac{\text{BSA}_{\text{target}}}{\text{BSA}_{\text{source}}}`}
                 </Formula>
                 <p>
                   BSA (Du Bois formula):{" "}
-                  <Math>
+                  <Math altText="BSA in square meters approximately equals 0.007184 times weight to the 0.425 power times height to the 0.725 power">
                     {String.raw`\text{BSA (m}^2\text{)} \approx 0.007184 \times W^{0.425} \times H^{0.725}`}
                   </Math>
                 </p>
@@ -263,11 +263,11 @@ export function FormulaDocumentation() {
               recommends using allometric scaling with appropriate safety
               factors. The HED (Human Equivalent Dose) is calculated as:
             </p>
-            <Formula className="mt-2">
+            <Formula className="mt-2" altText="Human Equivalent Dose equals animal dose times the ratio of animal weight to human weight, raised to the power of 1 minus b">
               {String.raw`\text{HED} = \text{Dose}_{\text{animal}} \times \left(\frac{W_{\text{animal}}}{W_{\text{human}}}\right)^{1-b}`}
             </Formula>
             <p className="text-sm mt-2">
-              where <Math>{String.raw`b = 0.67`}</Math> for scaling based on
+              where <Math altText="b equals 0.67">{String.raw`b = 0.67`}</Math> for scaling based on
               body surface area normalization.
             </p>
           </div>

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 /**
  * Custom hook for screen reader announcements.
@@ -25,12 +25,21 @@ import { useState, useCallback } from "react";
  */
 export function useAnnounce(clearDelayMs: number = 1000) {
   const [announcement, setAnnouncement] = useState<string>("");
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const announce = useCallback(
     (message: string) => {
+      // Clear any pending clear timers so the latest message isn't cleared early
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+      }
+
       setAnnouncement(message);
       // Clear after announcement is made to allow re-announcing the same message
-      setTimeout(() => setAnnouncement(""), clearDelayMs);
+      timeoutRef.current = setTimeout(() => {
+        setAnnouncement("");
+        timeoutRef.current = null;
+      }, clearDelayMs);
     },
     [clearDelayMs],
   );

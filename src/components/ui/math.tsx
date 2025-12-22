@@ -34,11 +34,21 @@ export function Math({
 }: MathProps) {
   const Component = display === "block" ? BlockMath : InlineMath;
 
-  return (
-    <span className={className} role="math" aria-label={altText}>
-      <span aria-hidden="true">
-        <Component math={children} />
+  // When altText is provided, hide visual math and use aria-label
+  // Otherwise, leave the KaTeX content exposed to screen readers
+  if (altText) {
+    return (
+      <span className={className} role="math" aria-label={altText}>
+        <span aria-hidden="true">
+          <Component math={children} />
+        </span>
       </span>
+    );
+  }
+
+  return (
+    <span className={className}>
+      <Component math={children} />
     </span>
   );
 }
@@ -57,15 +67,23 @@ interface FormulaProps {
 }
 
 export function Formula({ children, className = "", altText }: FormulaProps) {
+  const baseClassName = `p-3 bg-muted/60 dark:bg-muted/30 rounded-md overflow-x-auto ${className}`;
+
+  // When altText is provided, hide visual math and use aria-label
+  // Otherwise, leave the KaTeX content exposed to screen readers
+  if (altText) {
+    return (
+      <div className={baseClassName} role="math" aria-label={altText}>
+        <span aria-hidden="true">
+          <BlockMath math={children} />
+        </span>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={`p-3 bg-muted/60 dark:bg-muted/30 rounded-md overflow-x-auto ${className}`}
-      role="math"
-      aria-label={altText}
-    >
-      <span aria-hidden="true">
-        <BlockMath math={children} />
-      </span>
+    <div className={baseClassName}>
+      <BlockMath math={children} />
     </div>
   );
 }

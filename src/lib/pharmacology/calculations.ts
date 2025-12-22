@@ -127,8 +127,10 @@ export function gfrToDoseAdjustment(
   // Validate fe
   const validFe = Math.max(0, Math.min(1, fe));
 
-  // Validate minAdjustmentFactor (must be between 0 and 1)
-  const validMinFactor = Math.max(0, Math.min(1, minAdjustmentFactor));
+  // Validate minAdjustmentFactor (must be between 0 and 1, handle NaN/Infinity)
+  const validMinFactor = Number.isFinite(minAdjustmentFactor)
+    ? Math.max(0, Math.min(1, minAdjustmentFactor))
+    : 0;
 
   // If no renal clearance (fe = 0), no dose adjustment needed
   if (validFe === 0) return 1.0;
@@ -549,7 +551,8 @@ export function calculateDose(
     // SAFETY: Default to 0 (no renal adjustment) for opt-in behavior.
     // User must actively specify fe to get renal dose adjustments, preventing
     // incorrect dose reductions for hepatically-cleared drugs.
-    const fe = params.fractionExcretedRenal ?? 0;
+    // Clamp fe to [0, 1] range for consistency with gfrToDoseAdjustment
+    const fe = Math.max(0, Math.min(1, params.fractionExcretedRenal ?? 0));
     const creatinineUnit = params.creatinineUnit ?? "mg/dL";
 
     if (

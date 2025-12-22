@@ -211,7 +211,7 @@ export function useCalculatorState() {
       state.doseInputUnit === "mg"
         ? state.sourceWeight > 0
           ? state.baseDose / state.sourceWeight
-          : state.baseDose
+          : 0
         : state.baseDose;
 
     // Use centralized GFR calculation from calculations.ts
@@ -503,7 +503,7 @@ through appropriate preclinical and clinical studies before human use.
     state.doseInputUnit === "mg"
       ? state.sourceWeight > 0
         ? state.baseDose / state.sourceWeight
-        : state.baseDose
+        : 0
       : state.baseDose;
 
   // Handler for setting custom exponent value from UI input

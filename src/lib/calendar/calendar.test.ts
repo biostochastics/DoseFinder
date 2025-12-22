@@ -710,22 +710,25 @@ describe("Edge Cases - generateStudySchedule", () => {
     // Suppress expected warning for this edge case test
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const schedule = generateStudySchedule("Test", [testArm], {
-      startDate: new Date("invalid-date"),
-    });
+    try {
+      const schedule = generateStudySchedule("Test", [testArm], {
+        startDate: new Date("invalid-date"),
+      });
 
-    // Should fall back to current date and generate events
-    expect(schedule.events.length).toBeGreaterThan(0);
-    // Events should have valid dates
-    schedule.events.forEach((event) => {
-      expect(isNaN(event.dateTime.getTime())).toBe(false);
-    });
+      // Should fall back to current date and generate events
+      expect(schedule.events.length).toBeGreaterThan(0);
+      // Events should have valid dates
+      schedule.events.forEach((event) => {
+        expect(isNaN(event.dateTime.getTime())).toBe(false);
+      });
 
-    // Verify warning was called and restore
-    expect(warnSpy).toHaveBeenCalledWith(
-      "Invalid start date provided, using current date",
-    );
-    warnSpy.mockRestore();
+      // Verify warning was called
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Invalid start date provided, using current date",
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("handles monthly frequency for Jan 31 start date", () => {

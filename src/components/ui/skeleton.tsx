@@ -22,9 +22,7 @@ function Skeleton({ className, label, ...props }: SkeletonProps) {
   return (
     <div
       className={cn("animate-pulse rounded-md bg-muted", className)}
-      role="progressbar"
       aria-busy="true"
-      aria-valuetext="Loading..."
       aria-label={label || "Loading content"}
       {...props}
     />

@@ -334,7 +334,9 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
           </div>
           <p id="base-dose-hint" className="text-xs text-muted-foreground">
             {doseInputUnit === "mg"
-              ? `Total dose for ${sourceWeight} kg source. Equivalent: ${baseDosePerKg.toFixed(4)} mg/kg`
+              ? sourceWeight > 0
+                ? `Total dose for ${sourceWeight} kg source. Equivalent: ${baseDosePerKg.toFixed(4)} mg/kg`
+                : "Total dose entered. Set a positive source weight to see the per-kg equivalent."
               : "Per-kilogram dose. Toggle to enter total mg instead."}
           </p>
         </div>
@@ -615,10 +617,16 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Badge
                       variant="secondary"
-                      aria-label={`Source total dose: ${formatMass(baseDosePerKg * sourceWeight, true)}`}
+                      aria-label={`Source total dose: ${formatMass(
+                        doseInputUnit === "mg" ? baseDose : baseDosePerKg * sourceWeight,
+                        true,
+                      )}`}
                     >
                       Source Total:{" "}
-                      {formatMass(baseDosePerKg * sourceWeight, true)}
+                      {formatMass(
+                        doseInputUnit === "mg" ? baseDose : baseDosePerKg * sourceWeight,
+                        true,
+                      )}
                     </Badge>
                     <Badge
                       variant="default"
