@@ -299,20 +299,20 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
               onValueChange={(value) => {
                 if (value) onDoseInputUnitChange(value as DoseInputUnit);
               }}
-              className="border rounded-md h-8"
+              className="border rounded-md h-10"
               aria-label="Dose unit selection"
             >
               <ToggleGroupItem
                 value="mg/kg"
                 aria-label="Per kilogram dose"
-                className="text-[10px] px-1.5 h-7"
+                className="text-[11px] px-2 h-9"
               >
                 mg/kg
               </ToggleGroupItem>
               <ToggleGroupItem
                 value="mg"
                 aria-label="Total absolute dose"
-                className="text-[10px] px-1.5 h-7"
+                className="text-[11px] px-2 h-9"
               >
                 mg
               </ToggleGroupItem>
