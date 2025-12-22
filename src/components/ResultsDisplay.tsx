@@ -82,6 +82,12 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
               <p id="dilution-description" className="sr-only">
                 Enable to apply a dilution factor to the calculated dose
               </p>
+              {/* Live region for announcing dilution toggle changes */}
+              <div className="sr-only" aria-live="polite" aria-atomic="true">
+                {showDilution
+                  ? "Dilution factor input is now visible"
+                  : "Dilution factor input is now hidden"}
+              </div>
             </div>
           </CardContent>
         </Card>

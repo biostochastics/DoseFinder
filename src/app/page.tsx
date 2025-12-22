@@ -212,7 +212,14 @@ export default function Home() {
             <CardHeader className="space-y-1 py-2 bg-gradient-to-r from-primary/5 to-accent/5 rounded-t-lg">
               <div className="flex items-center justify-between">
                 <CardTitle asChild>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent flex items-center gap-2 group">
+                    <span className="logo-icon-wrapper">
+                      <IconCalculator
+                        className="h-6 w-6 text-accent logo-icon"
+                        stroke={1.5}
+                        aria-hidden="true"
+                      />
+                    </span>
                     DoseFinder
                   </h1>
                 </CardTitle>
@@ -457,33 +464,31 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="py-4 px-4 bg-muted/50 border-t" role="contentinfo">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="text-sm text-muted-foreground text-center sm:text-left">
-            <p>
-              © {new Date().getFullYear()} Biostochastics, LLC. For research use
-              only.
-            </p>
-            <p className="text-xs mt-1">
-              MIT License • Always validate calculations with experimental data
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+      <footer className="py-3 px-4 bg-muted/50 border-t" role="contentinfo">
+        <div className="max-w-7xl mx-auto flex flex-col items-center gap-2">
+          <div className="flex items-center gap-3">
             <a
-              href="https://github.com"
+              href="https://github.com/biostochastics/DoseFinder"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full hover:bg-muted/50"
+              className="p-1.5 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full hover:bg-muted/50"
               aria-label="View project on GitHub (opens in new tab)"
             >
-              <IconBrandGithub className="h-5 w-5" aria-hidden="true" />
+              <IconBrandGithub className="h-4 w-4" aria-hidden="true" />
             </a>
+            <span className="text-xs text-muted-foreground">
+              © {new Date().getFullYear()} Biostochastics, LLC
+            </span>
+            <span className="text-muted-foreground/50">•</span>
+            <span className="text-xs text-muted-foreground">
+              For research use only
+            </span>
             <a
               href="mailto:sergey.kornilov@biostochastics.com"
-              className="p-2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full hover:bg-muted/50"
+              className="p-1.5 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full hover:bg-muted/50"
               aria-label="Send email to contact"
             >
-              <IconMail className="h-5 w-5" aria-hidden="true" />
+              <IconMail className="h-4 w-4" aria-hidden="true" />
             </a>
           </div>
         </div>

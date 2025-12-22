@@ -635,6 +635,19 @@ tbody tr:hover {
   @apply inline-flex items-center gap-2;
 }
 
+/* Number input spinner arrows - theme responsive */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 1;
+  height: 1.5em;
+}
+
+/* Dark mode spinner styling */
+.dark input[type="number"]::-webkit-inner-spin-button,
+.dark input[type="number"]::-webkit-outer-spin-button {
+  filter: invert(1);
+}
+
 /* Loading state container - use with aria-busy="true" */
 [aria-busy="true"] {
   position: relative;
@@ -654,5 +667,43 @@ tbody tr:hover {
 @media (prefers-reduced-motion: reduce) {
   [aria-busy="true"]::after {
     backdrop-filter: none;
+  }
+}
+
+/* Logo icon with dynamic glow */
+.logo-icon-wrapper {
+  @apply relative inline-flex items-center justify-center;
+}
+
+.logo-icon {
+  @apply transition-all duration-300;
+  filter: drop-shadow(0 0 3px hsl(var(--accent) / 0.4));
+  animation: logo-pulse 3s ease-in-out infinite;
+}
+
+.logo-icon-wrapper:hover .logo-icon {
+  filter: drop-shadow(0 0 8px hsl(var(--accent) / 0.8))
+    drop-shadow(0 0 16px hsl(var(--accent) / 0.5));
+  transform: scale(1.1) rotate(-5deg);
+}
+
+@keyframes logo-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 3px hsl(var(--accent) / 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 6px hsl(var(--accent) / 0.6))
+      drop-shadow(0 0 10px hsl(var(--accent) / 0.3));
+  }
+}
+
+/* Respect reduced motion for logo animation */
+@media (prefers-reduced-motion: reduce) {
+  .logo-icon {
+    animation: none;
+  }
+  .logo-icon-wrapper:hover .logo-icon {
+    transform: none;
   }
 }

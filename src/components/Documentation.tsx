@@ -1,9 +1,16 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FormulaDocumentation } from "./FormulaDocumentation";
-import { IconExternalLink } from "@tabler/icons-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { IconExternalLink, IconAlertTriangle } from "@tabler/icons-react";
+import { Info, BookOpen, Beaker, Scale, Activity, Brain } from "lucide-react";
+import { Formula, Math } from "@/components/ui/math";
 
-// Standardized reference link component for consistency
 function ReferenceLink({
   href,
   children,
@@ -16,7 +23,7 @@ function ReferenceLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-primary hover:underline inline-flex items-center gap-1"
+      className="text-primary hover:underline inline-flex items-center gap-0.5"
     >
       {children}
       <IconExternalLink className="h-3 w-3 flex-shrink-0" stroke={1.5} />
@@ -24,635 +31,761 @@ function ReferenceLink({
   );
 }
 
+const scalingMethods = [
+  {
+    id: "allometric",
+    title: "Allometric Scaling",
+    badge: "Default",
+    badgeVariant: "default" as const,
+    icon: Scale,
+    description:
+      "The simplest and most widely used scaling method, based on the relationship between body mass and metabolic rate.",
+    formula: String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \left(\frac{W_{\text{target}}}{W_{\text{source}}}\right)^b`,
+    formulaAlt:
+      "Target dose equals source dose times the ratio of target weight to source weight, raised to the power b",
+    details: (
+      <>
+        <p className="text-muted-foreground text-sm mb-2">
+          where <Math altText="b">b</Math> is the allometric exponent (typically{" "}
+          <Math altText="0.75">0.75</Math>)
+        </p>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="font-medium mb-1">When to use:</p>
+            <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
+              <li>Most common scaling situations</li>
+              <li>Metabolically active compounds</li>
+              <li>Initial dose estimations</li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-medium mb-1">MW-based exponent:</p>
+            <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
+              <li>MW &gt; 700 Da: b = 0.70</li>
+              <li>400 &lt; MW &le; 700 Da: b = 0.75</li>
+              <li>MW &le; 400 Da: b = 0.80</li>
+            </ul>
+          </div>
+        </div>
+      </>
+    ),
+    reference: {
+      text: "West GB, Brown JH. (2005). J Exp Biol. 208:1575-1592.",
+      href: "https://pubmed.ncbi.nlm.nih.gov/15855389/",
+      pmid: "PMID: 15855389",
+    },
+  },
+  {
+    id: "brain-weight",
+    title: "Brain Weight Scaling",
+    badge: "CNS Drugs",
+    badgeVariant: "outline" as const,
+    icon: Brain,
+    description:
+      "Scaling based on brain weight differences between species, useful for CNS-active compounds.",
+    formula: String.raw`b = \frac{2}{3} \times \frac{\ln\left(\dfrac{B_{\text{target}}}{B_{\text{source}}}\right)}{\ln\left(\dfrac{W_{\text{target}}}{W_{\text{source}}}\right)}`,
+    formulaAlt:
+      "b equals two-thirds times the natural log of brain weight ratio divided by the log of body weight ratio",
+    details: (
+      <>
+        <p className="text-muted-foreground text-sm mb-2">
+          where <Math altText="B">B</Math> = brain weight. The 2/3 coefficient
+          is empirical and may vary by drug class.
+        </p>
+        <div className="text-sm">
+          <p className="font-medium mb-1">When to use:</p>
+          <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
+            <li>CNS-active compounds and psychotropics</li>
+            <li>Drugs crossing the blood-brain barrier</li>
+            <li>Neurological treatments and anesthetics</li>
+          </ul>
+        </div>
+      </>
+    ),
+    reference: {
+      text: "Mahmood I, Balian JD. (1996). Br J Clin Pharmacol. 41:163-175.",
+      href: "https://pubmed.ncbi.nlm.nih.gov/8866916/",
+      pmid: "PMID: 8866916",
+    },
+  },
+  {
+    id: "lifespan",
+    title: "Life-Span Scaling",
+    badge: "Theoretical",
+    badgeVariant: "secondary" as const,
+    icon: Activity,
+    description:
+      "Scaling based on maximum life span potential of different species.",
+    formula: String.raw`b = \frac{\ln\left(\dfrac{\tau_{\text{target}}}{\tau_{\text{source}}}\right)}{\ln\left(\dfrac{W_{\text{target}}}{W_{\text{source}}}\right)}`,
+    formulaAlt:
+      "b equals the log of lifespan ratio divided by the log of weight ratio",
+    details: (
+      <>
+        <p className="text-muted-foreground text-sm mb-2">
+          where <Math altText="tau">{String.raw`\tau`}</Math> = maximum life
+          span potential
+        </p>
+        <div className="text-sm">
+          <p className="font-medium mb-1">When to use:</p>
+          <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
+            <li>Long-term toxicity studies</li>
+            <li>Chronic exposure assessments</li>
+            <li>Gerontological research</li>
+          </ul>
+          <p className="text-amber-600 dark:text-amber-500 mt-2 text-xs">
+            <strong>Limitation:</strong> Assumes similar aging mechanisms across
+            species
+          </p>
+        </div>
+      </>
+    ),
+    reference: {
+      text: "Boxenbaum H. (1982). J Pharmacokinet Biopharm. 10:201-227.",
+      href: "https://pubmed.ncbi.nlm.nih.gov/7120049/",
+      pmid: "PMID: 7120049",
+    },
+  },
+  {
+    id: "hepatic",
+    title: "Hepatic Blood Flow Scaling",
+    badge: "High-Extraction",
+    badgeVariant: "outline" as const,
+    icon: Beaker,
+    description:
+      "Scaling based on species differences in hepatic blood flow and clearance.",
+    formula: String.raw`\text{CL}_h = Q_h \times E_h`,
+    formulaAlt:
+      "Hepatic clearance equals hepatic blood flow times extraction ratio",
+    details: (
+      <>
+        <p className="text-muted-foreground text-sm mb-2">
+          where <Math altText="Q sub h">{String.raw`Q_h`}</Math> = hepatic blood
+          flow, <Math altText="E sub h">{String.raw`E_h`}</Math> = extraction
+          ratio
+        </p>
+        <div className="text-sm">
+          <p className="font-medium mb-1">When to use:</p>
+          <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
+            <li>
+              Drugs with hepatic extraction ratio{" "}
+              <Math altText="E greater than 0.7">{String.raw`E_h > 0.7`}</Math>
+            </li>
+            <li>Compounds primarily metabolized by the liver</li>
+            <li>Flow-limited drugs</li>
+          </ul>
+        </div>
+      </>
+    ),
+    reference: {
+      text: "Ward KW, Smith BR. (2004). Drug Metab Dispos. 32:603-611.",
+      href: "https://pubmed.ncbi.nlm.nih.gov/15155551/",
+      pmid: "PMID: 15155551",
+    },
+  },
+  {
+    id: "bsa",
+    title: "Body Surface Area (BSA)",
+    badge: "Oncology",
+    badgeVariant: "default" as const,
+    icon: Scale,
+    description:
+      "Scaling based on body surface area differences between species.",
+    formula: String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \frac{\text{BSA}_{\text{target}}}{\text{BSA}_{\text{source}}}`,
+    formulaAlt: "Target dose equals source dose times BSA ratio",
+    details: (
+      <>
+        <p className="text-muted-foreground text-sm mb-2">
+          Du Bois formula:{" "}
+          <Math altText="BSA equals 0.007184 times W to 0.425 times H to 0.725">
+            {String.raw`\text{BSA} \approx 0.007184 \times W^{0.425} \times H^{0.725}`}
+          </Math>
+        </p>
+        <div className="text-sm">
+          <p className="font-medium mb-1">When to use:</p>
+          <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
+            <li>Many anticancer drugs (traditional in oncology)</li>
+            <li>Initial human dose estimates</li>
+            <li>When surface-dependent effects are important</li>
+          </ul>
+        </div>
+      </>
+    ),
+    reference: {
+      text: "Reagan-Shaw S, et al. (2008). FASEB J. 22:659-661.",
+      href: "https://pubmed.ncbi.nlm.nih.gov/17942826/",
+      pmid: "PMID: 17942826",
+    },
+  },
+];
+
+const bioavailabilityData = [
+  {
+    route: "IV (Intravenous)",
+    default: "100%",
+    range: "100%",
+    notes: "Reference standard by definition",
+    highlight: false,
+  },
+  {
+    route: "IM (Intramuscular)",
+    default: "85%",
+    range: "75-100%",
+    notes: "Near-complete; avoids first-pass",
+    highlight: false,
+  },
+  {
+    route: "SC (Subcutaneous)",
+    default: "70%",
+    range: "50-100%",
+    notes: "Lower for biologics (50-80%)",
+    highlight: false,
+  },
+  {
+    route: "Oral",
+    default: "50%",
+    range: "5-99%",
+    notes: "HIGHLY VARIABLE",
+    highlight: true,
+  },
+  {
+    route: "Rectal",
+    default: "65%",
+    range: "30-80%",
+    notes: "~50% bypasses hepatic first-pass",
+    highlight: false,
+  },
+  {
+    route: "Sublingual",
+    default: "70%",
+    range: "60-80%",
+    notes: "Bypasses first-pass via oral mucosa",
+    highlight: false,
+  },
+  {
+    route: "Transdermal",
+    default: "35%",
+    range: "10-50%",
+    notes: "Limited to small lipophilic molecules",
+    highlight: false,
+  },
+  {
+    route: "Inhalation",
+    default: "25%",
+    range: "10-40%",
+    notes: "Lung deposition depends on particle size",
+    highlight: false,
+  },
+];
+
 export function Documentation() {
   return (
     <div className="h-[calc(100vh-200px)] w-full overflow-y-auto">
       <div className="space-y-6 p-4">
-        <section>
-          <h2 className="text-2xl font-bold mb-4">
-            Understanding Dose Scaling Methods
-          </h2>
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>1. Allometric Scaling (Default Method)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <h4 className="font-semibold mb-2">What is it?</h4>
-                <p className="mb-4">
-                  The simplest and most widely used scaling method, based on the
-                  relationship between body mass and metabolic rate.
-                </p>
-                <h4 className="font-semibold mb-2">When to use?</h4>
-                <ul className="list-disc pl-6 mb-4">
-                  <li>Most common scaling situations</li>
-                  <li>When dealing with metabolically active compounds</li>
-                  <li>For initial dose estimations</li>
-                </ul>
-                <h4 className="font-semibold mb-2">Key Points</h4>
-                <ul className="list-disc pl-6">
-                  <li>Uses the 3/4 power law by default (exponent = 0.75)</li>
-                  <li>
-                    Can be adjusted based on molecular weight:
-                    <ul className="list-disc pl-6 mt-2">
-                      <li>MW &gt; 700 Da → exponent = 0.70</li>
-                      <li>400 &lt; MW ≤ 700 Da → exponent = 0.75</li>
-                      <li>MW ≤ 400 Da → exponent = 0.80</li>
-                    </ul>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>2. Brain Weight Scaling</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <h4 className="font-semibold mb-2">What is it?</h4>
-                <p className="mb-4">
-                  Scaling based on brain weight differences between species,
-                  useful for certain types of drugs.
-                </p>
-                <h4 className="font-semibold mb-2">When to use?</h4>
-                <ul className="list-disc pl-6 mb-4">
-                  <li>CNS-active compounds</li>
-                  <li>Drugs that cross the blood-brain barrier</li>
-                  <li>Neurological treatments</li>
-                </ul>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>3. Life-Span Scaling</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <h4 className="font-semibold mb-2">What is it?</h4>
-                <p className="mb-4">
-                  Scaling based on the maximum life span potential of different
-                  species.
-                </p>
-                <h4 className="font-semibold mb-2">When to use?</h4>
-                <ul className="list-disc pl-6 mb-4">
-                  <li>Long-term toxicity studies</li>
-                  <li>Chronic exposure assessments</li>
-                  <li>Age-related treatments</li>
-                </ul>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>4. Hepatic Blood Flow Scaling</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <h4 className="font-semibold mb-2">What is it?</h4>
-                <p className="mb-4">
-                  Scaling based on species differences in hepatic blood flow and
-                  clearance.
-                </p>
-                <h4 className="font-semibold mb-2">When to use?</h4>
-                <ul className="list-disc pl-6 mb-4">
-                  <li>Drugs with high hepatic extraction</li>
-                  <li>Compounds primarily metabolized by the liver</li>
-                  <li>Flow-limited drugs</li>
-                </ul>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>5. BSA-Based Scaling</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <h4 className="font-semibold mb-2">What is it?</h4>
-                <p className="mb-4">
-                  Scaling based on body surface area differences between
-                  species.
-                </p>
-                <h4 className="font-semibold mb-2">When to use?</h4>
-                <ul className="list-disc pl-6 mb-4">
-                  <li>Many anticancer drugs</li>
-                  <li>Initial human dose estimates</li>
-                  <li>When surface-dependent effects are important</li>
-                </ul>
-                <h4 className="font-semibold mb-2">Key Points</h4>
-                <ul className="list-disc pl-6">
-                  <li>Uses built-in approximate BSA values for each species</li>
-                  <li>Direct ratio scaling of doses based on BSA</li>
-                  <li>Common in clinical settings</li>
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-        <section>
-          <h2 className="text-2xl font-bold mb-4">Advanced Features</h2>
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Kidney Function Adjustment</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-4">Three modes available:</p>
-                <ul className="list-disc pl-6 mb-4">
-                  <li>
-                    <strong>None:</strong> No kidney function adjustment
-                  </li>
-                  <li>
-                    <strong>Manual:</strong> Enter a percentage directly
-                  </li>
-                  <li>
-                    <strong>Cockcroft-Gault:</strong> Calculates estimated GFR
-                    from patient parameters (age, weight, creatinine, sex)
-                  </li>
-                </ul>
-                <h4 className="font-semibold mb-2 mt-4">
-                  Fraction Excreted Unchanged (fe)
-                </h4>
-                <p className="mb-2">
-                  The fe parameter adjusts for drugs with partial renal
-                  clearance using the scientifically correct formula:
-                </p>
-                <p className="font-mono bg-muted p-2 rounded mb-2">
-                  Dose_adj = Dose_normal × (1 - fe × (1 - RenalFunctionRatio))
-                </p>
-                <ul className="list-disc pl-6 mb-4">
-                  <li>
-                    <strong>fe = 1.0:</strong> 100% renal clearance (e.g.,
-                    aminoglycosides, vancomycin)
-                  </li>
-                  <li>
-                    <strong>fe = 0.7:</strong> 70% renal clearance (e.g.,
-                    digoxin)
-                  </li>
-                  <li>
-                    <strong>fe = 0.0:</strong> No renal clearance (hepatically
-                    cleared)
-                  </li>
-                </ul>
-                <h4 className="font-semibold mb-2 mt-4">Creatinine Units</h4>
-                <p className="mb-2">
-                  Serum creatinine can be entered in either unit:
-                </p>
-                <ul className="list-disc pl-6">
-                  <li>
-                    <strong>mg/dL</strong> (conventional US units)
-                  </li>
-                  <li>
-                    <strong>µmol/L</strong> (SI units) — automatically converted
-                    using factor 88.4
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  Bioavailability by Route of Administration
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-4">
-                  Literature-based default values for different routes of
-                  administration. These are conservative estimates—actual
-                  bioavailability varies significantly by drug, formulation, and
-                  patient factors.
-                </p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-collapse">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-2">Route</th>
-                        <th className="text-left p-2">Default</th>
-                        <th className="text-left p-2">Range</th>
-                        <th className="text-left p-2">Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b">
-                        <td className="p-2 font-medium">IV (Intravenous)</td>
-                        <td className="p-2">100%</td>
-                        <td className="p-2">100%</td>
-                        <td className="p-2 text-muted-foreground">
-                          Reference standard by definition
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="p-2 font-medium">IM (Intramuscular)</td>
-                        <td className="p-2">85%</td>
-                        <td className="p-2">75–100%</td>
-                        <td className="p-2 text-muted-foreground">
-                          Near-complete; avoids first-pass
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="p-2 font-medium">SC (Subcutaneous)</td>
-                        <td className="p-2">70%</td>
-                        <td className="p-2">50–100%</td>
-                        <td className="p-2 text-muted-foreground">
-                          Lower for biologics (50–80%)
-                        </td>
-                      </tr>
-                      <tr className="border-b bg-amber-500/10">
-                        <td className="p-2 font-medium">Oral</td>
-                        <td className="p-2">50%</td>
-                        <td className="p-2 font-bold text-amber-600">5–99%</td>
-                        <td className="p-2 text-amber-600">
-                          HIGHLY VARIABLE—use drug-specific values
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="p-2 font-medium">Rectal</td>
-                        <td className="p-2">65%</td>
-                        <td className="p-2">30–80%</td>
-                        <td className="p-2 text-muted-foreground">
-                          ~50% bypasses hepatic first-pass
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="p-2 font-medium">Sublingual</td>
-                        <td className="p-2">70%</td>
-                        <td className="p-2">60–80%</td>
-                        <td className="p-2 text-muted-foreground">
-                          Bypasses first-pass via oral mucosa
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="p-2 font-medium">Transdermal</td>
-                        <td className="p-2">35%</td>
-                        <td className="p-2">10–50%</td>
-                        <td className="p-2 text-muted-foreground">
-                          Limited to small lipophilic molecules
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="p-2 font-medium">Inhalation</td>
-                        <td className="p-2">25%</td>
-                        <td className="p-2">10–40%</td>
-                        <td className="p-2 text-muted-foreground">
-                          Lung deposition depends on particle size
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 font-medium">Other</td>
-                        <td className="p-2">75%</td>
-                        <td className="p-2">50–100%</td>
-                        <td className="p-2 text-muted-foreground">
-                          Conservative estimate for unspecified routes
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded">
-                  <p className="text-sm font-medium text-amber-600 mb-2">
-                    ⚠️ Important: Oral Bioavailability Variability
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Oral bioavailability ranges from 5% to 99% depending on the
-                    drug. Examples: Propranolol ~26%, Morphine ~30%, Metformin
-                    ~50–60%. The 50% default is a conservative middle estimate.
-                    Always use compound-specific values from pharmacokinetic
-                    studies when available.
-                  </p>
-                </div>
-                <h4 className="font-semibold mt-4 mb-2">References</h4>
-                <ul className="text-xs space-y-1.5 text-muted-foreground">
-                  <li>
-                    <ReferenceLink href="https://www.ncbi.nlm.nih.gov/books/NBK557852/">
-                      NBK557852
-                    </ReferenceLink>
-                    : Drug Bioavailability (StatPearls)
-                  </li>
-                  <li>
-                    <ReferenceLink href="https://www.ncbi.nlm.nih.gov/books/NBK551679/">
-                      NBK551679
-                    </ReferenceLink>
-                    : First-Pass Effect (StatPearls)
-                  </li>
-                  <li>
-                    <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10745386/">
-                      PMCID: PMC10745386
-                    </ReferenceLink>
-                    : The Bioavailability of Drugs—Current State of Knowledge
-                  </li>
-                  <li>
-                    <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6182494/">
-                      PMCID: PMC6182494
-                    </ReferenceLink>
-                    : Subcutaneous Administration of Biotherapeutics
-                  </li>
-                  <li>
-                    <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6805701/">
-                      PMCID: PMC6805701
-                    </ReferenceLink>
-                    : Physiological Considerations for Rectal Drug Formulations
-                  </li>
-                  <li>
-                    <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/498711/">
-                      PMID: 498711
-                    </ReferenceLink>
-                    : Rectal Bioavailability of Lidocaine
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Additional Parameters</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="list-disc pl-6">
-                  <li>
-                    <strong>Volume of Distribution (Vd):</strong> Affects dose
-                    based on drug distribution in body compartments
-                  </li>
-                  <li>
-                    <strong>Molecular Weight:</strong> Can affect allometric
-                    scaling exponent selection
-                  </li>
-                  <li>
-                    <strong>LogP:</strong> Influences dose adjustments based on
-                    lipophilicity
-                  </li>
-                  <li>
-                    <strong>Protein Binding:</strong> Adjusts for differences in
-                    free drug fraction
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-        <section>
-          <h2 className="text-2xl font-bold mb-4">Best Practices</h2>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-6">
-                <div>
-                  <h4 className="font-semibold mb-2">
-                    1. Always Start Conservative
+        {/* Scaling Methods - Consolidated Card with Accordion */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              Dose Scaling Methods
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Select the appropriate scaling method based on drug properties and
+              clearance pathway
+            </p>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Accordion type="single" collapsible className="w-full">
+              {scalingMethods.map((method) => (
+                <AccordionItem key={method.id} value={method.id}>
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-3 text-left">
+                      <method.icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{method.title}</span>
+                      <Badge
+                        variant={method.badgeVariant}
+                        className="text-xs ml-1"
+                      >
+                        {method.badge}
+                      </Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-3 pl-7">
+                      <p className="text-sm text-muted-foreground">
+                        {method.description}
+                      </p>
+                      <Formula
+                        altText={method.formulaAlt}
+                        className="bg-muted/50 p-2 rounded"
+                      >
+                        {method.formula}
+                      </Formula>
+                      {method.details}
+                      <p className="text-xs text-muted-foreground border-t pt-2 mt-2">
+                        <strong>Ref:</strong> {method.reference.text}{" "}
+                        <ReferenceLink href={method.reference.href}>
+                          {method.reference.pmid}
+                        </ReferenceLink>
+                      </p>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+
+            {/* FDA Guidance highlight */}
+            <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+              <p className="text-sm font-semibold mb-1">
+                FDA Guidance (2005):{" "}
+                <ReferenceLink href="https://www.fda.gov/media/72309/download">
+                  View Document
+                </ReferenceLink>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Human Equivalent Dose (HED) calculation:
+              </p>
+              <Formula
+                className="mt-2 bg-green-100/50 dark:bg-green-900/30 p-2 rounded"
+                altText="HED equals animal dose times weight ratio to power of 1 minus b"
+              >
+                {String.raw`\text{HED} = \text{Dose}_{\text{animal}} \times \left(\frac{W_{\text{animal}}}{W_{\text{human}}}\right)^{1-b}`}
+              </Formula>
+              <p className="text-xs text-muted-foreground mt-2">
+                where{" "}
+                <Math altText="b equals 0.67">{String.raw`b = 0.67`}</Math> for
+                BSA-normalized scaling. Apply 10-fold safety factor for FIH
+                studies.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Advanced Parameters - Consolidated */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <Beaker className="h-5 w-5" />
+              Advanced Parameters
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="kidney">
+                <AccordionTrigger className="hover:no-underline">
+                  <span className="font-medium">
+                    Kidney Function Adjustment
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                      <div className="p-2 bg-muted/30 rounded">
+                        <p className="font-medium">None</p>
+                        <p className="text-xs text-muted-foreground">
+                          No kidney function adjustment
+                        </p>
+                      </div>
+                      <div className="p-2 bg-muted/30 rounded">
+                        <p className="font-medium">Manual</p>
+                        <p className="text-xs text-muted-foreground">
+                          Enter a percentage directly
+                        </p>
+                      </div>
+                      <div className="p-2 bg-muted/30 rounded">
+                        <p className="font-medium">Cockcroft-Gault</p>
+                        <p className="text-xs text-muted-foreground">
+                          Calculate eGFR from patient parameters
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-sm">
+                      <p className="font-medium mb-1">
+                        Fraction Excreted Unchanged (fe):
+                      </p>
+                      <Formula altText="Dose adjustment formula with fe">
+                        {String.raw`\text{Dose}_{\text{adj}} = \text{Dose}_{\text{normal}} \times \left(1 - f_e \times (1 - \text{RenalRatio})\right)`}
+                      </Formula>
+                      <div className="grid grid-cols-3 gap-2 mt-2 text-xs text-muted-foreground">
+                        <div>
+                          <strong>fe = 1.0:</strong> 100% renal
+                          (aminoglycosides)
+                        </div>
+                        <div>
+                          <strong>fe = 0.7:</strong> 70% renal (digoxin)
+                        </div>
+                        <div>
+                          <strong>fe = 0.0:</strong> Hepatically cleared
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="bioavailability">
+                <AccordionTrigger className="hover:no-underline">
+                  <span className="font-medium">
+                    Bioavailability by Administration Route
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="border-b bg-muted/30">
+                          <th className="text-left p-2 font-medium">Route</th>
+                          <th className="text-left p-2 font-medium">Default</th>
+                          <th className="text-left p-2 font-medium">Range</th>
+                          <th className="text-left p-2 font-medium">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bioavailabilityData.map((row, idx) => (
+                          <tr
+                            key={idx}
+                            className={`border-b ${row.highlight ? "bg-amber-500/10" : ""}`}
+                          >
+                            <td
+                              className={`p-2 font-medium ${row.highlight ? "text-amber-600" : ""}`}
+                            >
+                              {row.route}
+                            </td>
+                            <td className="p-2">{row.default}</td>
+                            <td
+                              className={`p-2 ${row.highlight ? "font-bold text-amber-600" : ""}`}
+                            >
+                              {row.range}
+                            </td>
+                            <td
+                              className={`p-2 ${row.highlight ? "text-amber-600" : "text-muted-foreground"}`}
+                            >
+                              {row.notes}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-sm">
+                    <div className="flex items-start gap-2">
+                      <IconAlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-muted-foreground">
+                        <strong className="text-amber-600">
+                          Oral bioavailability
+                        </strong>{" "}
+                        ranges from 5% (e.g., bisphosphonates) to 99% (e.g.,
+                        fluconazole). The 50% default is a conservative middle
+                        estimate. Always use compound-specific values when
+                        available.
+                      </p>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="other-params">
+                <AccordionTrigger className="hover:no-underline">
+                  <span className="font-medium">Other Drug Parameters</span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="p-2 bg-muted/30 rounded">
+                      <p className="font-medium">Volume of Distribution (Vd)</p>
+                      <p className="text-xs text-muted-foreground">
+                        Affects dose based on drug distribution in body
+                        compartments
+                      </p>
+                    </div>
+                    <div className="p-2 bg-muted/30 rounded">
+                      <p className="font-medium">Molecular Weight</p>
+                      <p className="text-xs text-muted-foreground">
+                        Can affect allometric scaling exponent selection
+                      </p>
+                    </div>
+                    <div className="p-2 bg-muted/30 rounded">
+                      <p className="font-medium">LogP (Lipophilicity)</p>
+                      <p className="text-xs text-muted-foreground">
+                        Influences dose adjustments based on lipophilicity
+                      </p>
+                    </div>
+                    <div className="p-2 bg-muted/30 rounded">
+                      <p className="font-medium">Protein Binding</p>
+                      <p className="text-xs text-muted-foreground">
+                        Adjusts for differences in free drug fraction
+                      </p>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
+
+        {/* Guidelines - Combined Best Practices and Important Reminders */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <Info className="h-5 w-5" />
+              Guidelines & Best Practices
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <h4 className="font-semibold text-sm mb-2">
+                    1. Start Conservative
                   </h4>
-                  <ul className="list-disc pl-6">
+                  <ul className="list-disc pl-4 text-sm text-muted-foreground space-y-0.5">
                     <li>Begin with lower doses</li>
                     <li>Use multiple scaling methods for comparison</li>
-                    <li>Consider safety margins</li>
+                    <li>Consider safety margins (10x for FIH)</li>
                   </ul>
                 </div>
-                <div>
-                  <h4 className="font-semibold mb-2">
-                    2. Document Your Choice
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <h4 className="font-semibold text-sm mb-2">
+                    2. Document Choices
                   </h4>
-                  <ul className="list-disc pl-6">
+                  <ul className="list-disc pl-4 text-sm text-muted-foreground space-y-0.5">
                     <li>Record scaling method used</li>
                     <li>Note any adjustments made</li>
                     <li>Keep track of assumptions</li>
                   </ul>
                 </div>
-                <div>
-                  <h4 className="font-semibold mb-2">3. Validate Results</h4>
-                  <ul className="list-disc pl-6">
-                    <li>Compare with literature data when available</li>
+              </div>
+              <div className="space-y-3">
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <h4 className="font-semibold text-sm mb-2">
+                    3. Validate Results
+                  </h4>
+                  <ul className="list-disc pl-4 text-sm text-muted-foreground space-y-0.5">
+                    <li>Compare with literature data</li>
                     <li>Consider species-specific factors</li>
                     <li>Monitor for unexpected variations</li>
                   </ul>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-        <section>
-          <h2 className="text-2xl font-bold mb-4">Important Reminders</h2>
-          <Card>
-            <CardContent className="pt-6">
-              <ul className="list-disc pl-6">
-                <li>These are estimation tools, not absolute rules</li>
-                <li>Professional judgment is essential</li>
-                <li>Consider all available data</li>
-                <li>Use for research/educational purposes only</li>
-                <li>Consult regulatory guidelines for clinical applications</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </section>
-        <section>
-          <h2 className="text-2xl font-bold mb-4">References</h2>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-6">
-                <div>
-                  <h4 className="font-semibold mb-3">
-                    Species Database & Physiological Parameters
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                  <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
+                    <IconAlertTriangle className="h-4 w-4 text-amber-600" />
+                    Important Reminders
                   </h4>
-                  <ul className="space-y-3">
-                    <li>
-                      <p className="text-sm">
-                        Davies B, Morris T. (1993). Physiological parameters in
-                        laboratory animals and humans. <em>Pharm Res.</em>{" "}
-                        10(7):1093-1095.{" "}
-                        <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/8378254/">
-                          PMID: 8378254
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Brown RP, Delp MD, Lindstedt SL, Rhomberg LR, Beliles
-                        RP. (1997). Physiological parameter values for
-                        physiologically based pharmacokinetic models.{" "}
-                        <em>Toxicol Ind Health.</em> 13(4):407-484.{" "}
-                        <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/9249929/">
-                          PMID: 9249929
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Lin Z, et al. (2020). Physiological parameter values for
-                        PBPK models in food-producing animals. Part I: Cattle
-                        and swine. <em>J Vet Pharmacol Ther.</em> 43:385-420.{" "}
-                        <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/32190909/">
-                          PMID: 32190909
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Li M, et al. (2021). Physiological parameter values for
-                        PBPK models. Part III: Sheep and goat.{" "}
-                        <em>J Vet Pharmacol Ther.</em> 44:533-563.{" "}
-                        <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8359294/">
-                          PMCID: PMC8359294
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Mandikian D, et al. (2018). Tissue Physiology of
-                        Cynomolgus Monkeys: Cross-Species Comparison and
-                        Implications for Translational Pharmacology.{" "}
-                        <em>AAPS J.</em> 20:107.{" "}
-                        <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/30264171/">
-                          PMID: 30264171
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-3">
-                    Allometric Scaling & Dose Conversion
-                  </h4>
-                  <ul className="space-y-3">
-                    <li>
-                      <p className="text-sm">
-                        FDA Guidance for Industry. (2005). Estimating the
-                        Maximum Safe Starting Dose in Initial Clinical Trials
-                        for Therapeutics in Adult Healthy Volunteers.{" "}
-                        <em>U.S. Food and Drug Administration.</em>{" "}
-                        <ReferenceLink href="https://www.fda.gov/media/72309/download">
-                          View Document
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Nair AB, Jacob S. (2016). A simple practice guide for
-                        dose conversion between animals and human.{" "}
-                        <em>J Basic Clin Pharm.</em> 7(2):27-31.{" "}
-                        <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4804402/">
-                          PMCID: PMC4804402
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Reagan-Shaw S, Nihal M, Ahmad N. (2008). Dose
-                        translation from animal to human studies revisited.{" "}
-                        <em>FASEB J.</em> 22(3):659-661.{" "}
-                        <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/17942826/">
-                          PMID: 17942826
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Boxenbaum H. (1982). Interspecies scaling, allometry,
-                        physiological time, and the ground plan of
-                        pharmacokinetics. <em>J Pharmacokinet Biopharm.</em>{" "}
-                        10(2):201-227.{" "}
-                        <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/7120049/">
-                          PMID: 7120049
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Mahmood I, Balian JD. (1996). Interspecies scaling:
-                        predicting clearance of drugs in humans.{" "}
-                        <em>Xenobiotica.</em> 26(9):887-895.{" "}
-                        <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/8902907/">
-                          PMID: 8902907
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Sharma V, McNeill JH. (2009). To scale or not to scale:
-                        the principles of dose extrapolation.{" "}
-                        <em>Br J Pharmacol.</em> 157(6):907-921.{" "}
-                        <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2737649/">
-                          PMCID: PMC2737649
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        West GB, Brown JH. (2005). The origin of allometric
-                        scaling laws in biology from genomes to ecosystems.{" "}
-                        <em>J Exp Biol.</em> 208:1575-1592.{" "}
-                        <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/15855389/">
-                          PMID: 15855389
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-3">
-                    Bioavailability by Route of Administration
-                  </h4>
-                  <ul className="space-y-3">
-                    <li>
-                      <p className="text-sm">
-                        Herman TF, Santos C. (2023). First-Pass Effect.{" "}
-                        <em>StatPearls</em> [Internet].{" "}
-                        <ReferenceLink href="https://www.ncbi.nlm.nih.gov/books/NBK551679/">
-                          NBK551679
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Azman M, et al. (2023). The Bioavailability of Drugs—The
-                        Current State of Knowledge. <em>Molecules.</em>{" "}
-                        28(24):8038.{" "}
-                        <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10745386/">
-                          PMCID: PMC10745386
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Bittner B, et al. (2018). Subcutaneous Administration of
-                        Biotherapeutics: An Overview of Current Challenges and
-                        Opportunities. <em>BioDrugs.</em> 32(5):425-440.{" "}
-                        <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6182494/">
-                          PMCID: PMC6182494
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Hua S. (2019). Physiological and Pharmaceutical
-                        Considerations for Rectal Drug Formulations.{" "}
-                        <em>Front Pharmacol.</em> 10:1196.{" "}
-                        <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6805701/">
-                          PMCID: PMC6805701
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        de Boer AG, et al. (1979). Rectal bioavailability of
-                        lidocaine in man: Partial avoidance of
-                        &quot;first-pass&quot; metabolism.{" "}
-                        <em>Clin Pharmacol Ther.</em> 26(6):701-709.{" "}
-                        <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/498711/">
-                          PMID: 498711
-                        </ReferenceLink>
-                      </p>
-                    </li>
-                    <li>
-                      <p className="text-sm">
-                        Al-Tabakha MM, Arida AI. (2008). Considerations in
-                        Developing Sublingual Tablets—An Overview.{" "}
-                        <em>Pharm Technol.</em> 32(1).{" "}
-                        <ReferenceLink href="https://www.pharmtech.com/view/considerations-developing-sublingual-tablets-overview">
-                          View Article
-                        </ReferenceLink>
-                      </p>
-                    </li>
+                  <ul className="list-disc pl-4 text-sm text-muted-foreground space-y-0.5">
+                    <li>These are estimation tools, not absolute rules</li>
+                    <li>Professional judgment is essential</li>
+                    <li>Use for research/educational purposes only</li>
+                    <li>Consult regulatory guidelines for clinical use</li>
                   </ul>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          <section className="mt-8">
-            <h2 className="text-2xl font-bold mb-4">
-              Detailed Formula Documentation
-            </h2>
-            <FormulaDocumentation />
-          </section>
-        </section>
+            </div>
+
+            {/* Key Considerations */}
+            <div className="mt-4 p-3 bg-secondary/50 dark:bg-secondary/30 rounded-lg">
+              <p className="font-semibold text-sm mb-2">
+                Key Considerations for Method Selection:
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                <div className="p-2 bg-background/50 rounded text-center">
+                  <p className="font-medium">Drug Properties</p>
+                  <p className="text-muted-foreground">Lipophilicity, MW</p>
+                </div>
+                <div className="p-2 bg-background/50 rounded text-center">
+                  <p className="font-medium">Clearance</p>
+                  <p className="text-muted-foreground">Hepatic, renal, mixed</p>
+                </div>
+                <div className="p-2 bg-background/50 rounded text-center">
+                  <p className="font-medium">Target Organ</p>
+                  <p className="text-muted-foreground">CNS requires brain wt</p>
+                </div>
+                <div className="p-2 bg-background/50 rounded text-center">
+                  <p className="font-medium">Study Type</p>
+                  <p className="text-muted-foreground">Acute vs chronic</p>
+                </div>
+                <div className="p-2 bg-background/50 rounded text-center">
+                  <p className="font-medium">Safety</p>
+                  <p className="text-muted-foreground">10x factor for FIH</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* References - Organized Bibliography */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              References
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Accordion type="multiple" className="w-full">
+              <AccordionItem value="species">
+                <AccordionTrigger className="hover:no-underline text-sm">
+                  Species Database & Physiological Parameters
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ul className="space-y-2 text-sm">
+                    <li>
+                      Davies B, Morris T. (1993). Physiological parameters in
+                      laboratory animals and humans. <em>Pharm Res.</em>{" "}
+                      10(7):1093-1095.{" "}
+                      <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/8378254/">
+                        PMID: 8378254
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Brown RP, et al. (1997). Physiological parameter values
+                      for PBPK models. <em>Toxicol Ind Health.</em>{" "}
+                      13(4):407-484.{" "}
+                      <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/9249929/">
+                        PMID: 9249929
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Lin Z, et al. (2020). Physiological parameter values for
+                      PBPK models. Part I: Cattle and swine.{" "}
+                      <em>J Vet Pharmacol Ther.</em> 43:385-420.{" "}
+                      <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/32190909/">
+                        PMID: 32190909
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Li M, et al. (2021). Physiological parameter values for
+                      PBPK models. Part III: Sheep and goat.{" "}
+                      <em>J Vet Pharmacol Ther.</em> 44:533-563.{" "}
+                      <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8359294/">
+                        PMC8359294
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Mandikian D, et al. (2018). Tissue Physiology of
+                      Cynomolgus Monkeys. <em>AAPS J.</em> 20:107.{" "}
+                      <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/30264171/">
+                        PMID: 30264171
+                      </ReferenceLink>
+                    </li>
+                  </ul>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="allometric">
+                <AccordionTrigger className="hover:no-underline text-sm">
+                  Allometric Scaling & Dose Conversion
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ul className="space-y-2 text-sm">
+                    <li>
+                      <strong>FDA Guidance (2005).</strong> Estimating the
+                      Maximum Safe Starting Dose in Initial Clinical Trials.{" "}
+                      <ReferenceLink href="https://www.fda.gov/media/72309/download">
+                        View Document
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Nair AB, Jacob S. (2016). A simple practice guide for dose
+                      conversion. <em>J Basic Clin Pharm.</em> 7(2):27-31.{" "}
+                      <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4804402/">
+                        PMC4804402
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Reagan-Shaw S, et al. (2008). Dose translation from animal
+                      to human studies revisited. <em>FASEB J.</em>{" "}
+                      22(3):659-661.{" "}
+                      <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/17942826/">
+                        PMID: 17942826
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Boxenbaum H. (1982). Interspecies scaling, allometry,
+                      physiological time. <em>J Pharmacokinet Biopharm.</em>{" "}
+                      10(2):201-227.{" "}
+                      <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/7120049/">
+                        PMID: 7120049
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Mahmood I, Balian JD. (1996). Interspecies scaling:
+                      predicting clearance in humans. <em>Xenobiotica.</em>{" "}
+                      26(9):887-895.{" "}
+                      <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/8902907/">
+                        PMID: 8902907
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Sharma V, McNeill JH. (2009). To scale or not to scale.{" "}
+                      <em>Br J Pharmacol.</em> 157(6):907-921.{" "}
+                      <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2737649/">
+                        PMC2737649
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      West GB, Brown JH. (2005). The origin of allometric
+                      scaling laws. <em>J Exp Biol.</em> 208:1575-1592.{" "}
+                      <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/15855389/">
+                        PMID: 15855389
+                      </ReferenceLink>
+                    </li>
+                  </ul>
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="bioavailability">
+                <AccordionTrigger className="hover:no-underline text-sm">
+                  Bioavailability & Administration Routes
+                </AccordionTrigger>
+                <AccordionContent>
+                  <ul className="space-y-2 text-sm">
+                    <li>
+                      Herman TF, Santos C. (2023). First-Pass Effect.{" "}
+                      <em>StatPearls</em>.{" "}
+                      <ReferenceLink href="https://www.ncbi.nlm.nih.gov/books/NBK551679/">
+                        NBK551679
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Drug Bioavailability. <em>StatPearls</em>.{" "}
+                      <ReferenceLink href="https://www.ncbi.nlm.nih.gov/books/NBK557852/">
+                        NBK557852
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Azman M, et al. (2023). The Bioavailability of
+                      Drugs&mdash;Current State. <em>Molecules.</em>{" "}
+                      28(24):8038.{" "}
+                      <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10745386/">
+                        PMC10745386
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Bittner B, et al. (2018). Subcutaneous Administration of
+                      Biotherapeutics. <em>BioDrugs.</em> 32(5):425-440.{" "}
+                      <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6182494/">
+                        PMC6182494
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      Hua S. (2019). Physiological Considerations for Rectal
+                      Drug Formulations. <em>Front Pharmacol.</em> 10:1196.{" "}
+                      <ReferenceLink href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6805701/">
+                        PMC6805701
+                      </ReferenceLink>
+                    </li>
+                    <li>
+                      de Boer AG, et al. (1979). Rectal bioavailability of
+                      lidocaine. <em>Clin Pharmacol Ther.</em> 26(6):701-709.{" "}
+                      <ReferenceLink href="https://pubmed.ncbi.nlm.nih.gov/498711/">
+                        PMID: 498711
+                      </ReferenceLink>
+                    </li>
+                  </ul>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
