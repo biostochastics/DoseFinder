@@ -329,11 +329,13 @@ guidance documents and seek expert advice for IND submissions.
       .writeText(text)
       .then(() => {
         setCopySuccess(true);
+        announce("Results copied to clipboard");
         setTimeout(() => setCopySuccess(false), 2000);
       })
       .catch(() => {
         // Clipboard write failed (permission denied or API unavailable)
         setCopySuccess(false);
+        announce("Failed to copy results to clipboard");
       });
   }, [
     result,
@@ -344,6 +346,7 @@ guidance documents and seek expert advice for IND submissions.
     modality,
     humanWeight,
     additionalSpecies,
+    announce,
   ]);
 
   // Export results to file

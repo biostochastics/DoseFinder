@@ -468,7 +468,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto flex flex-col items-center gap-2">
           <div className="flex items-center gap-3">
             <a
-              href="https://github.com"
+              href="https://github.com/biostochastics/DoseFinder"
               target="_blank"
               rel="noopener noreferrer"
               className="p-1.5 text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full hover:bg-muted/50"
