@@ -84,9 +84,7 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = React.memo(
               </p>
               {/* Live region for announcing dilution toggle changes */}
               <div className="sr-only" aria-live="polite" aria-atomic="true">
-                {showDilution
-                  ? "Dilution factor input is now visible"
-                  : "Dilution factor input is now hidden"}
+                {showDilution ? "Dilution factor input is now visible" : ""}
               </div>
             </div>
           </CardContent>
