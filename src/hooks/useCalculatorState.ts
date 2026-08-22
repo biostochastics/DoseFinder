@@ -107,7 +107,7 @@ const initialState: CalculatorState = {
   bioavailabilityMethod: "manual",
   kidneyFunctionMethod: "none",
   kidneyFunction: 100,
-  fractionExcretedRenal: 1.0, // Default: assume 100% renal clearance
+  fractionExcretedRenal: 0, // Default: no renal adjustment (opt-in safety - user must specify fe for renally-cleared drugs)
   patientAge: 40,
   patientCreatinine: 1,
   creatinineUnit: "mg/dL",
@@ -334,6 +334,20 @@ export function useCalculatorState() {
       );
     }
 
+    // Compute baseDose in mg/kg for display (normalized from whatever unit user entered)
+    const copyBaseDosePerKg =
+      state.doseInputUnit === "mg"
+        ? state.sourceWeight > 0
+          ? state.baseDose / state.sourceWeight
+          : 0
+        : state.baseDose;
+
+    // Format base dose with correct unit based on input type
+    const baseDoseDisplay =
+      state.doseInputUnit === "mg"
+        ? `${state.baseDose} mg total (${copyBaseDosePerKg.toFixed(4)} mg/kg equivalent)`
+        : `${state.baseDose} mg/kg`;
+
     const text = `DoseFinder Calculation Results
 Generated: ${new Date().toLocaleString()}
 
@@ -341,7 +355,7 @@ Basic Parameters:
 -----------------
 Source: ${animals[state.sourceAnimal].name} (${state.sourceWeight} kg)
 Target: ${animals[state.targetAnimal].name} (${state.targetWeight} kg)
-Base Dose: ${state.baseDose} mg/kg
+Base Dose: ${baseDoseDisplay}
 Calculated Dose: ${calculationSteps.calculatedDose.toFixed(4)} mg/kg
 ${
   state.showDilution && parseFloat(state.dilutionFactor) !== 1
@@ -372,10 +386,17 @@ appropriate regulatory guidelines. Consider drug-specific properties, disease
 state, and individual variability when applying these estimates.
 `;
 
-    navigator.clipboard.writeText(text).then(() => {
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    });
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      })
+      .catch((error) => {
+        // Clipboard write failed (permission denied or API unavailable)
+        console.error("Failed to copy to clipboard:", error);
+        setCopySuccess(false);
+      });
   }, [calculationSteps, state, animals]);
 
   const exportResults = useCallback(() => {
@@ -403,6 +424,20 @@ state, and individual variability when applying these estimates.
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 
+    // Compute baseDose in mg/kg for export (normalized from whatever unit user entered)
+    const exportBaseDosePerKg =
+      state.doseInputUnit === "mg"
+        ? state.sourceWeight > 0
+          ? state.baseDose / state.sourceWeight
+          : 0
+        : state.baseDose;
+
+    // Format base dose with correct unit based on input type
+    const exportBaseDoseDisplay =
+      state.doseInputUnit === "mg"
+        ? `${state.baseDose} mg total\nBase Dose (mg/kg equivalent): ${exportBaseDosePerKg.toFixed(4)} mg/kg`
+        : `${state.baseDose} mg/kg`;
+
     const exportText = `DoseFinder Dose Calculation Report
 =====================================
 Generated: ${new Date().toLocaleString()}
@@ -416,7 +451,7 @@ Source Weight: ${state.sourceWeight} kg
 Target Species: ${animals[state.targetAnimal].name}
 Target Weight: ${state.targetWeight} kg
 
-Base Dose (Known Dose): ${state.baseDose} mg/kg
+Base Dose (Known Dose): ${exportBaseDoseDisplay}
 
 SCALING CONFIGURATION
 =====================
@@ -492,19 +527,30 @@ through appropriate preclinical and clinical studies before human use.
     URL.revokeObjectURL(url);
   }, [calculationSteps, state, animals]);
 
-  const resultDose = calculationSteps?.calculatedDose || 0;
-  const uncertaintyRange = {
-    lower: resultDose * 0.7,
-    upper: resultDose * 1.3,
-  };
+  // Memoize derived values to prevent unnecessary recalculations
+  const resultDose = useMemo(
+    () => calculationSteps?.calculatedDose || 0,
+    [calculationSteps],
+  );
+
+  const uncertaintyRange = useMemo(
+    () => ({
+      lower: resultDose * 0.7,
+      upper: resultDose * 1.3,
+    }),
+    [resultDose],
+  );
 
   // Compute baseDose in mg/kg for display (normalized from whatever unit user entered)
-  const baseDosePerKg =
-    state.doseInputUnit === "mg"
-      ? state.sourceWeight > 0
-        ? state.baseDose / state.sourceWeight
-        : 0
-      : state.baseDose;
+  const baseDosePerKg = useMemo(
+    () =>
+      state.doseInputUnit === "mg"
+        ? state.sourceWeight > 0
+          ? state.baseDose / state.sourceWeight
+          : 0
+        : state.baseDose,
+    [state.doseInputUnit, state.sourceWeight, state.baseDose],
+  );
 
   // Handler for setting custom exponent value from UI input
   const setCustomExponentValue = useCallback((value: number) => {

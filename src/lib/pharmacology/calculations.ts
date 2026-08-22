@@ -19,6 +19,7 @@ import {
 } from "./types";
 import { SPECIES_DATABASE } from "./species";
 import { validateCalculationInputs } from "./validators";
+import { SCALING_EXPONENTS } from "./constants";
 
 /**
  * Convert creatinine between mg/dL and µmol/L
@@ -316,12 +317,19 @@ function calculateHepaticClearanceScaling(
 
 /**
  * Calculate BSA-based dose
+ *
+ * NOTE: BSA/Km scaling uses FDA reference weights and BSA values from species database,
+ * NOT user-entered weights. This is by design - the FDA 2005 guidance specifies exact
+ * Km factors based on reference body weights and BSA values in Table 1.
+ *
+ * If user-entered weights differ significantly from reference values, consider using
+ * allometric scaling which honors user-entered weights.
  */
 function calculateBSAScaling(
   sourceSpecies: Species,
   targetSpecies: Species,
   baseDose: number,
-): { dose: number; description: string; step: string } {
+): { dose: number; description: string; step: string; warning?: string } {
   const sourceBSA = sourceSpecies.bsa;
   const targetBSA = targetSpecies.bsa;
 
@@ -331,6 +339,7 @@ function calculateBSAScaling(
 
   // Calculate Km factors (Weight/BSA) per FDA guidance
   // Km is used for proper BSA-based interspecies dose conversion
+  // NOTE: Uses reference weights from species database, not user-entered weights
   const sourceKm = sourceSpecies.weight / sourceBSA;
   const targetKm = targetSpecies.weight / targetBSA;
 
@@ -348,6 +357,8 @@ function calculateBSAScaling(
     dose,
     description: "BSA-based scaling using Km factors (FDA method)",
     step,
+    warning:
+      "BSA/Km scaling uses FDA reference weights from species database. User-entered weight adjustments are not applied to Km factors.",
   };
 }
 
@@ -418,12 +429,15 @@ export function calculateDose(
       dose = bsaResult.dose;
       methodDescription = bsaResult.description;
       steps.push(bsaResult.step);
+      if (bsaResult.warning) {
+        warnings.push(bsaResult.warning);
+      }
     } else {
       // Calculate scaling factor based on method
       switch (method) {
         case "allometric": {
           const result = calculateAllometricScaling(
-            params.scalingExponent || 0.75,
+            params.scalingExponent || SCALING_EXPONENTS.METABOLIC,
           );
           scalingFactor = result.factor;
           methodDescription = result.description;
@@ -432,7 +446,7 @@ export function calculateDose(
         case "direct": {
           // Direct/Linear scaling uses exponent 1.0 → dose conversion exponent 0.0
           // This means mg/kg dose stays the same regardless of species weight
-          const result = calculateAllometricScaling(1.0);
+          const result = calculateAllometricScaling(SCALING_EXPONENTS.LINEAR);
           scalingFactor = result.factor;
           methodDescription =
             "Direct (linear) scaling: same mg/kg dose across species";
@@ -440,10 +454,10 @@ export function calculateDose(
         }
         case "metabolic": {
           // Metabolic rate scaling uses exponent 0.75 (Kleiber's law)
-          const result = calculateAllometricScaling(0.75);
+          const result = calculateAllometricScaling(SCALING_EXPONENTS.METABOLIC);
           scalingFactor = result.factor;
           methodDescription =
-            "Metabolic rate scaling (Kleiber's law, clearance exponent 0.75)";
+            `Metabolic rate scaling (Kleiber's law, clearance exponent ${SCALING_EXPONENTS.METABOLIC})`;
           break;
         }
         case "brainWeight": {
@@ -698,7 +712,7 @@ export function generateChartData(
   if (canInterpolate) {
     // Add interpolated points for smooth curve using corrected allometric formula
     // For mg/kg to mg/kg: (mg/kg)_target = (mg/kg)_source × (W_target/W_source)^(b-1)
-    const clearanceExponent = params.scalingExponent ?? 0.75;
+    const clearanceExponent = params.scalingExponent ?? SCALING_EXPONENTS.METABOLIC;
     const doseConversionExponent = clearanceExponent - 1; // -0.25 for standard 0.75
 
     for (let i = 0; i <= numPoints; i++) {

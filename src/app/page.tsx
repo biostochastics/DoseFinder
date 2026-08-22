@@ -455,7 +455,6 @@ export default function Home() {
 
                 <DoseChart
                   chartData={chartData}
-                  animals={animals}
                   scalingMethod={state.scalingMethod}
                   isDarkMode={isDarkMode}
                 />

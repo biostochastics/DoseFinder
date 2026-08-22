@@ -12,7 +12,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Species, ChartDataPoint } from "@/lib/pharmacology/types";
+import { ChartDataPoint } from "@/lib/pharmacology/types";
 
 interface ExtendedChartDataPoint extends ChartDataPoint {
   dilutedDose?: number;
@@ -28,10 +28,19 @@ interface DotProps {
 
 interface DoseChartProps {
   chartData: ExtendedChartDataPoint[];
-  animals: Record<string, Species>;
   scalingMethod: string;
   isDarkMode: boolean;
 }
+
+/**
+ * Abbreviate long species names so categorical axis ticks fit without overlap.
+ */
+const abbreviateSpecies = (name: string) => {
+  if (name === "Cynomolgus Monkey") return "Cyno";
+  if (name === "Rhesus Macaque") return "Rhesus";
+  if (name === "Guinea Pig") return "G.Pig";
+  return name;
+};
 
 /**
  * Theme-aware color palette for chart elements
@@ -53,12 +62,24 @@ const getChartColors = (isDarkMode: boolean) => ({
 });
 
 export const DoseChart: React.FC<DoseChartProps> = React.memo(
-  ({ chartData, animals, scalingMethod, isDarkMode }) => {
+  ({ chartData, scalingMethod, isDarkMode }) => {
     // Memoize colors to avoid recalculating on every render
     const colors = useMemo(() => getChartColors(isDarkMode), [isDarkMode]);
 
+    // One point per species, ordered by body weight, keyed by species name.
+    // Keying the X-axis on the species name (rather than weight) keeps species
+    // that share a weight — e.g. Human and Pig at 70 kg, or Monkey and
+    // Cynomolgus Monkey at 5 kg — as distinct, separately labelled points.
+    const speciesData = useMemo(
+      () =>
+        chartData
+          .filter((d) => d.isAnimal && d.label)
+          .sort((a, b) => a.weight - b.weight),
+      [chartData],
+    );
+
     // Generate accessible description for the chart
-    const chartDescription = `Dose scaling chart showing calculated doses across different species weights using ${scalingMethod} scaling method. The chart displays dose values in milligrams on the Y-axis against body weight in kilograms on the X-axis using a logarithmic scale.`;
+    const chartDescription = `Dose scaling chart showing calculated doses across different species using ${scalingMethod} scaling method. The chart displays dose values in milligrams per kilogram on the Y-axis against species (ordered by increasing body weight) on the X-axis.`;
 
     return (
       <Card className="min-h-[700px]">
@@ -82,7 +103,7 @@ export const DoseChart: React.FC<DoseChartProps> = React.memo(
                   .filter((d) => d.isAnimal && d.label)
                   .map(
                     (d) =>
-                      `${d.label}: ${d.dose.toFixed(2)} mg at ${d.weight} kg`,
+                      `${d.label}: ${d.dose.toFixed(2)} mg/kg at ${d.weight} kg`,
                   )
                   .join("; ")}.`}
             </p>
@@ -98,9 +119,9 @@ export const DoseChart: React.FC<DoseChartProps> = React.memo(
                 <tr>
                   <th scope="col">Species</th>
                   <th scope="col">Weight (kg)</th>
-                  <th scope="col">Dose (mg)</th>
+                  <th scope="col">Dose (mg/kg)</th>
                   {chartData.some((d) => d.dilutedDose !== undefined) && (
-                    <th scope="col">Diluted Dose (mg)</th>
+                    <th scope="col">Diluted Dose (mg/kg)</th>
                   )}
                 </tr>
               </thead>
@@ -122,52 +143,14 @@ export const DoseChart: React.FC<DoseChartProps> = React.memo(
             </table>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
-                data={chartData}
+                data={speciesData}
                 margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
                 <XAxis
-                  dataKey="weight"
-                  type="number"
-                  scale="log"
-                  domain={[0.01, 1000]}
-                  allowDuplicatedCategory={true}
-                  ticks={[
-                    ...new Set(
-                      chartData
-                        .filter((point) => point.isAnimal)
-                        .map((point) => point.weight),
-                    ),
-                  ]}
-                  tickFormatter={(value) => {
-                    // Find all animals at this weight
-                    const animalsAtWeight = Object.entries(animals).filter(
-                      ([, data]) => Math.abs(data.weight - value) < 1e-10,
-                    );
-
-                    if (animalsAtWeight.length > 0) {
-                      // Abbreviate species names for better fit
-                      const abbreviate = (name: string) => {
-                        if (name === "Cynomolgus Monkey") return "Cyno";
-                        if (name === "Rhesus Macaque") return "Rhesus";
-                        if (name === "Guinea Pig") return "G.Pig";
-                        return name;
-                      };
-
-                      // If multiple species at same weight, show abbreviated combined label
-                      if (animalsAtWeight.length > 1) {
-                        return animalsAtWeight
-                          .map(([, data]) => abbreviate(data.name))
-                          .join("/");
-                      }
-                      return abbreviate(animalsAtWeight[0][1].name);
-                    }
-
-                    const point = chartData.find(
-                      (p) => p.isAnimal && Math.abs(p.weight - value) < 1e-10,
-                    );
-                    return point?.label || value.toExponential(1);
-                  }}
+                  dataKey="label"
+                  type="category"
+                  tickFormatter={(value: string) => abbreviateSpecies(value)}
                   tick={{
                     fill: colors.text,
                     fontSize: 10,
@@ -182,7 +165,7 @@ export const DoseChart: React.FC<DoseChartProps> = React.memo(
                 <YAxis
                   type="number"
                   domain={["auto", "auto"]}
-                  tickFormatter={(value) => `${value.toFixed(1)} mg`}
+                  tickFormatter={(value) => `${value.toFixed(1)} mg/kg`}
                   tick={{
                     fill: colors.text,
                     fontSize: 12,
@@ -202,14 +185,14 @@ export const DoseChart: React.FC<DoseChartProps> = React.memo(
                     fontSize: "0.875rem",
                   }}
                   formatter={(value: number) => [
-                    `${value.toFixed(2)} mg`,
+                    `${value.toFixed(2)} mg/kg`,
                     "Dose",
                   ]}
-                  labelFormatter={(weight: number) => {
-                    const point = chartData.find((p) => {
-                      return p.isAnimal && Math.abs(p.weight - weight) < 1e-10;
-                    });
-                    return `Weight: ${weight.toFixed(2)} kg${point?.label ? ` (${point.label})` : ""}`;
+                  labelFormatter={(label: string) => {
+                    const point = speciesData.find((p) => p.label === label);
+                    return point
+                      ? `${point.label} (${point.weight.toFixed(2)} kg)`
+                      : String(label);
                   }}
                 />
                 <Legend
@@ -240,7 +223,7 @@ export const DoseChart: React.FC<DoseChartProps> = React.memo(
                     );
                   }}
                 />
-                {chartData.some(
+                {speciesData.some(
                   (d) => d.dilutedDose !== undefined && d.dilutedDose !== null,
                 ) && (
                   <Line

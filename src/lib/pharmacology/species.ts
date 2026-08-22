@@ -203,15 +203,19 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     bsa: 7.1, // BSA calculated using 0.1 × W^(2/3) formula for 600kg cow
   },
   human: {
+    // NOTE: This database uses 70 kg as the human reference weight (physiological average adult)
+    // for general allometric dose scaling. The FDA 2005 Guidance uses 60 kg as the regulatory
+    // reference weight for HED/MRSD calculations. The FIH Calculator correctly uses 60 kg.
+    // See FDA_REFERENCE_WEIGHTS in constants.ts for regulatory reference values.
     name: "Human",
-    weight: 70,
+    weight: 70, // Physiological average adult; FDA regulatory reference is 60 kg
     brainWeight: 1350.0,
     lifeSpan: 80,
     hepaticFlow: 20.7,
     allometricExponent: 0.75,
     hepaticClearance: 15,
     renalClearance: 1.5,
-    bsa: 1.9,
+    bsa: 1.9, // BSA for 70 kg adult; FDA uses 1.62 m² for 60 kg
   },
   // Additional species commonly used in pharmaceutical research
   gerbil: {
