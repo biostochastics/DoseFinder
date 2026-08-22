@@ -63,6 +63,10 @@ import {
   VolumeWarningBadge,
 } from "@/components/VolumeWarning";
 
+// Fallback body weight (kg) used when a target species has no weight on record.
+// Matches the physiological adult human reference used elsewhere in the app.
+const DEFAULT_HUMAN_WEIGHT_KG = 70;
+
 interface ArmConfig {
   name: string;
   species: string;
@@ -136,7 +140,6 @@ interface StudyPlannerProps {
   animals: Record<string, Species>;
   currentDose: number;
   currentDoseUnit: "mg/kg" | "mg";
-  sourceAnimal: string;
   targetAnimal: string;
 }
 
@@ -144,7 +147,6 @@ export function StudyPlanner({
   animals,
   currentDose,
   currentDoseUnit,
-  sourceAnimal, // eslint-disable-line @typescript-eslint/no-unused-vars
   targetAnimal,
 }: StudyPlannerProps) {
   // Accessibility: Screen reader announcements for dynamic content
@@ -581,7 +583,9 @@ export function StudyPlanner({
       const baseProduct = dosePerSubjectMg * baseDoses;
       const bufferProduct = dosePerSubjectMg * bufferDoses;
       const totalProduct = baseProduct + bufferProduct;
-      const wasteAllowance = totalProduct * (overagePercent / 100);
+      // Clamp overage: a cleared/negative field must not poison the totals with NaN
+      const wasteAllowance =
+        totalProduct * (Math.max(0, overagePercent || 0) / 100);
 
       return {
         name: `${arm.name} (${comparatorDetails.name})`,
@@ -691,7 +695,9 @@ export function StudyPlanner({
     const baseProduct = dosePerSubjectMg * baseDoses;
     const bufferProduct = dosePerSubjectMg * bufferDoses;
     const totalProduct = baseProduct + bufferProduct;
-    const wasteAllowance = totalProduct * (overagePercent / 100);
+    // Clamp overage: a cleared/negative field must not poison the totals with NaN
+    const wasteAllowance =
+      totalProduct * (Math.max(0, overagePercent || 0) / 100);
     const grandTotal = totalProduct + wasteAllowance;
 
     return {
@@ -789,7 +795,8 @@ export function StudyPlanner({
   // Copy dose from calculator
   const copyDoseFromCalculator = (index: number) => {
     const updatedArms = [...arms];
-    const targetWeight = animals[targetAnimal]?.weight || 70;
+    const targetWeight =
+      animals[targetAnimal]?.weight || DEFAULT_HUMAN_WEIGHT_KG;
 
     // Update the arm with the current dose
     // currentDose is in mg/kg from the calculator
@@ -806,7 +813,8 @@ export function StudyPlanner({
 
   // Create a new arm with calculator dose
   const createArmWithCalculatorDose = () => {
-    const targetWeight = animals[targetAnimal]?.weight || 70;
+    const targetWeight =
+      animals[targetAnimal]?.weight || DEFAULT_HUMAN_WEIGHT_KG;
 
     // Create a new arm with the current dose
     // currentDose is in mg/kg from the calculator
@@ -1291,7 +1299,10 @@ calculations in actual studies.
                         <h4 className="font-medium">Calculator Dose</h4>
                         <p className="text-sm">
                           Species: {animals[targetAnimal]?.name || targetAnimal}
-                          , {animals[targetAnimal]?.weight || 70} kg
+                          ,{" "}
+                          {animals[targetAnimal]?.weight ||
+                            DEFAULT_HUMAN_WEIGHT_KG}{" "}
+                          kg
                         </p>
                         <p className="text-sm">
                           Current dose: {currentDose.toFixed(3)}{" "}
@@ -1302,7 +1313,8 @@ calculations in actual studies.
                               (
                               {(
                                 currentDose *
-                                (animals[targetAnimal]?.weight || 70)
+                                (animals[targetAnimal]?.weight ||
+                                  DEFAULT_HUMAN_WEIGHT_KG)
                               ).toFixed(3)}{" "}
                               mg total)
                             </>
@@ -1528,6 +1540,7 @@ calculations in actual studies.
                   <div>
                     <Label>Comparator Name</Label>
                     <Input
+                      aria-label="Comparator name"
                       value={
                         arm.comparatorDetails?.name || "Standard Comparator"
                       }
@@ -1555,6 +1568,7 @@ calculations in actual studies.
                     <div className="flex items-center space-x-2">
                       <Input
                         type="number"
+                        aria-label="Comparator concentration"
                         value={arm.comparatorDetails?.concentration || 10}
                         onChange={(e) => {
                           const updatedArms = [...arms];
@@ -1597,7 +1611,10 @@ calculations in actual studies.
                           setArms(updatedArms);
                         }}
                       >
-                        <SelectTrigger className="w-24">
+                        <SelectTrigger
+                          className="w-24"
+                          aria-label="Comparator concentration unit"
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1628,7 +1645,7 @@ calculations in actual studies.
                       )
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger aria-label="Dosing frequency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1649,6 +1666,7 @@ calculations in actual studies.
                     <div className="flex items-center space-x-2">
                       <Input
                         type="number"
+                        aria-label="Number of doses per period"
                         value={arm.customFrequency.doses}
                         onChange={(e) =>
                           updateArmNestedValue(
@@ -1664,6 +1682,7 @@ calculations in actual studies.
                       <span>per</span>
                       <Input
                         type="number"
+                        aria-label="Period length"
                         value={arm.customFrequency.period}
                         onChange={(e) =>
                           updateArmNestedValue(
@@ -1687,7 +1706,7 @@ calculations in actual studies.
                           )
                         }
                       >
-                        <SelectTrigger>
+                        <SelectTrigger aria-label="Period unit">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1906,6 +1925,7 @@ calculations in actual studies.
                         <div className="flex items-center space-x-2">
                           <Input
                             type="number"
+                            aria-label={`Dilution factor for step ${dIndex + 1}`}
                             value={dilution.factor}
                             onChange={(e) => {
                               const value = Number(e.target.value);
@@ -1935,7 +1955,10 @@ calculations in actual studies.
                               )
                             }
                           >
-                            <SelectTrigger className="w-24">
+                            <SelectTrigger
+                              className="w-24"
+                              aria-label={`Dilution vehicle for step ${dIndex + 1}`}
+                            >
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -2129,7 +2152,15 @@ calculations in actual studies.
                   <TableBody>
                     <TableRow>
                       <TableCell className="font-medium">Base Study</TableCell>
-                      <TableCell>{baseDosesTotal}</TableCell>
+                      <TableCell>
+                        {armRequirements
+                          .filter((_, i) => arms[i].armType === "treatment")
+                          .reduce(
+                            (sum, r) =>
+                              sum + (r.materialBreakdown?.baseDoses ?? 0),
+                            0,
+                          )}
+                      </TableCell>
                       <TableCell>
                         {armRequirements
                           .filter((_, i) => arms[i].armType === "treatment")
@@ -2148,7 +2179,15 @@ calculations in actual studies.
                       <TableCell className="font-medium">
                         Stability Buffer
                       </TableCell>
-                      <TableCell>{bufferDosesTotal}</TableCell>
+                      <TableCell>
+                        {armRequirements
+                          .filter((_, i) => arms[i].armType === "treatment")
+                          .reduce(
+                            (sum, r) =>
+                              sum + (r.materialBreakdown?.bufferDoses ?? 0),
+                            0,
+                          )}
+                      </TableCell>
                       <TableCell>
                         {armRequirements
                           .filter((_, i) => arms[i].armType === "treatment")
@@ -2184,7 +2223,17 @@ calculations in actual studies.
                     </TableRow>
                     <TableRow className="font-bold bg-primary/10">
                       <TableCell>Grand Total</TableCell>
-                      <TableCell>{totalDoses}</TableCell>
+                      <TableCell>
+                        {armRequirements
+                          .filter((_, i) => arms[i].armType === "treatment")
+                          .reduce(
+                            (sum, r) =>
+                              sum +
+                              (r.materialBreakdown?.baseDoses ?? 0) +
+                              (r.materialBreakdown?.bufferDoses ?? 0),
+                            0,
+                          )}
+                      </TableCell>
                       <TableCell>
                         {armRequirements
                           .filter((_, i) => arms[i].armType === "treatment")

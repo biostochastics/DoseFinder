@@ -417,7 +417,6 @@ export default function Home() {
                     animals={animals}
                     currentDose={resultDose}
                     currentDoseUnit="mg/kg"
-                    sourceAnimal={state.sourceAnimal}
                     targetAnimal={state.targetAnimal}
                   />
                 </TabsContent>

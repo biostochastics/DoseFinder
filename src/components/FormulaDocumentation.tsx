@@ -45,12 +45,19 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">Most Common</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <Formula altText="Target dose equals source dose times the ratio of target weight to source weight, raised to the power b">
-                  {String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \left(\frac{W_{\text{target}}}{W_{\text{source}}}\right)^b`}
+                <Formula altText="Target per-kilogram dose equals source per-kilogram dose times the ratio of target weight to source weight, raised to the power b minus 1">
+                  {String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \left(\frac{W_{\text{target}}}{W_{\text{source}}}\right)^{b-1}`}
                 </Formula>
                 <p>
-                  where <Math altText="b">b</Math> is the allometric exponent
-                  (typically <Math altText="0.75">0.75</Math>)
+                  where <Math altText="b">b</Math> is the allometric (clearance)
+                  exponent (typically <Math altText="0.75">0.75</Math>). Doses
+                  in DoseFinder are expressed per kilogram (mg/kg), so the
+                  dose-conversion exponent is{" "}
+                  <Math altText="b minus 1">{String.raw`b-1`}</Math> (e.g.{" "}
+                  <Math altText="negative 0.25">{String.raw`-0.25`}</Math> when{" "}
+                  <Math altText="b equals 0.75">{String.raw`b = 0.75`}</Math>).
+                  Total dose (mg) scales with exponent{" "}
+                  <Math altText="b">b</Math>.
                 </p>
                 <p className="text-muted-foreground">
                   <strong>Basis:</strong> Metabolic rate scales with body mass
@@ -189,14 +196,17 @@ export function FormulaDocumentation() {
                 <Badge variant="outline">Oncology Standard</Badge>
               </div>
               <div className="space-y-2 text-sm">
-                <Formula altText="Target dose equals source dose times target BSA divided by source BSA">
-                  {String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \frac{\text{BSA}_{\text{target}}}{\text{BSA}_{\text{source}}}`}
+                <Formula altText="Target per-kilogram dose equals source per-kilogram dose times the ratio of source Km to target Km">
+                  {String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \frac{\text{Km}_{\text{source}}}{\text{Km}_{\text{target}}}`}
                 </Formula>
                 <p>
-                  BSA (Du Bois formula):{" "}
-                  <Math altText="BSA in square meters approximately equals 0.007184 times weight to the 0.425 power times height to the 0.725 power">
-                    {String.raw`\text{BSA (m}^2\text{)} \approx 0.007184 \times W^{0.425} \times H^{0.725}`}
-                  </Math>
+                  where <Math altText="Km">Km</Math> is the FDA
+                  body-surface-area normalization factor{" "}
+                  <Math altText="Km equals weight divided by BSA">
+                    {String.raw`\text{Km} = W / \text{BSA}`}
+                  </Math>{" "}
+                  (mg/kg dosing). DoseFinder uses the FDA 2005 reference weights
+                  and BSA values for this method, not user-entered weights.
                 </p>
                 <p className="text-muted-foreground">
                   <strong>Basis:</strong> BSA correlates with many physiological
