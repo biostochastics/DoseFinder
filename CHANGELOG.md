@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.8] - 2026-08-21
+
+### Fixed
+
+- **Study Planner: "Number of Arms" Desync**: the arm count is now derived from the actual arm list and shown read-only; it previously let you type a number that changed a counter without adding or removing arm cards (and the export printed that stale counter)
+- **Study Planner: List Item Identity**: arm cards, dilution steps, and result rows are now keyed by a stable id instead of array index, so removing an item no longer bleeds input state (weights, dose levels, dilution factors) onto the wrong row
+- **Study Planner: Weight Preservation**: removed an effect that reset every arm's weight to the species default whenever the species list changed, which could silently discard a manually entered weight; weights are now set only at arm creation and when that arm's species changes
+- **Study Planner: Buffer-Dose Rounding**: stability-buffer doses are now computed from the same per-day dosing rate as the base doses instead of dividing an already-rounded base total back out, removing an occasional off-by-one drift for fractional-frequency schedules
+
+### Changed
+
+- **Study Planner: Dilution Factor Input**: accepts free typing (so the field can be cleared and retyped), shows an inline "must be between 1 and 1000×" hint while out of range, and clamps to that range on blur — previously out-of-range input was silently ignored with no feedback
+- **Study Planner: Placebo Volume Note**: replaced a misleading comment promising matched-treatment-arm logic that did not exist with an accurate note that placebo administration (vehicle) volume is not derived from a concentration and is reported as not applicable
+- **Study Planner: Code Quality**: extracted a shared `computeDosesPerDay` helper and `DAYS_PER_UNIT` / `MAX_DILUTION_FACTOR` constants, removing duplicated dosing-schedule logic and inline magic numbers
+
 ## [0.9.7] - 2026-08-21
 
 ### Fixed

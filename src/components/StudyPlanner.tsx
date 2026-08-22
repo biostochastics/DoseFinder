@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useAnnounce, LiveRegion } from "@/hooks/useAnnounce";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,6 +68,7 @@ import {
 const DEFAULT_HUMAN_WEIGHT_KG = 70;
 
 interface ArmConfig {
+  id: string;
   name: string;
   species: string;
   subjects: number;
@@ -93,12 +94,14 @@ interface ArmConfig {
 }
 
 interface DilutionStep {
+  id: string;
   factor: number;
   vehicle: "saline" | "water" | "pbs" | "custom";
   customVehicle?: string;
 }
 
 interface ArmRequirement {
+  id: string;
   name: string;
   subjects: number;
   dosePerSubject: number;
@@ -118,6 +121,55 @@ interface ArmRequirement {
   volumeValidation?: VolumeValidationResult;
   /** Detailed material requirements with base/buffer breakdown */
   materialBreakdown?: MaterialRequirement;
+}
+
+// Average days per duration/frequency unit (30.44 = mean month length).
+const DAYS_PER_UNIT: Record<string, number> = {
+  days: 1,
+  weeks: 7,
+  months: 30.44,
+};
+
+// Largest dilution factor accepted per step.
+const MAX_DILUTION_FACTOR = 1000;
+
+// Monotonic id generator for arm/dilution list keys. Stable per created item so
+// React reconciles by identity rather than array position (avoids input-state
+// bleed when a row is removed). Keys are never serialized, so the counter is
+// safe across SSR/hydration.
+let uidCounter = 0;
+const makeId = (prefix: string): string => `${prefix}-${uidCounter++}`;
+
+/**
+ * Doses administered per day for an arm's schedule, unrounded.
+ * Kept separate from subject/duration math so both the base-study and
+ * stability-buffer dose counts derive from the same per-day rate (no rounding
+ * drift from dividing a already-ceil'd total back out).
+ */
+function computeDosesPerDay(arm: ArmConfig): number {
+  switch (arm.frequency) {
+    case "once":
+      return 1;
+    case "twice":
+      return 2;
+    case "thrice":
+      return 3;
+    case "weekly":
+      return 1 / 7;
+    case "biweekly":
+      return 1 / 14;
+    case "monthly":
+      return 1 / 30.44;
+    case "custom": {
+      const safePeriod = Math.max(1, arm.customFrequency.period || 1);
+      const safeDoses = Math.max(0, arm.customFrequency.doses || 0);
+      const periodInDays =
+        safePeriod * (DAYS_PER_UNIT[arm.customFrequency.unit] ?? 1);
+      return periodInDays > 0 ? safeDoses / periodInDays : 0;
+    }
+    default:
+      return 0;
+  }
 }
 
 /**
@@ -154,13 +206,13 @@ export function StudyPlanner({
 
   // Study Design State
   const [studyType, setStudyType] = useState<string>("preclinical");
-  const [numArms, setNumArms] = useState<number>(1);
   const [overageFactor, setOverageFactor] = useState<number>(15);
   const [stabilityBuffer, setStabilityBuffer] = useState<number>(7);
 
   // Arms State
   const [arms, setArms] = useState<ArmConfig[]>([
     {
+      id: makeId("arm"),
       name: "Dose Group 1",
       species: "mouse",
       subjects: 10,
@@ -189,6 +241,7 @@ export function StudyPlanner({
   const [useDilutions, setUseDilutions] = useState<boolean>(false);
   const [dilutions, setDilutions] = useState<DilutionStep[]>([
     {
+      id: makeId("dil"),
       factor: 10,
       vehicle: "saline",
     },
@@ -210,29 +263,10 @@ export function StudyPlanner({
     new Date().toISOString().split("T")[0],
   );
 
-  // Update species weight when species changes
-  // We use a ref to avoid infinite loops
-  const firstRender = React.useRef(true);
-  useEffect(() => {
-    // Skip on first render to avoid overriding initial state
-    if (firstRender.current) {
-      firstRender.current = false;
-      return;
-    }
-
-    // Use functional state update to avoid dependency on arms
-    setArms((prevArms) =>
-      prevArms.map((arm) => {
-        if (animals[arm.species]) {
-          return {
-            ...arm,
-            weight: animals[arm.species].weight,
-          };
-        }
-        return arm;
-      }),
-    );
-  }, [animals]); // Only depend on animals, not arms
+  // Note: an arm's weight is set from the species default at creation and
+  // whenever the user changes that arm's species (see updateArm). We deliberately
+  // do NOT bulk-reset weights when the `animals` prop changes, which would
+  // silently discard any weight the user typed.
 
   // Counter map for efficient name generation
   const nameCounters = {
@@ -269,6 +303,7 @@ export function StudyPlanner({
     }
 
     const newArm: ArmConfig = {
+      id: makeId("arm"),
       name: newName,
       species: "mouse",
       subjects: 10,
@@ -296,7 +331,6 @@ export function StudyPlanner({
     }
 
     setArms([...arms, newArm]);
-    setNumArms(numArms + 1);
     announce(`Added ${type} arm: ${newName}`);
   };
 
@@ -307,7 +341,6 @@ export function StudyPlanner({
       const updatedArms = [...arms];
       updatedArms.splice(index, 1);
       setArms(updatedArms);
-      setNumArms(numArms - 1);
       announce(`Removed arm: ${removedName}`);
     }
   };
@@ -379,6 +412,7 @@ export function StudyPlanner({
     setDilutions([
       ...dilutions,
       {
+        id: makeId("dil"),
         factor: 10,
         vehicle: "saline",
       },
@@ -419,16 +453,9 @@ export function StudyPlanner({
    * Includes validation to prevent division by zero and handle edge cases.
    */
   const calculateTotalDoses = (arm: ArmConfig): number => {
-    const daysPerUnit: Record<string, number> = {
-      days: 1,
-      weeks: 7,
-      months: 30.44, // Average month length for more accurate calculations
-    };
-
     // Validate duration - ensure positive value
     const safeDuration = Math.max(0, arm.duration || 0);
-    const unitMultiplier = daysPerUnit[arm.durationUnit] ?? 1;
-    const totalDays = safeDuration * unitMultiplier;
+    const totalDays = safeDuration * (DAYS_PER_UNIT[arm.durationUnit] ?? 1);
 
     // Validate subjects - ensure at least 0
     const safeSubjects = Math.max(0, arm.subjects || 0);
@@ -437,25 +464,7 @@ export function StudyPlanner({
       return 0;
     }
 
-    // Calculate doses per day with validation
-    let dosesPerDay = 0;
-    if (arm.frequency === "once") dosesPerDay = 1;
-    else if (arm.frequency === "twice") dosesPerDay = 2;
-    else if (arm.frequency === "thrice") dosesPerDay = 3;
-    else if (arm.frequency === "weekly") dosesPerDay = 1 / 7;
-    else if (arm.frequency === "biweekly") dosesPerDay = 1 / 14;
-    else if (arm.frequency === "monthly")
-      dosesPerDay = 1 / 30.44; // Use consistent month length
-    else if (arm.frequency === "custom") {
-      // Validate custom frequency parameters to prevent division by zero
-      const safePeriod = Math.max(1, arm.customFrequency.period || 1);
-      const safeDoses = Math.max(0, arm.customFrequency.doses || 0);
-      const customUnitMultiplier = daysPerUnit[arm.customFrequency.unit] ?? 1;
-      const periodInDays = safePeriod * customUnitMultiplier;
-
-      // Prevent division by zero
-      dosesPerDay = periodInDays > 0 ? safeDoses / periodInDays : 0;
-    }
+    const dosesPerDay = computeDosesPerDay(arm);
 
     // Handle edge case where dosesPerDay is 0 or invalid
     if (dosesPerDay <= 0 || !isFinite(dosesPerDay)) {
@@ -484,29 +493,15 @@ export function StudyPlanner({
     // Calculate base doses (for study period)
     const baseDoses = calculateTotalDoses(arm);
 
-    // Calculate buffer doses (for stability buffer period)
-    // Buffer is additional doses for the stability buffer period
-    const daysPerUnit: Record<string, number> = {
-      days: 1,
-      weeks: 7,
-      months: 30.44,
-    };
-
-    // Validate duration and subjects to prevent division by zero
-    const safeDuration = Math.max(0, arm.duration || 0);
-    const unitMultiplier = daysPerUnit[arm.durationUnit] ?? 1;
-    const studyDurationDays = safeDuration * unitMultiplier;
-    const safeSubjects = Math.max(1, arm.subjects || 1);
+    // Calculate buffer doses (for the stability-buffer period) from the same
+    // per-day rate as the base doses, so the count is not distorted by dividing
+    // an already-rounded base total back out.
+    const safeSubjects = Math.max(0, arm.subjects || 0);
     const safeBufferDays = Math.max(0, bufferDays || 0);
-
-    // Calculate doses per day with division by zero protection
-    let dosesPerDay = 0;
-    if (studyDurationDays > 0 && safeSubjects > 0 && baseDoses > 0) {
-      dosesPerDay = baseDoses / studyDurationDays / safeSubjects;
-    }
+    const dosesPerDay = computeDosesPerDay(arm);
 
     const bufferDoses =
-      isFinite(dosesPerDay) && dosesPerDay > 0
+      isFinite(dosesPerDay) && dosesPerDay > 0 && safeSubjects > 0
         ? Math.ceil(safeBufferDays * dosesPerDay * safeSubjects)
         : 0;
     const totalDoses = baseDoses + bufferDoses;
@@ -515,6 +510,7 @@ export function StudyPlanner({
     if (arm.armType === "placebo") {
       // Placebo arms don't require active product (no volume validation needed)
       return {
+        id: arm.id,
         name: arm.name,
         subjects: arm.subjects,
         dosePerSubject: 0,
@@ -522,7 +518,11 @@ export function StudyPlanner({
         totalDoses,
         productRequired: 0,
         productUnit: "mg",
-        adminVolume: 0, // This will be calculated based on matched treatment arm
+        // Placebo contains no active compound, so there is no concentration to
+        // derive an administration volume from. The vehicle (dosing) volume
+        // should be matched to the paired treatment arm during preparation and
+        // is therefore reported as not applicable here.
+        adminVolume: 0,
         dilutionSteps: [],
         volumeValidation: undefined,
         materialBreakdown: {
@@ -588,6 +588,7 @@ export function StudyPlanner({
         totalProduct * (Math.max(0, overagePercent || 0) / 100);
 
       return {
+        id: arm.id,
         name: `${arm.name} (${comparatorDetails.name})`,
         subjects: arm.subjects,
         dosePerSubject: dosePerSubjectMg,
@@ -665,8 +666,12 @@ export function StudyPlanner({
         : 0;
 
     for (const dilution of dilutionSteps) {
-      // Validate dilution factor (must be > 0 to prevent division by zero)
-      const safeDilutionFactor = Math.max(1, dilution.factor || 1);
+      // Clamp the dilution factor to [1, MAX] to prevent division by zero and
+      // runaway volumes from an out-of-range entry.
+      const safeDilutionFactor = Math.min(
+        MAX_DILUTION_FACTOR,
+        Math.max(1, dilution.factor || 1),
+      );
 
       const startVolume = currentVolume;
       const addedVolume = startVolume * (safeDilutionFactor - 1);
@@ -701,6 +706,7 @@ export function StudyPlanner({
     const grandTotal = totalProduct + wasteAllowance;
 
     return {
+      id: arm.id,
       name: arm.name,
       subjects: arm.subjects,
       dosePerSubject: dosePerSubjectMg,
@@ -819,6 +825,7 @@ export function StudyPlanner({
     // Create a new arm with the current dose
     // currentDose is in mg/kg from the calculator
     const newArm: ArmConfig = {
+      id: makeId("arm"),
       name: `${animals[targetAnimal]?.name || targetAnimal} Dose`,
       species: targetAnimal,
       subjects: 10,
@@ -837,7 +844,6 @@ export function StudyPlanner({
     };
 
     setArms([...arms, newArm]);
-    setNumArms(numArms + 1);
   };
 
   // Helper to format frequency for export
@@ -871,7 +877,7 @@ Export ID: ${timestamp}
 STUDY DESIGN
 ============
 Study Type: ${studyType === "preclinical" ? "Preclinical" : studyType === "phase1" ? "Clinical Phase I" : studyType === "phase2" ? "Clinical Phase II" : "Clinical Phase III"}
-Number of Arms: ${numArms}
+Number of Arms: ${arms.length}
 Overage Factor: ${overageFactor}%
 Stability Buffer: ${stabilityBuffer} days
 
@@ -1154,11 +1160,11 @@ calculations in actual studies.
                   <Input
                     id="num-arms"
                     type="number"
-                    value={numArms}
-                    onChange={(e) => setNumArms(Number(e.target.value))}
-                    min={1}
-                    className="w-24"
+                    value={arms.length}
+                    readOnly
+                    className="w-24 bg-muted/50"
                     aria-describedby="arms-description"
+                    aria-label="Number of arms (use the add and remove buttons to change)"
                   />
                   <Button
                     variant="outline"
@@ -1271,7 +1277,7 @@ calculations in actual studies.
 
       {/* Arm Configuration Section */}
       {arms.map((arm, index) => (
-        <Card key={index}>
+        <Card key={arm.id}>
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
@@ -1915,7 +1921,7 @@ calculations in actual studies.
 
                   {dilutions.map((dilution, dIndex) => (
                     <div
-                      key={dIndex}
+                      key={dilution.id}
                       className="grid grid-cols-4 gap-4 items-center"
                     >
                       <div className="col-span-1">
@@ -1928,19 +1934,27 @@ calculations in actual studies.
                             aria-label={`Dilution factor for step ${dIndex + 1}`}
                             value={dilution.factor}
                             onChange={(e) => {
+                              // Accept free typing (including transient
+                              // out-of-range values so the field can be
+                              // retyped); the value is clamped on blur and at
+                              // calculation time.
                               const value = Number(e.target.value);
-                              const MAX_DILUTION_FACTOR = 1000; // Maximum allowed dilution factor
-                              // Only update if value is valid; invalid values are silently ignored
-                              // The input's min attribute provides visual feedback for invalid values
-                              if (
-                                !isNaN(value) &&
-                                value >= 1 &&
-                                value <= MAX_DILUTION_FACTOR
-                              ) {
+                              if (!Number.isNaN(value)) {
                                 updateDilution(dIndex, "factor", value);
                               }
                             }}
+                            onBlur={() =>
+                              updateDilution(
+                                dIndex,
+                                "factor",
+                                Math.min(
+                                  MAX_DILUTION_FACTOR,
+                                  Math.max(1, dilution.factor || 1),
+                                ),
+                              )
+                            }
                             min={1}
+                            max={MAX_DILUTION_FACTOR}
                             step="0.01"
                             className="w-24"
                           />
@@ -1969,6 +1983,13 @@ calculations in actual studies.
                             </SelectContent>
                           </Select>
                         </div>
+                        {(dilution.factor < 1 ||
+                          dilution.factor > MAX_DILUTION_FACTOR) && (
+                          <p className="text-xs text-warning mt-1">
+                            Must be between 1 and {MAX_DILUTION_FACTOR}× — will
+                            be clamped when you leave the field.
+                          </p>
+                        )}
                       </div>
                       <div className="col-span-1 flex justify-end">
                         <Button
@@ -2281,7 +2302,7 @@ calculations in actual studies.
 
                     return (
                       <TableRow
-                        key={index}
+                        key={req.id}
                         className={
                           armType === "placebo"
                             ? "bg-secondary/30"
@@ -2347,12 +2368,12 @@ calculations in actual studies.
                   limits. Review and consider adjustments before proceeding.
                 </p>
                 <div className="space-y-4">
-                  {armRequirements.map((req, index) => {
+                  {armRequirements.map((req) => {
                     if (!req.volumeValidation || req.volumeValidation.isValid) {
                       return null;
                     }
                     return (
-                      <div key={index} className="border rounded-lg p-4">
+                      <div key={req.id} className="border rounded-lg p-4">
                         <h4 className="text-sm font-medium mb-2">
                           {req.name} - {req.adminVolume.toFixed(3)} mL per dose
                         </h4>
@@ -2375,7 +2396,7 @@ calculations in actual studies.
                 </h3>
                 <Accordion type="single" collapsible className="w-full">
                   {armRequirements.map((req, index) => (
-                    <AccordionItem key={index} value={`item-${index}`}>
+                    <AccordionItem key={req.id} value={req.id}>
                       <AccordionTrigger>
                         Arm {index + 1}: {req.name}
                       </AccordionTrigger>
