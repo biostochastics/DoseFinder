@@ -26,7 +26,11 @@ function ReferenceLink({
       className="text-primary hover:underline inline-flex items-center gap-0.5"
     >
       {children}
-      <IconExternalLink className="h-3 w-3 flex-shrink-0" stroke={1.5} />
+      <IconExternalLink
+        className="h-3 w-3 flex-shrink-0"
+        stroke={1.5}
+        aria-hidden="true"
+      />
     </a>
   );
 }
@@ -441,16 +445,17 @@ export function Documentation() {
                         </tr>
                       </thead>
                       <tbody>
-                        {bioavailabilityData.map((row, idx) => (
+                        {bioavailabilityData.map((row) => (
                           <tr
-                            key={idx}
+                            key={row.route}
                             className={`border-b ${row.highlight ? "bg-amber-500/10" : ""}`}
                           >
-                            <td
+                            <th
+                              scope="row"
                               className={`p-2 font-medium ${row.highlight ? "text-amber-600" : ""}`}
                             >
                               {row.route}
-                            </td>
+                            </th>
                             <td className="p-2">{row.default}</td>
                             <td
                               className={`p-2 ${row.highlight ? "font-bold text-amber-600" : ""}`}
@@ -469,7 +474,10 @@ export function Documentation() {
                   </div>
                   <div className="mt-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-sm">
                     <div className="flex items-start gap-2">
-                      <IconAlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <IconAlertTriangle
+                        className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0"
+                        aria-hidden="true"
+                      />
                       <p className="text-muted-foreground">
                         <strong className="text-amber-600">
                           Oral bioavailability
@@ -567,7 +575,10 @@ export function Documentation() {
                 </div>
                 <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                   <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
-                    <IconAlertTriangle className="h-4 w-4 text-amber-600" />
+                    <IconAlertTriangle
+                      className="h-4 w-4 text-amber-600"
+                      aria-hidden="true"
+                    />
                     Important Reminders
                   </h4>
                   <ul className="list-disc pl-4 text-sm text-muted-foreground space-y-0.5">

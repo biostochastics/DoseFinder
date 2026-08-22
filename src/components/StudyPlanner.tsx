@@ -74,13 +74,7 @@ interface ArmConfig {
   duration: number;
   durationUnit: "days" | "weeks" | "months";
   frequency:
-    | "once"
-    | "twice"
-    | "thrice"
-    | "weekly"
-    | "biweekly"
-    | "monthly"
-    | "custom";
+    "once" | "twice" | "thrice" | "weekly" | "biweekly" | "monthly" | "custom";
   customFrequency: {
     doses: number;
     period: number;
@@ -633,9 +627,10 @@ export function StudyPlanner({
     if (stockConcUnit === "mcg/ml") {
       stockConcMg /= 1000;
     } else if (stockConcUnit === "mg/g") {
-      // mg/g is equivalent to mg/mL assuming density of 1 g/mL
-      // For solids or semi-solids, this is a reasonable approximation
-      stockConcMg = safeStockConc;
+      // mg/g is mass per unit mass, so converting to mg/mL requires the
+      // formulation density: mg/mL = mg/g × density(g/mL). Default density
+      // 1.0 g/mL reproduces the prior 1:1 approximation.
+      stockConcMg = safeStockConc * safeDensity;
     } else if (stockConcUnit === "percent") {
       // Percent conversion depends on type:
       // % w/v (weight/volume): mg/mL = % × 10 (assumes 1 g/mL density for solution)
@@ -1828,6 +1823,37 @@ calculations in actual studies.
                       </span>
                     </p>
                   )}
+                </div>
+              )}
+
+              {/* Density input - required to convert mg/g to mg/mL */}
+              {stockConcentrationUnit === "mg/g" && (
+                <div className="p-3 bg-secondary/30 rounded-md">
+                  <Label htmlFor="density-mgg" className="text-sm">
+                    Density (g/mL)
+                  </Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input
+                      id="density-mgg"
+                      type="number"
+                      value={density}
+                      onChange={(e) => setDensity(Number(e.target.value))}
+                      min={0.1}
+                      max={10}
+                      step="0.01"
+                      className="w-24"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      Used to convert mg/g to mg/mL
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Formula: mg/mL = {stockConcentration} mg/g × {density} g/mL
+                    ={" "}
+                    <span className="font-medium">
+                      {(stockConcentration * density).toFixed(2)} mg/mL
+                    </span>
+                  </p>
                 </div>
               )}
             </div>

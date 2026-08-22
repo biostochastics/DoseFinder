@@ -5,6 +5,82 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] - 2026-08-21
+
+### Fixed
+
+- **Dose Scaling Chart: Overlapping Species**: Chart X-axis now keys on species name instead of body weight
+  - Species that share a weight (Human and Pig at 70 kg, Monkey and Cynomolgus at 5 kg) previously collapsed onto a single X position and rendered as a combined "Human/Pig" point
+  - All 22 species now render as distinct, individually labelled points ordered by increasing body weight
+
+- **Dose Scaling Chart: Unit Labels**: Y-axis, tooltip, screen-reader description, and data-table headers corrected from "mg" to "mg/kg"
+  - Chart plots per-kilogram dose; the previous "mg" suffix mislabeled the quantity
+
+- **Study Planner: mg/g → mg/mL Conversion**: Stock concentration entered in mg/g now applies the formulation density (mg/mL = mg/g × density)
+  - Previously treated as 1:1 (density = 1 g/mL assumed), producing incorrect administration and dilution volumes for formulations with density ≠ 1
+  - Density input is now exposed when the mg/g unit is selected (default 1.0 g/mL preserves prior results)
+
+## [0.9.5] - 2026-01-20
+
+### Fixed
+
+- **Unit/Weight Inconsistencies in Export Reports**: Copy and export functions now correctly display base dose units
+  - When user enters total mg, reports show both "X mg total" and "(Y mg/kg equivalent)"
+  - When user enters mg/kg, reports display correctly as "X mg/kg"
+  - Prevents confusing dose unit mislabeling in regulatory documentation workflows
+
+- **Renal Adjustment Default (fe) Safety**: Changed default `fractionExcretedRenal` from 1.0 to 0
+  - Previous default assumed 100% renal clearance, risking underdosing for hepatically-cleared drugs
+  - New default requires explicit fe specification (opt-in safety behavior)
+  - Aligns with calculation engine's documented safety posture
+
+- **Accessibility: FIH Calculator SR Announcement**: Fixed hardcoded "60 kg" in screen reader announcement
+  - Now correctly uses `result.humanWeight` and `result.mrsdTotal` for accurate announcements
+  - Supports user-configurable human reference weights
+
+- **Clipboard Error Handling**: Added `.catch()` handler to clipboard operations in Dose Calculator
+  - Prevents silent failures when clipboard access is denied
+  - Matches error handling pattern already used in FIH Calculator
+
+### Added
+
+- **BSA/Km Scaling Warning**: New warning when BSA method is selected explaining that FDA reference weights are used
+  - Documents that user-entered weight adjustments are not applied to Km factors
+  - Recommends allometric scaling if user-entered weights are important
+
+- **Centralized Scaling Constants with Citations**: New `SCALING_EXPONENTS` constant in `constants.ts`
+  - `METABOLIC: 0.75` - Kleiber's law (1947), West et al. (1997)
+  - `SURFACE_AREA: 0.67` - Body surface area processes
+  - `LINEAR: 1.0` - No weight adjustment
+  - `BRAIN_WEIGHT: 0.67` - Boxenbaum & DiLea (1995)
+  - `LIFE_SPAN: 0.25` - Travis & White (1988)
+  - Full literature citations in JSDoc comments
+
+- **Time Conversion Constants**: New `TIME_CONVERSIONS` constant for study planning
+  - Standardized days per unit (DAY: 1, WEEK: 7, MONTH: 30.44, YEAR: 365.25)
+  - Available for use in StudyPlanner calculations
+
+### Changed
+
+- **Memoization for Derived Values**: Wrapped `resultDose`, `uncertaintyRange`, and `baseDosePerKg` with `useMemo`
+  - Prevents unnecessary recalculations on every render
+  - Improves performance for complex calculation scenarios
+
+- **Human Weight Documentation**: Added comprehensive comments in `species.ts` explaining weight context
+  - Species database uses 70 kg (physiological average adult)
+  - FDA regulatory guidance uses 60 kg reference
+  - Cross-references `FDA_REFERENCE_WEIGHTS` in `constants.ts`
+
+- **Calculation Engine Constants**: Updated `calculations.ts` to use centralized `SCALING_EXPONENTS`
+  - Replaced hardcoded 0.75 and 1.0 values with named constants
+  - Improves maintainability and scientific traceability
+
+### Technical
+
+- All 274 unit tests passing
+- Build successful with zero TypeScript errors
+- Changes based on multi-agent code review (Droid, Crush, Gemini, Claude)
+
 ## [0.9.4] - 2025-12-18
 
 ### Added

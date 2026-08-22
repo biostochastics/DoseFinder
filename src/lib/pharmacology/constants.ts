@@ -478,6 +478,91 @@ export const VOLUME_LIMITS: Record<
 // Regulatory References
 // ============================================================================
 
+// ============================================================================
+// Allometric Scaling Exponents
+// ============================================================================
+
+/**
+ * Allometric scaling exponents used in interspecies dose conversion
+ *
+ * References:
+ * - Kleiber M. Body size and metabolic rate. Physiological Reviews. 1947;27(4):511-541.
+ *   (Original "Kleiber's Law" establishing 0.75 metabolic exponent)
+ * - West GB, Brown JH, Enquist BJ. A general model for the origin of allometric
+ *   scaling laws in biology. Science. 1997;276(5309):122-126.
+ *   (Theoretical framework for 3/4 power law)
+ * - Sharma V, McNeill JH. To scale or not to scale: the principles of dose extrapolation.
+ *   Br J Pharmacol. 2009;157(6):907-921. doi:10.1111/j.1476-5381.2009.00267.x
+ *   (Comprehensive review of allometric scaling in pharmacology)
+ * - Mahmood I, Balian JD. Interspecies scaling: predicting clearance of drugs in humans.
+ *   Toxicol Appl Pharmacol. 1996;140(2):253-258. doi:10.1006/taap.1996.0217
+ *   (Application to drug clearance prediction)
+ */
+export const SCALING_EXPONENTS = {
+  /**
+   * Standard metabolic/clearance exponent (Kleiber's law)
+   * Most drugs scale with this exponent based on metabolic rate
+   */
+  METABOLIC: 0.75,
+
+  /**
+   * Body surface area exponent
+   * Used for surface-area dependent processes
+   */
+  SURFACE_AREA: 0.67,
+
+  /**
+   * Linear scaling (no adjustment)
+   * Same mg/kg dose across species
+   */
+  LINEAR: 1.0,
+
+  /**
+   * Brain weight scaling exponent
+   * Theoretical estimate for CNS drugs
+   * Reference: Boxenbaum H, DiLea C. J Clin Pharmacol. 1995;35(10):957-966.
+   */
+  BRAIN_WEIGHT: 0.67,
+
+  /**
+   * Life-span scaling exponent
+   * Used for chronic dosing/carcinogenicity studies
+   * Reference: Travis CC, White RK. Risk Anal. 1988;8(1):119-125.
+   */
+  LIFE_SPAN: 0.25,
+} as const;
+
+// ============================================================================
+// Time Conversion Constants
+// ============================================================================
+
+/**
+ * Days per time unit for study planning calculations
+ *
+ * These standardized conversions are used for material requirement
+ * calculations and dosing schedule generation.
+ */
+export const TIME_CONVERSIONS = {
+  /** Days per day (identity) */
+  DAY: 1,
+
+  /** Days per week */
+  WEEK: 7,
+
+  /**
+   * Days per month (average)
+   * Using 30.44 days (365.25 / 12) for accurate long-term calculations
+   */
+  MONTH: 30.44,
+
+  /** Days per year (including leap year correction) */
+  YEAR: 365.25,
+} as const;
+
+// ============================================================================
+// Regulatory References
+// ============================================================================
+
 export const REGULATORY_REFERENCES = {
   FDA_2005: {
     title:
