@@ -44,14 +44,19 @@ const scalingMethods = [
     icon: Scale,
     description:
       "The simplest and most widely used scaling method, based on the relationship between body mass and metabolic rate.",
-    formula: String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \left(\frac{W_{\text{target}}}{W_{\text{source}}}\right)^b`,
+    formula: String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \left(\frac{W_{\text{target}}}{W_{\text{source}}}\right)^{b-1}`,
     formulaAlt:
-      "Target dose equals source dose times the ratio of target weight to source weight, raised to the power b",
+      "Target per-kilogram dose equals source per-kilogram dose times the ratio of target weight to source weight, raised to the power b minus 1",
     details: (
       <>
         <p className="text-muted-foreground text-sm mb-2">
-          where <Math altText="b">b</Math> is the allometric exponent (typically{" "}
-          <Math altText="0.75">0.75</Math>)
+          where <Math altText="b">b</Math> is the allometric (clearance)
+          exponent (typically <Math altText="0.75">0.75</Math>). Doses are
+          expressed per kilogram (mg/kg), so the dose-conversion exponent is{" "}
+          <Math altText="b minus 1">{String.raw`b-1`}</Math> (e.g.{" "}
+          <Math altText="negative 0.25">{String.raw`-0.25`}</Math> when{" "}
+          <Math altText="b equals 0.75">{String.raw`b = 0.75`}</Math>); total
+          dose (mg) scales with exponent <Math altText="b">b</Math>.
         </p>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
@@ -194,15 +199,19 @@ const scalingMethods = [
     icon: Scale,
     description:
       "Scaling based on body surface area differences between species.",
-    formula: String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \frac{\text{BSA}_{\text{target}}}{\text{BSA}_{\text{source}}}`,
-    formulaAlt: "Target dose equals source dose times BSA ratio",
+    formula: String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \frac{\text{Km}_{\text{source}}}{\text{Km}_{\text{target}}}`,
+    formulaAlt:
+      "Target per-kilogram dose equals source per-kilogram dose times the ratio of source Km to target Km",
     details: (
       <>
         <p className="text-muted-foreground text-sm mb-2">
-          Du Bois formula:{" "}
-          <Math altText="BSA equals 0.007184 times W to 0.425 times H to 0.725">
-            {String.raw`\text{BSA} \approx 0.007184 \times W^{0.425} \times H^{0.725}`}
-          </Math>
+          where <Math altText="Km">Km</Math> is the FDA body-surface-area
+          normalization factor{" "}
+          <Math altText="Km equals weight divided by BSA">
+            {String.raw`\text{Km} = W / \text{BSA}`}
+          </Math>{" "}
+          (mg/kg dosing). DoseFinder uses FDA 2005 reference weights and BSA
+          values for this method, not user-entered weights.
         </p>
         <div className="text-sm">
           <p className="font-medium mb-1">When to use:</p>

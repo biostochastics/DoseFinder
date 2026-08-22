@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.7] - 2026-08-21
+
+### Fixed
+
+- **Documentation: Scaling Formulas Now Match the Implementation**
+  - Allometric formula corrected from `(W_target/W_source)^b` to `(W_target/W_source)^(b-1)`, reflecting that DoseFinder works in mg/kg (per-kg dosing); added a note that total dose (mg) scales with exponent `b`
+  - BSA method corrected from a direct `BSA_target/BSA_source` ratio to the FDA Km ratio `Km_source/Km_target` where `Km = W/BSA`, matching the calculation engine and the app's own HED formula (`^(1-b)`)
+
+- **Study Planner: Overage/Waste NaN Guard**: the overage percentage is now clamped in the waste-allowance math, so clearing the field or entering a negative value no longer poisons the Total Active Compound and per-arm product figures with `NaN`
+
+- **Study Planner: Material Breakdown Consistency**: the "Doses" column now counts treatment arms only, matching the treatment-only "Product (mg)" column (previously counted all arms, so a comparator/placebo arm inflated the dose count without contributing product)
+
+### Accessibility & Code Quality
+
+- **Study Planner: Accessible Control Names**: added accessible names to the comparator (name, concentration, unit), dosing-frequency, custom-frequency (doses, period, unit), and dilution (factor, vehicle) controls, which previously had no associated labels for screen readers
+- **Study Planner: Cleanup**: removed the unused `sourceAnimal` prop and extracted the repeated 70 kg human-weight fallback into a named `DEFAULT_HUMAN_WEIGHT_KG` constant
+
 ## [0.9.6] - 2026-08-21
 
 ### Fixed
