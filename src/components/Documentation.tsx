@@ -87,11 +87,11 @@ const scalingMethods = [
   {
     id: "brain-weight",
     title: "Brain Weight Scaling",
-    badge: "CNS Drugs",
-    badgeVariant: "outline" as const,
+    badge: "Exploratory",
+    badgeVariant: "secondary" as const,
     icon: Brain,
     description:
-      "Scaling based on brain weight differences between species, useful for CNS-active compounds.",
+      "EXPLORATORY / historical. Reduces to a function of the brain-weight ratio and is not a validated dose estimator — provided for reference, not for dose selection. Prefer allometric or BSA/Km scaling.",
     formula: String.raw`b = \frac{2}{3} \times \frac{\ln\left(\dfrac{B_{\text{target}}}{B_{\text{source}}}\right)}{\ln\left(\dfrac{W_{\text{target}}}{W_{\text{source}}}\right)}`,
     formulaAlt:
       "b equals two-thirds times the natural log of brain weight ratio divided by the log of body weight ratio",
@@ -120,11 +120,11 @@ const scalingMethods = [
   {
     id: "lifespan",
     title: "Life-Span Scaling",
-    badge: "Theoretical",
+    badge: "Exploratory",
     badgeVariant: "secondary" as const,
     icon: Activity,
     description:
-      "Scaling based on maximum life span potential of different species.",
+      "EXPLORATORY / historical. Algebraically collapses to Dose × (lifespan_target / lifespan_source) and is not a validated dose estimator. Provided for reference only; prefer allometric or BSA/Km scaling.",
     formula: String.raw`b = \frac{\ln\left(\dfrac{\tau_{\text{target}}}{\tau_{\text{source}}}\right)}{\ln\left(\dfrac{W_{\text{target}}}{W_{\text{source}}}\right)}`,
     formulaAlt:
       "b equals the log of lifespan ratio divided by the log of weight ratio",
@@ -157,31 +157,34 @@ const scalingMethods = [
   {
     id: "hepatic",
     title: "Hepatic Blood Flow Scaling",
-    badge: "High-Extraction",
-    badgeVariant: "outline" as const,
+    badge: "Exploratory",
+    badgeVariant: "secondary" as const,
     icon: Beaker,
     description:
-      "Scaling based on species differences in hepatic blood flow and clearance.",
-    formula: String.raw`\text{CL}_h = Q_h \times E_h`,
+      "EXPLORATORY / historical. Scales the per-kg dose by the ratio of species hepatic blood flow only (the flow-limited assumption for a high-extraction drug). It uses no compound-specific clearance and is not a validated general dose estimator.",
+    formula: String.raw`\left(\text{mg/kg}\right)_{\text{target}} = \left(\text{mg/kg}\right)_{\text{source}} \times \frac{q_{\text{target}}}{q_{\text{source}}}`,
     formulaAlt:
-      "Hepatic clearance equals hepatic blood flow times extraction ratio",
+      "Target per-kg dose equals source per-kg dose times the ratio of hepatic blood flow per kg (target over source)",
     details: (
       <>
         <p className="text-muted-foreground text-sm mb-2">
-          where <Math altText="Q sub h">{String.raw`Q_h`}</Math> = hepatic blood
-          flow, <Math altText="E sub h">{String.raw`E_h`}</Math> = extraction
-          ratio
+          where <Math altText="q">{String.raw`q`}</Math> = hepatic blood flow
+          per kg (mL/min/kg), a species physiological quantity. A drug&apos;s
+          hepatic clearance depends on the compound (intrinsic clearance,
+          binding, extraction) and is NOT modeled here.
         </p>
         <div className="text-sm">
-          <p className="font-medium mb-1">When to use:</p>
+          <p className="font-medium mb-1">Only meaningful for:</p>
           <ul className="list-disc pl-4 text-muted-foreground space-y-0.5">
             <li>
-              Drugs with hepatic extraction ratio{" "}
+              High-extraction, flow-limited drugs{" "}
               <Math altText="E greater than 0.7">{String.raw`E_h > 0.7`}</Math>
             </li>
-            <li>Compounds primarily metabolized by the liver</li>
-            <li>Flow-limited drugs</li>
           </ul>
+          <p className="text-amber-600 dark:text-amber-500 mt-2 text-xs">
+            <strong>Limitation:</strong> Ignores compound-specific extraction
+            and binding; not for routine dose selection.
+          </p>
         </div>
       </>
     ),
@@ -407,7 +410,9 @@ export function Documentation() {
                       <div className="p-2 bg-muted/30 rounded">
                         <p className="font-medium">Cockcroft-Gault</p>
                         <p className="text-xs text-muted-foreground">
-                          Calculate eGFR from patient parameters
+                          Estimate creatinine clearance (CrCl, not GFR) from
+                          patient parameters. Actual / ideal (IBW) / adjusted
+                          body-weight basis supported.
                         </p>
                       </div>
                     </div>
@@ -443,6 +448,21 @@ export function Documentation() {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent>
+                  <div className="mb-3 text-sm">
+                    <p className="font-medium mb-1">
+                      Two-sided route translation:
+                    </p>
+                    <Formula altText="Two-sided bioavailability adjustment">
+                      {String.raw`\text{Dose}_{\text{target}} = \text{Dose}_{\text{source}} \times \frac{\text{CL}_{\text{target}}}{\text{CL}_{\text{source}}} \times \frac{F_{\text{source}}}{F_{\text{target}}}`}
+                    </Formula>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      The scaling step supplies the clearance ratio; the
+                      bioavailability step applies{" "}
+                      <Math altText="F source over F target">{String.raw`F_{\text{source}}/F_{\text{target}}`}</Math>
+                      . Set the source route to IV (100%) when the known dose is
+                      systemic/IV.
+                    </p>
+                  </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm border-collapse">
                       <thead>

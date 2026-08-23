@@ -22,11 +22,7 @@ export type VolumeUnit = "uL" | "mL" | "L";
 // ============================================================================
 
 export type ConcentrationUnit =
-  | "mcg/mL"
-  | "mg/mL"
-  | "g/mL"
-  | "percent_wv"
-  | "percent_ww";
+  "mcg/mL" | "mg/mL" | "g/mL" | "percent_wv" | "percent_ww";
 
 // ============================================================================
 // Dose Units

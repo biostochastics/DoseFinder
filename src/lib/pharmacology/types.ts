@@ -51,25 +51,39 @@ export type KidneyFunctionMethod = "none" | "manual" | "cockcroft";
 export type PatientSex = "male" | "female";
 
 /**
+ * Body-weight basis for Cockcroft-Gault creatinine-clearance estimation.
+ *
+ * Cockcroft-Gault was derived using actual body weight, but in obesity
+ * (or when actual weight is unavailable) ideal (IBW, Devine) or adjusted
+ * (AdjBW) body weight is commonly substituted to avoid over-estimating CrCl.
+ * Ideal/Adjusted require patient height.
+ */
+export type BodyWeightBasis = "actual" | "ideal" | "adjusted";
+
+/**
  * Species data interface for pharmacological calculations
- * Contains all required physiological parameters for dose scaling
+ * Contains species-level PHYSIOLOGICAL parameters only.
+ *
+ * NOTE: Drug hepatic/renal clearance are compound properties, NOT species
+ * constants, and were removed in v0.9.9. Hepatic blood flow (hepaticFlow)
+ * is a true species physiological quantity and is retained.
  */
 export interface Species {
   name: string;
   weight: number; // kg
   brainWeight: number; // g
   lifeSpan: number; // years
-  hepaticFlow: number; // mL/min/kg
+  hepaticFlow: number; // mL/min/kg (species physiology)
   allometricExponent: number;
-  hepaticClearance: number; // mL/min/kg
-  renalClearance: number; // mL/min/kg
   bsa: number; // m²
 }
 
 export interface CalculationParameters {
   proteinBinding: number; // percentage (0-100)
-  bioavailability: number; // percentage (0-100)
-  bioavailabilityMethod: BioavailabilityMethod;
+  bioavailability: number; // TARGET (destination-route) bioavailability, percentage (0-100)
+  bioavailabilityMethod: BioavailabilityMethod; // target route
+  sourceBioavailability: number; // SOURCE (origin-route) bioavailability, percentage (0-100); default 100 (IV/systemic reference)
+  sourceBioavailabilityMethod: BioavailabilityMethod; // source route
   kidneyFunctionMethod: KidneyFunctionMethod;
   kidneyFunction: number; // percentage (0-100)
   fractionExcretedRenal: number; // fe - fraction excreted unchanged in urine (0-1)
@@ -77,6 +91,8 @@ export interface CalculationParameters {
   patientCreatinine: number; // mg/dL
   creatinineUnit: CreatinineUnit; // mg/dL or µmol/L
   patientSex: PatientSex;
+  patientHeight: number; // cm (for ideal/adjusted body-weight CrCl)
+  bodyWeightBasis: BodyWeightBasis; // actual | ideal | adjusted (Cockcroft-Gault weight basis)
   volumeDistribution: number; // L/kg
   molecularWeight: number; // g/mol
   logP: number; // partition coefficient

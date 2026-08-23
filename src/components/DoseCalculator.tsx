@@ -359,7 +359,7 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
               </PopoverTrigger>
               <PopoverContent className="w-80">
                 <p className="text-sm font-semibold mb-2">
-                  Available scaling methods:
+                  Recommended scaling methods:
                 </p>
                 <ul className="text-sm space-y-1">
                   <li>
@@ -378,14 +378,17 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
                     <strong>Metabolic:</strong> Kleiber&apos;s law metabolic
                     rate scaling (W^0.75)
                   </li>
+                </ul>
+                <p className="text-sm font-semibold mt-3 mb-2">
+                  Exploratory (historical — not validated for dosing):
+                </p>
+                <ul className="text-sm space-y-1">
                   <li>
-                    <strong>Brain Weight:</strong> For CNS-active drugs
-                  </li>
-                  <li>
-                    <strong>Life-Span:</strong> For chronic/long-term dosing
-                  </li>
-                  <li>
-                    <strong>Hepatic Flow:</strong> For hepatically cleared drugs
+                    <strong>
+                      Brain Weight / Life-Span / Hepatic Blood Flow:
+                    </strong>{" "}
+                    each reduces to a simple physiological ratio and is not a
+                    validated dose estimator. Provided for reference only.
                   </li>
                 </ul>
               </PopoverContent>
@@ -416,17 +419,29 @@ export const DoseCalculator: React.FC<DoseCalculatorProps> = React.memo(
                 Metabolic Rate (Kleiber&apos;s law)
               </Label>
             </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="brainWeight" id="brainWeight" />
-              <Label htmlFor="brainWeight">Brain Weight (CNS drugs)</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="lifeSpan" id="lifeSpan" />
-              <Label htmlFor="lifeSpan">Life-Span (Chronic dosing)</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="hepaticFlow" id="hepaticFlow" />
-              <Label htmlFor="hepaticFlow">Hepatic Blood Flow</Label>
+
+            <div className="mt-3 pt-3 border-t border-border/60">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Exploratory (historical — not validated for dosing)
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 mb-2">
+                These reduce to a trivial physiological ratio. Prefer allometric
+                or BSA/Km for dose selection.
+              </p>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="brainWeight" id="brainWeight" />
+                <Label htmlFor="brainWeight">Brain Weight (exploratory)</Label>
+              </div>
+              <div className="flex items-center space-x-2 mt-2">
+                <RadioGroupItem value="lifeSpan" id="lifeSpan" />
+                <Label htmlFor="lifeSpan">Life-Span (exploratory)</Label>
+              </div>
+              <div className="flex items-center space-x-2 mt-2">
+                <RadioGroupItem value="hepaticFlow" id="hepaticFlow" />
+                <Label htmlFor="hepaticFlow">
+                  Hepatic Blood Flow (exploratory)
+                </Label>
+              </div>
             </div>
           </RadioGroup>
 

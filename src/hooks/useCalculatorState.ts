@@ -3,7 +3,8 @@ import { SPECIES_DATABASE } from "@/lib/pharmacology/species";
 import {
   calculateDose as calculateDoseLib,
   generateChartData,
-  calculateCockcroftGFR,
+  calculateCockcroftCrCl,
+  resolveBodyWeight,
 } from "@/lib/pharmacology/calculations";
 import {
   CalculationResult,
@@ -13,6 +14,7 @@ import {
   BioavailabilityMethod,
   KidneyFunctionMethod,
   CreatinineUnit,
+  BodyWeightBasis,
   BIOAVAILABILITY_DEFAULTS,
 } from "@/lib/pharmacology/types";
 
@@ -59,6 +61,8 @@ interface CalculatorState {
   dilutionFactor: string;
   bioavailability: number;
   bioavailabilityMethod: BioavailabilityMethod;
+  sourceBioavailability: number;
+  sourceBioavailabilityMethod: BioavailabilityMethod;
   kidneyFunctionMethod: KidneyFunctionMethod;
   kidneyFunction: number;
   fractionExcretedRenal: number; // fe (0-1)
@@ -66,6 +70,8 @@ interface CalculatorState {
   patientCreatinine: number;
   creatinineUnit: CreatinineUnit;
   patientSex: PatientSex;
+  patientHeight: number; // cm
+  bodyWeightBasis: BodyWeightBasis;
 }
 
 type CalculatorAction =
@@ -82,6 +88,11 @@ type CalculatorAction =
   | { type: "SET_DILUTION_FACTOR"; payload: string }
   | { type: "SET_BIOAVAILABILITY"; payload: number }
   | { type: "SET_BIOAVAILABILITY_METHOD"; payload: BioavailabilityMethod }
+  | { type: "SET_SOURCE_BIOAVAILABILITY"; payload: number }
+  | {
+      type: "SET_SOURCE_BIOAVAILABILITY_METHOD";
+      payload: BioavailabilityMethod;
+    }
   | { type: "SET_KIDNEY_FUNCTION_METHOD"; payload: KidneyFunctionMethod }
   | { type: "SET_KIDNEY_FUNCTION"; payload: number }
   | { type: "SET_FRACTION_EXCRETED_RENAL"; payload: number }
@@ -89,6 +100,8 @@ type CalculatorAction =
   | { type: "SET_PATIENT_CREATININE"; payload: number }
   | { type: "SET_CREATININE_UNIT"; payload: CreatinineUnit }
   | { type: "SET_PATIENT_SEX"; payload: PatientSex }
+  | { type: "SET_PATIENT_HEIGHT"; payload: number }
+  | { type: "SET_BODY_WEIGHT_BASIS"; payload: BodyWeightBasis }
   | { type: "RESET_ALL" };
 
 const initialState: CalculatorState = {
@@ -105,6 +118,8 @@ const initialState: CalculatorState = {
   dilutionFactor: "1",
   bioavailability: 100,
   bioavailabilityMethod: "manual",
+  sourceBioavailability: 100,
+  sourceBioavailabilityMethod: "iv", // Source dose assumed IV/systemic (F=100%) by default
   kidneyFunctionMethod: "none",
   kidneyFunction: 100,
   fractionExcretedRenal: 0, // Default: no renal adjustment (opt-in safety - user must specify fe for renally-cleared drugs)
@@ -112,6 +127,8 @@ const initialState: CalculatorState = {
   patientCreatinine: 1,
   creatinineUnit: "mg/dL",
   patientSex: "male",
+  patientHeight: 170, // cm
+  bodyWeightBasis: "actual",
 };
 
 function calculatorReducer(
@@ -169,6 +186,10 @@ function calculatorReducer(
       return { ...state, bioavailability: action.payload };
     case "SET_BIOAVAILABILITY_METHOD":
       return { ...state, bioavailabilityMethod: action.payload };
+    case "SET_SOURCE_BIOAVAILABILITY":
+      return { ...state, sourceBioavailability: action.payload };
+    case "SET_SOURCE_BIOAVAILABILITY_METHOD":
+      return { ...state, sourceBioavailabilityMethod: action.payload };
     case "SET_KIDNEY_FUNCTION_METHOD":
       return { ...state, kidneyFunctionMethod: action.payload };
     case "SET_KIDNEY_FUNCTION":
@@ -183,6 +204,10 @@ function calculatorReducer(
       return { ...state, creatinineUnit: action.payload };
     case "SET_PATIENT_SEX":
       return { ...state, patientSex: action.payload };
+    case "SET_PATIENT_HEIGHT":
+      return { ...state, patientHeight: action.payload };
+    case "SET_BODY_WEIGHT_BASIS":
+      return { ...state, bodyWeightBasis: action.payload };
     case "RESET_ALL":
       return initialState;
     default:
@@ -214,15 +239,22 @@ export function useCalculatorState() {
           : 0
         : state.baseDose;
 
-    // Use centralized GFR calculation from calculations.ts
-    const gfr = calculateCockcroftGFR(
+    // Use centralized Cockcroft-Gault CrCl calculation from calculations.ts,
+    // honoring the selected body-weight basis (actual / ideal / adjusted).
+    const cgWeight = resolveBodyWeight(
       state.targetWeight,
+      state.patientHeight,
+      state.patientSex,
+      state.bodyWeightBasis,
+    );
+    const crcl = calculateCockcroftCrCl(
+      cgWeight,
       state.patientAge,
       state.patientCreatinine,
       state.patientSex,
       state.creatinineUnit,
     );
-    const calculatedKidneyFunction = Math.min(100, Math.max(0, gfr));
+    const calculatedKidneyFunction = Math.min(100, Math.max(0, crcl));
 
     const result = calculateDoseLib(
       state.sourceWeight,
@@ -238,6 +270,11 @@ export function useCalculatorState() {
           state.bioavailability,
         ),
         bioavailabilityMethod: state.bioavailabilityMethod,
+        sourceBioavailability: getBioavailabilityForMethod(
+          state.sourceBioavailabilityMethod,
+          state.sourceBioavailability,
+        ),
+        sourceBioavailabilityMethod: state.sourceBioavailabilityMethod,
         kidneyFunctionMethod: state.kidneyFunctionMethod,
         kidneyFunction:
           state.kidneyFunctionMethod === "none"
@@ -250,6 +287,8 @@ export function useCalculatorState() {
         patientCreatinine: state.patientCreatinine,
         creatinineUnit: state.creatinineUnit,
         patientSex: state.patientSex,
+        patientHeight: state.patientHeight,
+        bodyWeightBasis: state.bodyWeightBasis,
       },
     );
 
@@ -288,10 +327,14 @@ export function useCalculatorState() {
   const copyToClipboard = useCallback(() => {
     if (!calculationSteps) return;
 
-    // Determine effective bioavailability based on method using literature defaults
+    // Determine effective source/target bioavailability using literature defaults
     const effectiveBioavailability = getBioavailabilityForMethod(
       state.bioavailabilityMethod,
       state.bioavailability,
+    );
+    const effectiveSourceBioavailability = getBioavailabilityForMethod(
+      state.sourceBioavailabilityMethod,
+      state.sourceBioavailability,
     );
 
     // Build advanced parameters section
@@ -305,13 +348,16 @@ export function useCalculatorState() {
     advancedParams.push(`Scaling Method: ${state.scalingMethod}`);
     advancedParams.push(`Scaling Exponent: ${exponentValue}`);
 
-    // Bioavailability
-    if (effectiveBioavailability < 100) {
+    // Bioavailability (two-sided: source route → target route)
+    if (effectiveSourceBioavailability !== effectiveBioavailability) {
       advancedParams.push(
-        `Bioavailability: ${effectiveBioavailability}% (${state.bioavailabilityMethod})`,
+        `Source Bioavailability: ${effectiveSourceBioavailability}% (${state.sourceBioavailabilityMethod})`,
       );
       advancedParams.push(
-        `Bioavailability Adjustment: ${(100 / effectiveBioavailability).toFixed(2)}x`,
+        `Target Bioavailability: ${effectiveBioavailability}% (${state.bioavailabilityMethod})`,
+      );
+      advancedParams.push(
+        `Bioavailability Adjustment (F_source/F_target): ${(effectiveSourceBioavailability / effectiveBioavailability).toFixed(2)}x`,
       );
     }
 
@@ -328,6 +374,12 @@ export function useCalculatorState() {
           `Serum Creatinine: ${state.patientCreatinine} ${state.creatinineUnit}`,
         );
         advancedParams.push(`Patient Sex: ${state.patientSex}`);
+        advancedParams.push(
+          `Body Weight Basis: ${state.bodyWeightBasis}${state.bodyWeightBasis !== "actual" ? ` (height ${state.patientHeight} cm)` : ""}`,
+        );
+        advancedParams.push(
+          `(Cockcroft-Gault estimates creatinine clearance, not GFR)`,
+        );
       }
       advancedParams.push(
         `Fraction Excreted Renal (fe): ${state.fractionExcretedRenal.toFixed(2)}`,
@@ -402,11 +454,17 @@ state, and individual variability when applying these estimates.
   const exportResults = useCallback(() => {
     if (!calculationSteps) return;
 
-    // Determine effective bioavailability based on method using literature defaults
+    // Determine effective source/target bioavailability using literature defaults
     const effectiveBioavailability = getBioavailabilityForMethod(
       state.bioavailabilityMethod,
       state.bioavailability,
     );
+    const effectiveSourceBioavailability = getBioavailabilityForMethod(
+      state.sourceBioavailabilityMethod,
+      state.sourceBioavailability,
+    );
+    const bioavailabilityAdjustment =
+      effectiveSourceBioavailability / effectiveBioavailability;
 
     // Determine effective kidney function
     const effectiveKidneyFunction =
@@ -461,10 +519,10 @@ ${state.scalingExponent === "custom" ? "(Custom exponent value)" : state.scaling
 
 ADVANCED PARAMETERS
 ===================
-Bioavailability:
-  Method: ${state.bioavailabilityMethod}
-  Value: ${effectiveBioavailability}%
-  ${effectiveBioavailability < 100 ? `Adjustment Factor: ${(100 / effectiveBioavailability).toFixed(2)}x` : "No adjustment applied"}
+Bioavailability (two-sided: source route -> target route):
+  Source Route: ${state.sourceBioavailabilityMethod} (${effectiveSourceBioavailability}%)
+  Target Route: ${state.bioavailabilityMethod} (${effectiveBioavailability}%)
+  ${effectiveSourceBioavailability !== effectiveBioavailability ? `Adjustment Factor (F_source/F_target): ${bioavailabilityAdjustment.toFixed(2)}x` : "No adjustment applied (source and target bioavailability equal)"}
 
 Kidney Function:
   Method: ${state.kidneyFunctionMethod}
@@ -475,10 +533,11 @@ ${state.kidneyFunctionMethod === "none" ? "  No kidney function adjustment appli
         : ""
     }${
       state.kidneyFunctionMethod === "cockcroft"
-        ? `  Cockcroft-Gault Parameters:
+        ? `  Cockcroft-Gault Parameters (estimates creatinine clearance, CrCl, not GFR):
     Patient Age: ${state.patientAge} years
     Serum Creatinine: ${state.patientCreatinine} ${state.creatinineUnit}
     Patient Sex: ${state.patientSex}
+    Body Weight Basis: ${state.bodyWeightBasis}${state.bodyWeightBasis !== "actual" ? ` (height ${state.patientHeight} cm)` : ""}
   Fraction Excreted Renal (fe): ${state.fractionExcretedRenal.toFixed(2)}`
         : ""
     }

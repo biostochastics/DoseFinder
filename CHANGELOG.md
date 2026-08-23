@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.9] - 2026-08-23
+
+Scientific correctness pass on the cross-species calculator (calculation-layer
+fixes that change computed doses in the affected configurations).
+
+### Fixed
+
+- **Bioavailability is now two-sided (source → target route)**: the dose is adjusted by `F_source / F_target` (`Dose_target = Dose_source × CL_ratio × F_source/F_target`) instead of the previous one-sided `÷ F_target`, which implicitly assumed the source/known dose was 100% bioavailable (IV). A new **Source route** selector exposes `F_source` (defaults to IV / 100%, so existing single-route results are unchanged). When source and target routes match, no adjustment is applied.
+- **Cockcroft-Gault relabeled as creatinine clearance (CrCl), not GFR**: `calculateCockcroftGFR` → `calculateCockcroftCrCl`; calculation steps, the Advanced panel, and the Docs tab now say CrCl. Cockcroft-Gault estimates CrCl (it slightly overestimates true GFR) and must not be conflated with indexed eGFR.
+- **Cockcroft-Gault body-weight basis**: added an **Actual / Ideal (IBW, Devine) / Adjusted (AdjBW)** selector with a height input, so CrCl is not over-estimated from actual weight in obesity (previously it always used raw body weight).
+
+### Changed
+
+- **Drug clearance is no longer stored as species physiology**: removed the per-species `hepaticClearance` and `renalClearance` fields from the species database and `Species` type. A drug's hepatic/renal clearance depends on the compound, not the species; true physiology (hepatic blood flow, weight, BSA) is retained.
+- **Hepatic Flow method reworked to use hepatic blood flow only**: it previously multiplied by the removed hardcoded `hepaticClearance` values (algebraically just their ratio); it now scales purely by the species hepatic-blood-flow ratio under the flow-limited assumption.
+- **Exploratory methods demoted**: Brain-Weight, Life-Span, and Hepatic-Flow scaling — each of which reduces to a trivial physiological ratio — are grouped under an "Exploratory (historical — not validated for dosing)" section in the calculator and Docs, and now emit a prominent warning in the results. They remain available for reference but are steered away from dose selection.
+
 ## [0.9.8] - 2026-08-21
 
 ### Fixed

@@ -273,10 +273,7 @@ export const SAFETY_FACTOR_GUIDANCE: Record<
  * Drug modality classification
  */
 export type DrugModality =
-  | "small_molecule"
-  | "biologic"
-  | "cell_therapy"
-  | "gene_therapy";
+  "small_molecule" | "biologic" | "cell_therapy" | "gene_therapy";
 
 /**
  * Modality-specific guidance

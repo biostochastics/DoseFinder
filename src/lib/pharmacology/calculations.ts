@@ -16,10 +16,20 @@ import {
   PatientSex,
   CreatinineUnit,
   BioavailabilityMethod,
+  BodyWeightBasis,
 } from "./types";
 import { SPECIES_DATABASE } from "./species";
 import { validateCalculationInputs } from "./validators";
 import { SCALING_EXPONENTS } from "./constants";
+
+/**
+ * Warning attached to exploratory/historical scaling methods that reduce to a
+ * trivial physiological ratio and are NOT validated dose estimators.
+ */
+export const EXPLORATORY_METHOD_WARNING =
+  "Exploratory/historical method: this reduces to a simple physiological ratio " +
+  "and is not a validated dose estimator. Do not use for dose selection — " +
+  "prefer allometric (clearance) or BSA/Km scaling.";
 
 /**
  * Convert creatinine between mg/dL and µmol/L
@@ -40,17 +50,30 @@ export function convertCreatinine(
 }
 
 /**
- * Calculate Cockcroft-Gault GFR for kidney function assessment
+ * Estimate creatinine clearance (CrCl) via the Cockcroft-Gault equation.
  *
- * Formula: GFR = ((140 - age) × weight) / (72 × creatinine) [× 0.85 if female]
+ * IMPORTANT: Cockcroft-Gault estimates CREATININE CLEARANCE (CrCl), NOT
+ * measured or estimated GFR. CrCl slightly overestimates true GFR (tubular
+ * secretion of creatinine). Many drug labels specify dose adjustments in
+ * terms of Cockcroft-Gault CrCl, so this estimator is appropriate for
+ * label-based renal dosing — but do not conflate its output with eGFR
+ * (e.g. CKD-EPI/MDRD), which is indexed to 1.73 m² BSA.
  *
- * Note: Creatinine must be in mg/dL. If provided in µmol/L, use the
- * creatinineUnit parameter to auto-convert.
+ * Formula: CrCl (mL/min) = ((140 - age) × weight) / (72 × creatinine)
+ *                          [× 0.85 if female]
+ *
+ * Body weight: pass the weight basis appropriate to the patient. In obesity,
+ * actual body weight over-estimates CrCl; ideal (IBW) or adjusted (AdjBW)
+ * body weight is commonly substituted. Callers should resolve the basis with
+ * resolveBodyWeight() before calling this function.
+ *
+ * Creatinine must be in mg/dL. If provided in µmol/L, use the creatinineUnit
+ * parameter to auto-convert.
  *
  * Reference: Cockcroft DW, Gault MH. Prediction of creatinine clearance
  * from serum creatinine. Nephron. 1976;16(1):31-41.
  */
-export function calculateCockcroftGFR(
+export function calculateCockcroftCrCl(
   weightKg: number,
   age: number,
   creatinine: number,
@@ -81,9 +104,63 @@ export function calculateCockcroftGFR(
 
     return Math.max(0, gfr);
   } catch (error) {
-    console.error("Error calculating GFR:", error);
+    console.error("Error calculating CrCl:", error);
     return 0;
   }
+}
+
+/**
+ * Estimate ideal body weight (IBW) using the Devine formula.
+ *
+ * IBW (kg) = base + 2.3 × (height_inches − 60)
+ *   base = 50 (male) or 45.5 (female)
+ *
+ * The Devine formula is defined for heights ≥ 60 inches (152.4 cm). Below
+ * that, it under-predicts, so this returns the base value as a floor rather
+ * than an implausibly small/negative weight.
+ *
+ * Reference: Devine BJ. Gentamicin therapy. Drug Intell Clin Pharm. 1974.
+ */
+export function calculateIdealBodyWeight(
+  heightCm: number,
+  sex: PatientSex,
+): number {
+  if (!isFinite(heightCm) || heightCm <= 0) return 0;
+  const heightInches = heightCm / 2.54;
+  const base = sex === "female" ? 45.5 : 50;
+  return base + 2.3 * Math.max(0, heightInches - 60);
+}
+
+/**
+ * Resolve the body weight to use for Cockcroft-Gault CrCl per the selected basis.
+ *
+ * - "actual":   actual body weight as entered (Cockcroft-Gault's original basis)
+ * - "ideal":    IBW (Devine); requires height. If actual < IBW, actual is used
+ *               (using IBW would over-estimate CrCl for underweight patients).
+ * - "adjusted": AdjBW = IBW + 0.4 × (actual − IBW); requires height. Used for
+ *               obesity. Falls back to actual when actual ≤ IBW.
+ *
+ * If height is missing/invalid for ideal/adjusted, falls back to actual weight.
+ */
+export function resolveBodyWeight(
+  actualKg: number,
+  heightCm: number | undefined,
+  sex: PatientSex,
+  basis: BodyWeightBasis = "actual",
+): number {
+  if (basis === "actual") return actualKg;
+  if (!heightCm || !isFinite(heightCm) || heightCm <= 0) return actualKg;
+
+  const ibw = calculateIdealBodyWeight(heightCm, sex);
+  if (ibw <= 0) return actualKg;
+
+  if (basis === "ideal") {
+    // Do not use IBW if the patient is lighter than ideal (avoids over-estimating CrCl)
+    return Math.min(actualKg, ibw);
+  }
+  // adjusted: only meaningful when actual exceeds ideal (obesity)
+  if (actualKg <= ibw) return actualKg;
+  return ibw + 0.4 * (actualKg - ibw);
 }
 
 /**
@@ -273,27 +350,36 @@ function calculateLifeSpanScaling(
 }
 
 /**
- * Calculate hepatic clearance scaling factor
+ * Calculate hepatic blood flow scaling factor (EXPLORATORY)
  *
- * This method scales doses based on hepatic blood flow and extraction ratio
- * to account for differences in hepatic drug clearance between species.
+ * Scales the per-kg dose by the ratio of species hepatic blood flow
+ * (mL/min/kg), the flow-limited-clearance assumption for a high-extraction
+ * drug (CL ≈ hepatic blood flow Q). It uses ONLY species physiology
+ * (hepaticFlow); it does NOT use any per-species "hepatic clearance" value,
+ * because a drug's hepatic clearance is a compound property, not a species
+ * constant (see species.ts, v0.9.9).
  *
- * EXPERIMENTAL: This method lacks extensive clinical validation. Results should
- * be interpreted with caution and validated with compound-specific data.
+ * Derivation (per-kg): for a flow-limited drug matching exposure,
+ *   Dose_total ∝ Q_total = qPerKg × W
+ *   (mg/kg)_target / (mg/kg)_source = qPerKg_target / qPerKg_source
+ * Expressed via the shared weightRatio^factor machinery:
+ *   factor = ln(qPerKg_target / qPerKg_source) / ln(weightRatio)
+ *
+ * EXPLORATORY: Only valid for high-extraction (flow-limited) drugs, and even
+ * then it ignores compound-specific extraction/binding. Not a validated
+ * general dose estimator.
  *
  * References:
  * - Boxenbaum H. J Pharmacokinet Biopharm. 1980;8(2):165-176.
- * - Lave T, et al. Pharm Res. 1999;16(7):1013-1021.
+ * - Davies B, Morris T. Pharm Res. 1993;10(7):1093-1095.
  */
-function calculateHepaticClearanceScaling(
+function calculateHepaticFlowScaling(
   sourceSpecies: Species,
   targetSpecies: Species,
   weightRatio: number,
 ): { factor: number; description: string; warning?: string } {
   const sourceFlow = sourceSpecies.hepaticFlow;
   const targetFlow = targetSpecies.hepaticFlow;
-  const sourceHepRatio = sourceSpecies.hepaticClearance / sourceFlow;
-  const targetHepRatio = targetSpecies.hepaticClearance / targetFlow;
 
   if (sourceFlow <= 0 || targetFlow <= 0) {
     throw new Error("Invalid hepatic flow values");
@@ -303,16 +389,14 @@ function calculateHepaticClearanceScaling(
   if (Math.abs(weightRatio - 1) < 1e-4) {
     return {
       factor: 0,
-      description: "Hepatic clearance scaling (experimental)",
+      description: "Hepatic blood flow scaling (exploratory)",
       warning:
         "Source and target weights are nearly equal; scaling factor set to 0",
     };
   }
 
-  const factor =
-    Math.log((targetFlow * targetHepRatio) / (sourceFlow * sourceHepRatio)) /
-    Math.log(weightRatio);
-  return { factor, description: "Hepatic clearance scaling (experimental)" };
+  const factor = Math.log(targetFlow / sourceFlow) / Math.log(weightRatio);
+  return { factor, description: "Hepatic blood flow scaling (exploratory)" };
 }
 
 /**
@@ -454,10 +538,11 @@ export function calculateDose(
         }
         case "metabolic": {
           // Metabolic rate scaling uses exponent 0.75 (Kleiber's law)
-          const result = calculateAllometricScaling(SCALING_EXPONENTS.METABOLIC);
+          const result = calculateAllometricScaling(
+            SCALING_EXPONENTS.METABOLIC,
+          );
           scalingFactor = result.factor;
-          methodDescription =
-            `Metabolic rate scaling (Kleiber's law, clearance exponent ${SCALING_EXPONENTS.METABOLIC})`;
+          methodDescription = `Metabolic rate scaling (Kleiber's law, clearance exponent ${SCALING_EXPONENTS.METABOLIC})`;
           break;
         }
         case "brainWeight": {
@@ -468,6 +553,7 @@ export function calculateDose(
           );
           scalingFactor = result.factor;
           methodDescription = result.description;
+          warnings.push(EXPLORATORY_METHOD_WARNING);
           if (result.warning) {
             warnings.push(result.warning);
           }
@@ -481,19 +567,21 @@ export function calculateDose(
           );
           scalingFactor = result.factor;
           methodDescription = result.description;
+          warnings.push(EXPLORATORY_METHOD_WARNING);
           if (result.warning) {
             warnings.push(result.warning);
           }
           break;
         }
         case "hepaticFlow": {
-          const result = calculateHepaticClearanceScaling(
+          const result = calculateHepaticFlowScaling(
             sourceSpecies,
             targetSpecies,
             weightRatio,
           );
           scalingFactor = result.factor;
           methodDescription = result.description;
+          warnings.push(EXPLORATORY_METHOD_WARNING);
           if (result.warning) {
             warnings.push(result.warning);
           }
@@ -513,49 +601,62 @@ export function calculateDose(
     // results. Proper PBPK modeling should be used for these adjustments.
 
     /**
-     * Apply bioavailability adjustment (route-dependent)
+     * Apply bioavailability adjustment (TWO-SIDED, route-dependent)
      *
-     * Bioavailability (F) directly affects systemic drug exposure and is a scientifically
-     * valid adjustment factor. The formula Dose_oral = Dose_IV / F compensates for
-     * incomplete absorption and first-pass metabolism.
+     * For cross-species exposure matching, AUC = F · Dose / CL. Matching AUC
+     * between the source dose (administered by the source route) and the target
+     * dose (administered by the target route) gives:
      *
-     * Literature-based default values are used when a route is specified. These are
-     * conservative estimates - actual bioavailability varies significantly by drug.
+     *   Dose_target = Dose_source × (CL_target / CL_source) × (F_source / F_target)
+     *
+     * The allometric/BSA step already handles CL_target/CL_source. Here we apply
+     * the bioavailability term F_source / F_target. The previous one-sided form
+     * (÷ F_target) implicitly assumed F_source = 100% (an IV/systemic source
+     * dose). Exposing F_source makes route-to-route translation correct — and it
+     * reduces to the old behavior when F_source = 100%.
+     *
+     * Literature-based route defaults are conservative and highly drug-specific;
+     * prefer measured, compound-specific values when available.
      *
      * References:
-     * - StatPearls NBK557852: Drug Bioavailability
-     * - StatPearls NBK551679: First-Pass Effect
-     * - PMC10745386: The Bioavailability of Drugs - Current State of Knowledge
-     * - PMC6182494: Subcutaneous Administration of Biotherapeutics
-     * - PMC6805701: Physiological Considerations for Rectal Drug Formulations
-     *
-     * CAVEAT: Oral bioavailability is highly variable (5-99%) depending on the drug.
-     * The 50% default is a conservative middle estimate. Always use drug-specific
-     * values when available from pharmacokinetic studies.
+     * - Rowland M, Tozer TN. Clinical Pharmacokinetics. 4th ed. 2011.
+     * - StatPearls NBK557852 (Bioavailability); NBK551679 (First-Pass Effect)
      */
-    let actualBioavailability = params.bioavailability || 100;
-    let bioavailabilitySource = "manual";
-
-    if (
-      params.bioavailabilityMethod &&
-      params.bioavailabilityMethod !== "manual"
-    ) {
-      const method = params.bioavailabilityMethod as Exclude<
-        BioavailabilityMethod,
-        "manual"
-      >;
-      const defaultData = BIOAVAILABILITY_DEFAULTS[method];
-      if (defaultData) {
-        actualBioavailability = defaultData.value;
-        bioavailabilitySource = `${method} route (literature default: ${defaultData.range.min}-${defaultData.range.max}%)`;
+    const resolveBioavailability = (
+      method: BioavailabilityMethod | undefined,
+      manualValue: number | undefined,
+    ): { value: number; source: string } => {
+      if (method && method !== "manual") {
+        const defaultData = BIOAVAILABILITY_DEFAULTS[method];
+        if (defaultData) {
+          return {
+            value: defaultData.value,
+            source: `${method} route (literature default: ${defaultData.range.min}-${defaultData.range.max}%)`,
+          };
+        }
       }
-    }
+      return { value: manualValue ?? 100, source: "manual" };
+    };
 
-    if (actualBioavailability < 100) {
-      const bioavailabilityFactor = actualBioavailability / 100;
-      dose /= bioavailabilityFactor;
+    // Clamp to (0, 100]; validation already bounds inputs, this guards division.
+    const clampF = (f: number) => Math.min(100, Math.max(0.0001, f));
+    const target = resolveBioavailability(
+      params.bioavailabilityMethod,
+      params.bioavailability,
+    );
+    const source = resolveBioavailability(
+      params.sourceBioavailabilityMethod,
+      params.sourceBioavailability,
+    );
+    const fTarget = clampF(target.value);
+    const fSource = clampF(source.value);
+
+    if (fSource !== fTarget) {
+      const bioavailabilityFactor = fSource / fTarget;
+      dose *= bioavailabilityFactor;
       steps.push(
-        `Bioavailability (${actualBioavailability}%, ${bioavailabilitySource}): ÷ ${bioavailabilityFactor.toFixed(4)} = ${dose.toFixed(4)} mg/kg`,
+        `Bioavailability (source F ${fSource}% [${source.source}] → target F ${fTarget}% [${target.source}]): ` +
+          `× (F_source/F_target) = × ${bioavailabilityFactor.toFixed(4)} = ${dose.toFixed(4)} mg/kg`,
       );
     }
 
@@ -593,29 +694,51 @@ export function calculateDose(
       params.patientCreatinine &&
       params.patientSex
     ) {
-      const gfr = calculateCockcroftGFR(
+      // Resolve the body-weight basis (actual / ideal / adjusted) for CrCl.
+      const bodyWeightBasis: BodyWeightBasis =
+        params.bodyWeightBasis ?? "actual";
+      const cgWeight = resolveBodyWeight(
         targetWeight,
+        params.patientHeight,
+        params.patientSex,
+        bodyWeightBasis,
+      );
+      if (
+        bodyWeightBasis !== "actual" &&
+        (!params.patientHeight || params.patientHeight <= 0)
+      ) {
+        warnings.push(
+          `Cockcroft-Gault ${bodyWeightBasis} body weight requires patient height; falling back to actual body weight.`,
+        );
+      }
+
+      const crcl = calculateCockcroftCrCl(
+        cgWeight,
         params.patientAge,
         params.patientCreatinine,
         params.patientSex,
         creatinineUnit,
       );
 
-      if (gfr > 0) {
-        const fraction = gfrToDoseAdjustment(gfr, fe);
+      if (crcl > 0) {
+        const fraction = gfrToDoseAdjustment(crcl, fe);
         dose *= fraction;
         const unitLabel = creatinineUnit === "umol/L" ? "µmol/L" : "mg/dL";
+        const basisLabel =
+          bodyWeightBasis === "actual"
+            ? ""
+            : `, ${bodyWeightBasis} BW ${cgWeight.toFixed(1)} kg`;
         if (fe < 1.0) {
           steps.push(
-            `Cockcroft-Gault GFR (${gfr.toFixed(1)} mL/min, creatinine in ${unitLabel}, fe=${fe.toFixed(2)}): × ${fraction.toFixed(2)} = ${dose.toFixed(4)} mg/kg`,
+            `Cockcroft-Gault CrCl (${crcl.toFixed(1)} mL/min, creatinine in ${unitLabel}${basisLabel}, fe=${fe.toFixed(2)}): × ${fraction.toFixed(2)} = ${dose.toFixed(4)} mg/kg`,
           );
         } else {
           steps.push(
-            `Cockcroft-Gault GFR (${gfr.toFixed(1)} mL/min): × ${fraction.toFixed(2)} = ${dose.toFixed(4)} mg/kg`,
+            `Cockcroft-Gault CrCl (${crcl.toFixed(1)} mL/min${basisLabel}): × ${fraction.toFixed(2)} = ${dose.toFixed(4)} mg/kg`,
           );
         }
       } else {
-        warnings.push("Invalid GFR calculation inputs");
+        warnings.push("Invalid Cockcroft-Gault CrCl calculation inputs");
       }
     }
 
@@ -712,7 +835,8 @@ export function generateChartData(
   if (canInterpolate) {
     // Add interpolated points for smooth curve using corrected allometric formula
     // For mg/kg to mg/kg: (mg/kg)_target = (mg/kg)_source × (W_target/W_source)^(b-1)
-    const clearanceExponent = params.scalingExponent ?? SCALING_EXPONENTS.METABOLIC;
+    const clearanceExponent =
+      params.scalingExponent ?? SCALING_EXPONENTS.METABOLIC;
     const doseConversionExponent = clearanceExponent - 1; // -0.25 for standard 0.75
 
     for (let i = 0; i <= numPoints; i++) {

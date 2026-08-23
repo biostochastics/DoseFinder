@@ -48,10 +48,16 @@
  * PARAMETER NOTES:
  * - All values represent species averages with typical variation of ±30%
  * - Body weights are reference values; actual weights vary by strain/breed/age
- * - Hepatic blood flow: mL/min/kg body weight
+ * - Hepatic blood flow: mL/min/kg body weight (species physiology)
  * - Brain weight: grams
  * - Body surface area: m² (calculated using Meeh formula)
  * - Allometric exponent: 0.75 based on Kleiber's law (metabolic scaling)
+ *
+ * DRUG CLEARANCE IS NOT A SPECIES CONSTANT (changed in v0.9.9):
+ * - Per-species `hepaticClearance`/`renalClearance` fields were REMOVED. A
+ *   drug's hepatic/renal clearance depends on the compound (intrinsic
+ *   clearance, protein binding, extraction), not solely on the species.
+ *   Species physiology (hepatic blood flow, body weight, BSA) is retained.
  *
  * Last validated: December 2024
  */
@@ -66,8 +72,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 2,
     hepaticFlow: 131,
     allometricExponent: 0.75,
-    hepaticClearance: 90,
-    renalClearance: 15,
     bsa: 0.006,
   },
   rat: {
@@ -77,8 +81,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 3,
     hepaticFlow: 85,
     allometricExponent: 0.75,
-    hepaticClearance: 73,
-    renalClearance: 12,
     bsa: 0.025,
   },
   hamster: {
@@ -88,8 +90,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 2.5,
     hepaticFlow: 90,
     allometricExponent: 0.75,
-    hepaticClearance: 75,
-    renalClearance: 12,
     bsa: 0.02,
   },
   guineaPig: {
@@ -99,8 +99,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 6,
     hepaticFlow: 75,
     allometricExponent: 0.75,
-    hepaticClearance: 55,
-    renalClearance: 8,
     bsa: 0.06,
   },
   ferret: {
@@ -110,8 +108,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 7,
     hepaticFlow: 72,
     allometricExponent: 0.75,
-    hepaticClearance: 52,
-    renalClearance: 10,
     bsa: 0.08,
   },
   rabbit: {
@@ -121,8 +117,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 9,
     hepaticFlow: 77,
     allometricExponent: 0.75,
-    hepaticClearance: 65,
-    renalClearance: 10,
     bsa: 0.15,
   },
   cat: {
@@ -132,8 +126,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 15,
     hepaticFlow: 65,
     allometricExponent: 0.75,
-    hepaticClearance: 48,
-    renalClearance: 8,
     bsa: 0.25,
   },
   monkey: {
@@ -143,8 +135,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 25,
     hepaticFlow: 58,
     allometricExponent: 0.75,
-    hepaticClearance: 42,
-    renalClearance: 7,
     bsa: 0.3,
   },
   dog: {
@@ -154,8 +144,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 13,
     hepaticFlow: 55,
     allometricExponent: 0.75,
-    hepaticClearance: 38,
-    renalClearance: 6,
     bsa: 0.8,
   },
   miniPig: {
@@ -165,8 +153,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 17,
     hepaticFlow: 45,
     allometricExponent: 0.75,
-    hepaticClearance: 28,
-    renalClearance: 4,
     bsa: 1.1,
   },
   sheep: {
@@ -176,8 +162,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 12,
     hepaticFlow: 47,
     allometricExponent: 0.75,
-    hepaticClearance: 32,
-    renalClearance: 5,
     bsa: 1.2,
   },
   horse: {
@@ -187,8 +171,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 28,
     hepaticFlow: 28,
     allometricExponent: 0.75,
-    hepaticClearance: 18,
-    renalClearance: 2.5,
     bsa: 6.3, // BSA calculated using 0.1 × W^(2/3) formula for 500kg horse
   },
   cow: {
@@ -198,8 +180,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 18,
     hepaticFlow: 25,
     allometricExponent: 0.75,
-    hepaticClearance: 15,
-    renalClearance: 2,
     bsa: 7.1, // BSA calculated using 0.1 × W^(2/3) formula for 600kg cow
   },
   human: {
@@ -213,8 +193,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 80,
     hepaticFlow: 20.7,
     allometricExponent: 0.75,
-    hepaticClearance: 15,
-    renalClearance: 1.5,
     bsa: 1.9, // BSA for 70 kg adult; FDA uses 1.62 m² for 60 kg
   },
   // Additional species commonly used in pharmaceutical research
@@ -225,8 +203,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 3,
     hepaticFlow: 100,
     allometricExponent: 0.75,
-    hepaticClearance: 80,
-    renalClearance: 13,
     bsa: 0.012,
   },
   chinchilla: {
@@ -236,8 +212,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 15,
     hepaticFlow: 75,
     allometricExponent: 0.75,
-    hepaticClearance: 58,
-    renalClearance: 9,
     bsa: 0.04,
   },
   marmoset: {
@@ -247,8 +221,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 12,
     hepaticFlow: 95,
     allometricExponent: 0.75,
-    hepaticClearance: 70,
-    renalClearance: 11,
     bsa: 0.045,
   },
   cynomolgus: {
@@ -258,8 +230,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 30,
     hepaticFlow: 43.6,
     allometricExponent: 0.75,
-    hepaticClearance: 35,
-    renalClearance: 6,
     bsa: 0.29,
   },
   rhesus: {
@@ -269,8 +239,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 25,
     hepaticFlow: 45,
     allometricExponent: 0.75,
-    hepaticClearance: 38,
-    renalClearance: 6,
     bsa: 0.35,
   },
   beagle: {
@@ -280,8 +248,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 13,
     hepaticFlow: 58,
     allometricExponent: 0.75,
-    hepaticClearance: 42,
-    renalClearance: 7,
     bsa: 0.5,
   },
   goat: {
@@ -291,8 +257,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 12,
     hepaticFlow: 50,
     allometricExponent: 0.75,
-    hepaticClearance: 35,
-    renalClearance: 5,
     bsa: 0.85,
   },
   pig: {
@@ -302,8 +266,6 @@ export const SPECIES_DATABASE: Record<string, Species> = {
     lifeSpan: 15,
     hepaticFlow: 35,
     allometricExponent: 0.75,
-    hepaticClearance: 25,
-    renalClearance: 3.5,
     bsa: 1.6,
   },
 };
