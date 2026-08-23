@@ -774,7 +774,8 @@ This tool does not replace regulatory consultation or expert review.
             <div className="sr-only" aria-live="polite" aria-atomic="true">
               Calculation complete. Maximum Recommended Starting Dose:{" "}
               {result.mrsd.toFixed(4)} mg/kg, which equals{" "}
-              {result.mrsdTotal.toFixed(2)} mg for a {result.humanWeight} kg adult.
+              {result.mrsdTotal.toFixed(2)} mg for a {result.humanWeight} kg
+              adult.
             </div>
             <CardHeader>
               <div className="flex justify-between items-start">

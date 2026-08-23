@@ -397,6 +397,17 @@ export default function Home() {
                     setPatientSex={(value) =>
                       dispatch({ type: "SET_PATIENT_SEX", payload: value })
                     }
+                    patientHeight={state.patientHeight}
+                    setPatientHeight={(value) =>
+                      dispatch({ type: "SET_PATIENT_HEIGHT", payload: value })
+                    }
+                    bodyWeightBasis={state.bodyWeightBasis}
+                    setBodyWeightBasis={(value) =>
+                      dispatch({
+                        type: "SET_BODY_WEIGHT_BASIS",
+                        payload: value,
+                      })
+                    }
                     bioavailabilityMethod={state.bioavailabilityMethod}
                     setBioavailabilityMethod={(value) =>
                       dispatch({
@@ -407,6 +418,22 @@ export default function Home() {
                     bioavailability={state.bioavailability}
                     setBioavailability={(value) =>
                       dispatch({ type: "SET_BIOAVAILABILITY", payload: value })
+                    }
+                    sourceBioavailabilityMethod={
+                      state.sourceBioavailabilityMethod
+                    }
+                    setSourceBioavailabilityMethod={(value) =>
+                      dispatch({
+                        type: "SET_SOURCE_BIOAVAILABILITY_METHOD",
+                        payload: value,
+                      })
+                    }
+                    sourceBioavailability={state.sourceBioavailability}
+                    setSourceBioavailability={(value) =>
+                      dispatch({
+                        type: "SET_SOURCE_BIOAVAILABILITY",
+                        payload: value,
+                      })
                     }
                     resetAll={resetAll}
                   />

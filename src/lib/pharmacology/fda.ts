@@ -712,8 +712,7 @@ export function calculateFdaFihDose(input: FihDoseInput): FihDoseResult {
     | Array<{ species: string; noael: number; hed: number; mrsd: number }>
     | undefined;
   let recommendedMrsd:
-    | { value: number; source: string; rationale: string }
-    | undefined;
+    { value: number; source: string; rationale: string } | undefined;
 
   if (input.additionalSpeciesData && input.additionalSpeciesData.length > 0) {
     multiSpeciesResults = [];

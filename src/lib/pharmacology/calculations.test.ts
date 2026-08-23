@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateDose,
-  calculateCockcroftGFR,
+  calculateCockcroftCrCl,
+  calculateIdealBodyWeight,
+  resolveBodyWeight,
   gfrToDoseAdjustment,
   generateChartData,
   convertCreatinine,
@@ -9,34 +11,34 @@ import {
 import { CalculationParameters } from "./types";
 
 describe("DoseFinder Calculation Tests", () => {
-  describe("calculateCockcroftGFR", () => {
+  describe("calculateCockcroftCrCl", () => {
     it("should calculate GFR correctly for standard male patient", () => {
       // Formula: ((140 - age) * weight) / (72 * creatinine)
       // ((140 - 40) * 70) / (72 * 1) = 97.22
-      const gfr = calculateCockcroftGFR(70, 40, 1, "male");
+      const gfr = calculateCockcroftCrCl(70, 40, 1, "male");
       expect(gfr).toBeCloseTo(97.22, 1);
     });
 
     it("should apply female adjustment factor", () => {
       // 97.22 * 0.85 = 82.64
-      const gfr = calculateCockcroftGFR(70, 40, 1, "female");
+      const gfr = calculateCockcroftCrCl(70, 40, 1, "female");
       expect(gfr).toBeCloseTo(82.64, 1);
     });
 
     it("should return 0 for invalid inputs", () => {
-      expect(calculateCockcroftGFR(0, 40, 1, "male")).toBe(0);
-      expect(calculateCockcroftGFR(70, 0, 1, "male")).toBe(0);
-      expect(calculateCockcroftGFR(70, 40, 0, "male")).toBe(0);
-      expect(calculateCockcroftGFR(-70, 40, 1, "male")).toBe(0);
+      expect(calculateCockcroftCrCl(0, 40, 1, "male")).toBe(0);
+      expect(calculateCockcroftCrCl(70, 0, 1, "male")).toBe(0);
+      expect(calculateCockcroftCrCl(70, 40, 0, "male")).toBe(0);
+      expect(calculateCockcroftCrCl(-70, 40, 1, "male")).toBe(0);
     });
 
     it("should handle edge case where age equals 140", () => {
-      const gfr = calculateCockcroftGFR(70, 140, 1, "male");
+      const gfr = calculateCockcroftCrCl(70, 140, 1, "male");
       expect(gfr).toBe(0);
     });
 
     it("should handle very high creatinine values", () => {
-      const gfr = calculateCockcroftGFR(70, 40, 10, "male");
+      const gfr = calculateCockcroftCrCl(70, 40, 10, "male");
       expect(gfr).toBeCloseTo(9.72, 1);
     });
   });
@@ -59,17 +61,17 @@ describe("DoseFinder Calculation Tests", () => {
     });
   });
 
-  describe("calculateCockcroftGFR with creatinine units", () => {
+  describe("calculateCockcroftCrCl with creatinine units", () => {
     it("should handle µmol/L input correctly", () => {
       // Same patient: 70kg, 40yo, creatinine 1 mg/dL = 88.4 µmol/L
-      const gfrMgDL = calculateCockcroftGFR(70, 40, 1, "male", "mg/dL");
-      const gfrUmolL = calculateCockcroftGFR(70, 40, 88.4, "male", "umol/L");
+      const gfrMgDL = calculateCockcroftCrCl(70, 40, 1, "male", "mg/dL");
+      const gfrUmolL = calculateCockcroftCrCl(70, 40, 88.4, "male", "umol/L");
       expect(gfrUmolL).toBeCloseTo(gfrMgDL, 0);
     });
 
     it("should default to mg/dL when unit not specified", () => {
-      const gfrDefault = calculateCockcroftGFR(70, 40, 1, "male");
-      const gfrExplicit = calculateCockcroftGFR(70, 40, 1, "male", "mg/dL");
+      const gfrDefault = calculateCockcroftCrCl(70, 40, 1, "male");
+      const gfrExplicit = calculateCockcroftCrCl(70, 40, 1, "male", "mg/dL");
       expect(gfrDefault).toBe(gfrExplicit);
     });
   });
@@ -283,7 +285,7 @@ describe("DoseFinder Calculation Tests", () => {
   });
 
   describe("calculateDose - Hepatic Flow Scaling", () => {
-    it("should calculate hepatic clearance scaling", () => {
+    it("should calculate hepatic blood flow scaling (exploratory)", () => {
       const result = calculateDose(
         0.02,
         70,
@@ -294,7 +296,35 @@ describe("DoseFinder Calculation Tests", () => {
       );
       expect(result.dose).toBeGreaterThan(0);
       expect(result.methodDescription).toBe(
-        "Hepatic clearance scaling (experimental)",
+        "Hepatic blood flow scaling (exploratory)",
+      );
+    });
+
+    it("should scale purely by hepatic blood flow ratio (no drug-clearance term)", () => {
+      // Flow-limited assumption: (mg/kg)_target = (mg/kg)_source × (qPerKg_target / qPerKg_source)
+      // mouse hepaticFlow = 131, human hepaticFlow = 20.7 → factor = 20.7/131 ≈ 0.158
+      const result = calculateDose(
+        0.02,
+        70,
+        1,
+        "hepaticFlow",
+        "mouse",
+        "human",
+      );
+      expect(result.dose).toBeCloseTo(20.7 / 131, 4);
+    });
+
+    it("should attach an exploratory-method warning", () => {
+      const result = calculateDose(
+        0.02,
+        70,
+        1,
+        "hepaticFlow",
+        "mouse",
+        "human",
+      );
+      expect(result.warnings?.some((w) => w.includes("Exploratory"))).toBe(
+        true,
       );
     });
 
@@ -740,6 +770,164 @@ describe("DoseFinder Calculation Tests", () => {
       );
       expect(result.warnings).toBeDefined();
       expect(result.warnings!.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("calculateIdealBodyWeight (Devine)", () => {
+    it("computes IBW for a 175 cm male", () => {
+      // 175 cm = 68.9 in → 50 + 2.3 × (68.9 − 60) = 50 + 2.3 × 8.9 ≈ 70.5 kg
+      expect(calculateIdealBodyWeight(175, "male")).toBeCloseTo(70.5, 0);
+    });
+
+    it("computes lower IBW for females (base 45.5)", () => {
+      expect(calculateIdealBodyWeight(175, "female")).toBeCloseTo(66.0, 0);
+    });
+
+    it("floors at the base weight below 60 inches", () => {
+      // 140 cm ≈ 55 in (< 60) → base value only
+      expect(calculateIdealBodyWeight(140, "male")).toBe(50);
+      expect(calculateIdealBodyWeight(0, "male")).toBe(0);
+    });
+  });
+
+  describe("resolveBodyWeight", () => {
+    it("returns actual weight for the 'actual' basis", () => {
+      expect(resolveBodyWeight(120, 175, "male", "actual")).toBe(120);
+    });
+
+    it("uses IBW for 'ideal' when actual exceeds IBW", () => {
+      const ibw = calculateIdealBodyWeight(175, "male");
+      expect(resolveBodyWeight(120, 175, "male", "ideal")).toBeCloseTo(ibw, 4);
+    });
+
+    it("computes AdjBW = IBW + 0.4×(actual − IBW) for obesity", () => {
+      const ibw = calculateIdealBodyWeight(175, "male");
+      const expected = ibw + 0.4 * (120 - ibw);
+      expect(resolveBodyWeight(120, 175, "male", "adjusted")).toBeCloseTo(
+        expected,
+        4,
+      );
+    });
+
+    it("falls back to actual weight when height is missing", () => {
+      expect(resolveBodyWeight(120, undefined, "male", "adjusted")).toBe(120);
+      expect(resolveBodyWeight(120, 0, "male", "ideal")).toBe(120);
+    });
+  });
+
+  describe("calculateDose - Two-sided bioavailability", () => {
+    it("reduces to legacy behavior when source F defaults to 100%", () => {
+      // target oral (50%), source defaults to 100% → factor 100/50 = 2
+      const iv = calculateDose(0.02, 70, 1, "allometric", "mouse", "human", {
+        bioavailabilityMethod: "iv",
+      });
+      const oral = calculateDose(0.02, 70, 1, "allometric", "mouse", "human", {
+        bioavailabilityMethod: "oral",
+      });
+      expect(oral.dose).toBeCloseTo(iv.dose * 2, 4);
+    });
+
+    it("applies F_source/F_target for route-to-route translation", () => {
+      // source oral (50%), target IV (100%) → factor 50/100 = 0.5 (lower dose)
+      const base = calculateDose(0.02, 70, 1, "allometric", "mouse", "human", {
+        bioavailabilityMethod: "iv",
+      });
+      const result = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        {
+          sourceBioavailabilityMethod: "oral",
+          bioavailabilityMethod: "iv",
+        },
+      );
+      expect(result.dose).toBeCloseTo(base.dose * 0.5, 4);
+    });
+
+    it("applies no adjustment when source and target routes match", () => {
+      const base = calculateDose(0.02, 70, 1, "allometric", "mouse", "human", {
+        bioavailabilityMethod: "iv",
+      });
+      const sameRoute = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        {
+          sourceBioavailabilityMethod: "oral",
+          bioavailabilityMethod: "oral",
+        },
+      );
+      expect(sameRoute.dose).toBeCloseTo(base.dose, 4);
+    });
+  });
+
+  describe("calculateDose - Cockcroft body-weight basis", () => {
+    it("labels the step as CrCl (not GFR)", () => {
+      const result = calculateDose(
+        0.02,
+        70,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        {
+          kidneyFunctionMethod: "cockcroft",
+          patientAge: 70,
+          patientCreatinine: 2,
+          patientSex: "male",
+          fractionExcretedRenal: 1,
+        },
+      );
+      expect(result.steps.some((s) => s.includes("Cockcroft-Gault CrCl"))).toBe(
+        true,
+      );
+      expect(result.steps.some((s) => s.includes("GFR"))).toBe(false);
+    });
+
+    it("uses adjusted body weight for an obese patient's CrCl", () => {
+      // Obese patient: actual target weight 120 kg vs IBW; adjusted BW lowers CrCl
+      const actual = calculateDose(
+        0.02,
+        120,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        {
+          kidneyFunctionMethod: "cockcroft",
+          patientAge: 60,
+          patientCreatinine: 1,
+          patientSex: "male",
+          patientHeight: 175,
+          bodyWeightBasis: "actual",
+          fractionExcretedRenal: 1,
+        },
+      );
+      const adjusted = calculateDose(
+        0.02,
+        120,
+        1,
+        "allometric",
+        "mouse",
+        "human",
+        {
+          kidneyFunctionMethod: "cockcroft",
+          patientAge: 60,
+          patientCreatinine: 1,
+          patientSex: "male",
+          patientHeight: 175,
+          bodyWeightBasis: "adjusted",
+          fractionExcretedRenal: 1,
+        },
+      );
+      // Lower body weight → lower CrCl → smaller renal adjustment factor → smaller dose
+      expect(adjusted.dose).toBeLessThan(actual.dose);
     });
   });
 });

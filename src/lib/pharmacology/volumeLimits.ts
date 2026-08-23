@@ -24,10 +24,7 @@ export type VolumeSeverity = "info" | "warning" | "critical";
  */
 export interface VolumeSuggestion {
   type:
-    | "increase_concentration"
-    | "split_dose"
-    | "change_route"
-    | "reduce_volume";
+    "increase_concentration" | "split_dose" | "change_route" | "reduce_volume";
   description: string;
   newValue?: number;
   unit?: string;

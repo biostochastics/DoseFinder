@@ -12,6 +12,7 @@ import {
   BioavailabilityMethod,
   PatientSex,
   CreatinineUnit,
+  BodyWeightBasis,
   BIOAVAILABILITY_DEFAULTS,
 } from "@/lib/pharmacology/types";
 import {
@@ -37,12 +38,85 @@ interface AdvancedParametersProps {
   setCreatinineUnit: (value: CreatinineUnit) => void;
   patientSex: PatientSex;
   setPatientSex: (value: PatientSex) => void;
+  patientHeight: number;
+  setPatientHeight: (value: number) => void;
+  bodyWeightBasis: BodyWeightBasis;
+  setBodyWeightBasis: (value: BodyWeightBasis) => void;
   bioavailabilityMethod: BioavailabilityMethod;
   setBioavailabilityMethod: (value: BioavailabilityMethod) => void;
   bioavailability: number;
   setBioavailability: (value: number) => void;
+  sourceBioavailabilityMethod: BioavailabilityMethod;
+  setSourceBioavailabilityMethod: (value: BioavailabilityMethod) => void;
+  sourceBioavailability: number;
+  setSourceBioavailability: (value: number) => void;
   resetAll: () => void;
 }
+
+/** Single route selector + manual entry for one side (source or target) of the F ratio. */
+const RouteBioavailability: React.FC<{
+  idPrefix: string;
+  label: string;
+  helpText: string;
+  method: BioavailabilityMethod;
+  setMethod: (value: BioavailabilityMethod) => void;
+  value: number;
+  setValue: (value: number) => void;
+}> = ({ idPrefix, label, helpText, method, setMethod, value, setValue }) => (
+  <div className="space-y-2">
+    <Label htmlFor={`${idPrefix}-route`} className="text-sm font-medium">
+      {label}
+    </Label>
+    <p className="text-xs text-muted-foreground">{helpText}</p>
+    <Select
+      value={method}
+      onValueChange={(v: string) => setMethod(v as BioavailabilityMethod)}
+    >
+      <SelectTrigger id={`${idPrefix}-route`} className="w-full">
+        <SelectValue placeholder="Select route" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="manual">Manual Entry</SelectItem>
+        <SelectItem value="iv">IV - Intravenous (100%)</SelectItem>
+        <SelectItem value="im">IM - Intramuscular (~85%)</SelectItem>
+        <SelectItem value="sc">SC - Subcutaneous (~70%)</SelectItem>
+        <SelectItem value="oral">Oral (~50%)</SelectItem>
+        <SelectItem value="rectal">Rectal (~65%)</SelectItem>
+        <SelectItem value="sublingual">Sublingual (~70%)</SelectItem>
+        <SelectItem value="transdermal">Transdermal (~35%)</SelectItem>
+        <SelectItem value="inhalation">Inhalation (~25%)</SelectItem>
+        <SelectItem value="other">Other (~75%)</SelectItem>
+      </SelectContent>
+    </Select>
+
+    {method === "manual" && (
+      <div className="flex flex-col gap-1">
+        <Label htmlFor={`${idPrefix}-manual`} className="text-sm">
+          Custom Bioavailability (%)
+        </Label>
+        <Input
+          id={`${idPrefix}-manual`}
+          type="number"
+          value={value}
+          onChange={(e) => setValue(Number(e.target.value) || 0)}
+          className="w-24"
+          step="1"
+          min={0}
+          max={100}
+          aria-label={`${label} bioavailability percentage`}
+        />
+      </div>
+    )}
+
+    {method !== "manual" && method !== "iv" && (
+      <p className="text-xs text-muted-foreground">
+        Literature range: {BIOAVAILABILITY_DEFAULTS[method].range.min}–
+        {BIOAVAILABILITY_DEFAULTS[method].range.max}%.{" "}
+        {BIOAVAILABILITY_DEFAULTS[method].caveat}
+      </p>
+    )}
+  </div>
+);
 
 export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
   kidneyFunctionMethod,
@@ -59,12 +133,31 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
   setCreatinineUnit,
   patientSex,
   setPatientSex,
+  patientHeight,
+  setPatientHeight,
+  bodyWeightBasis,
+  setBodyWeightBasis,
   bioavailabilityMethod,
   setBioavailabilityMethod,
   bioavailability,
   setBioavailability,
+  sourceBioavailabilityMethod,
+  setSourceBioavailabilityMethod,
+  sourceBioavailability,
+  setSourceBioavailability,
   resetAll,
 }) => {
+  const effectiveTargetF =
+    bioavailabilityMethod === "manual"
+      ? bioavailability
+      : (BIOAVAILABILITY_DEFAULTS[bioavailabilityMethod]?.value ?? 100);
+  const effectiveSourceF =
+    sourceBioavailabilityMethod === "manual"
+      ? sourceBioavailability
+      : (BIOAVAILABILITY_DEFAULTS[sourceBioavailabilityMethod]?.value ?? 100);
+  const bioavailabilityFactor =
+    effectiveTargetF > 0 ? effectiveSourceF / effectiveTargetF : 1;
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between mb-4">
@@ -244,6 +337,60 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
                     </div>
                   </RadioGroup>
                 </fieldset>
+
+                <div className="col-span-2 flex flex-col">
+                  <Label htmlFor="body-weight-basis" className="text-sm mb-1">
+                    Body-Weight Basis
+                  </Label>
+                  <Select
+                    value={bodyWeightBasis}
+                    onValueChange={(v: string) =>
+                      setBodyWeightBasis(v as BodyWeightBasis)
+                    }
+                  >
+                    <SelectTrigger id="body-weight-basis" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="actual">
+                        Actual body weight (default)
+                      </SelectItem>
+                      <SelectItem value="ideal">
+                        Ideal body weight (IBW, Devine)
+                      </SelectItem>
+                      <SelectItem value="adjusted">
+                        Adjusted body weight (AdjBW, obesity)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Cockcroft-Gault estimates creatinine clearance (CrCl), not
+                    GFR. Ideal/Adjusted require height and use the target weight
+                    as actual body weight.
+                  </p>
+                </div>
+
+                {bodyWeightBasis !== "actual" && (
+                  <div className="col-span-2 flex flex-col">
+                    <Label htmlFor="patient-height" className="text-sm mb-1">
+                      Height (cm)
+                    </Label>
+                    <Input
+                      id="patient-height"
+                      type="number"
+                      value={patientHeight}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (!isNaN(val) && val >= 0) {
+                          setPatientHeight(val);
+                        }
+                      }}
+                      className="w-24"
+                      step="1"
+                      min="0"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
@@ -253,91 +400,34 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
           <CardHeader className="pb-2">
             <CardTitle>Bioavailability</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Route of Administration
+              Route-to-route translation: Dose × (F<sub>source</sub> / F
+              <sub>target</sub>)
             </p>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="bioavailability-route" className="text-sm">
-                  Route
-                </Label>
-                <Select
-                  value={bioavailabilityMethod}
-                  onValueChange={(v: string) =>
-                    setBioavailabilityMethod(v as BioavailabilityMethod)
-                  }
-                >
-                  <SelectTrigger id="bioavailability-route" className="w-full">
-                    <SelectValue placeholder="Select route" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="manual">Manual Entry</SelectItem>
-                    <SelectItem value="iv">IV - Intravenous (100%)</SelectItem>
-                    <SelectItem value="im">
-                      IM - Intramuscular (~85%)
-                    </SelectItem>
-                    <SelectItem value="sc">SC - Subcutaneous (~70%)</SelectItem>
-                    <SelectItem value="oral">Oral (~50%)</SelectItem>
-                    <SelectItem value="rectal">Rectal (~65%)</SelectItem>
-                    <SelectItem value="sublingual">
-                      Sublingual (~70%)
-                    </SelectItem>
-                    <SelectItem value="transdermal">
-                      Transdermal (~35%)
-                    </SelectItem>
-                    <SelectItem value="inhalation">
-                      Inhalation (~25%)
-                    </SelectItem>
-                    <SelectItem value="other">Other (~75%)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-4">
+              <RouteBioavailability
+                idPrefix="source-bioavailability"
+                label="Source route (F_source)"
+                helpText="Route of the known/source dose. Default IV (100%) = systemic reference."
+                method={sourceBioavailabilityMethod}
+                setMethod={setSourceBioavailabilityMethod}
+                value={sourceBioavailability}
+                setValue={setSourceBioavailability}
+              />
 
-              {bioavailabilityMethod === "manual" && (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="bioavailability-manual" className="text-sm">
-                    Custom Bioavailability (%)
-                  </Label>
-                  <Input
-                    id="bioavailability-manual"
-                    type="number"
-                    value={bioavailability}
-                    onChange={(e) =>
-                      setBioavailability(Number(e.target.value) || 0)
-                    }
-                    className="w-24"
-                    step="1"
-                    min={0}
-                    max={100}
-                    aria-label="Bioavailability percentage"
-                  />
-                </div>
-              )}
+              <RouteBioavailability
+                idPrefix="bioavailability"
+                label="Target route (F_target)"
+                helpText="Route the translated dose will be administered by."
+                method={bioavailabilityMethod}
+                setMethod={setBioavailabilityMethod}
+                value={bioavailability}
+                setValue={setBioavailability}
+              />
 
-              {bioavailabilityMethod !== "manual" &&
-                bioavailabilityMethod !== "iv" && (
-                  <div className="warning-note">
-                    <p className="warning-note-title text-sm mb-1">
-                      Literature Range:{" "}
-                      {
-                        BIOAVAILABILITY_DEFAULTS[bioavailabilityMethod].range
-                          .min
-                      }
-                      –
-                      {
-                        BIOAVAILABILITY_DEFAULTS[bioavailabilityMethod].range
-                          .max
-                      }
-                      %
-                    </p>
-                    <p className="warning-note-text">
-                      {BIOAVAILABILITY_DEFAULTS[bioavailabilityMethod].caveat}
-                    </p>
-                  </div>
-                )}
-
-              {bioavailabilityMethod === "oral" && (
+              {(bioavailabilityMethod === "oral" ||
+                sourceBioavailabilityMethod === "oral") && (
                 <div className="destructive-note">
                   <p className="destructive-note-title text-sm">
                     Oral bioavailability is highly variable (5–99%)
@@ -360,27 +450,15 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
               Active Parameter Effects
             </h4>
             <ul className="text-sm space-y-1 list-disc pl-4">
-              {bioavailabilityMethod === "manual" &&
-                bioavailability > 0 &&
-                bioavailability < 100 && (
-                  <li>
-                    Bioavailability adjustment factor:{" "}
-                    {(100 / bioavailability).toFixed(2)}x (manual:{" "}
-                    {bioavailability}%)
-                  </li>
-                )}
-              {bioavailabilityMethod !== "manual" &&
-                bioavailabilityMethod !== "iv" && (
-                  <li>
-                    Bioavailability adjustment factor:{" "}
-                    {(
-                      100 /
-                      BIOAVAILABILITY_DEFAULTS[bioavailabilityMethod].value
-                    ).toFixed(2)}
-                    x ({bioavailabilityMethod.toUpperCase()}:{" "}
-                    {BIOAVAILABILITY_DEFAULTS[bioavailabilityMethod].value}%)
-                  </li>
-                )}
+              {effectiveSourceF !== effectiveTargetF && (
+                <li>
+                  Bioavailability adjustment factor (F<sub>source</sub>/F
+                  <sub>target</sub>): {bioavailabilityFactor.toFixed(2)}x
+                  (source {sourceBioavailabilityMethod.toUpperCase()}{" "}
+                  {effectiveSourceF}% → target{" "}
+                  {bioavailabilityMethod.toUpperCase()} {effectiveTargetF}%)
+                </li>
+              )}
               {kidneyFunctionMethod === "manual" && kidneyFunction < 100 && (
                 <li>
                   Reduced kidney function ({kidneyFunction}%) reduces dose, with
@@ -391,19 +469,15 @@ export const AdvancedParameters: React.FC<AdvancedParametersProps> = ({
               {kidneyFunctionMethod === "cockcroft" &&
                 patientAge > 0 &&
                 patientCreatinine > 0 && (
-                  <li>Cockcroft-Gault GFR-based dose adjustment active</li>
-                )}
-              {kidneyFunctionMethod === "none" &&
-                bioavailabilityMethod === "manual" &&
-                bioavailability === 100 && (
-                  <li className="text-muted-foreground">
-                    No adjustments currently active
+                  <li>
+                    Cockcroft-Gault CrCl-based dose adjustment active (
+                    {bodyWeightBasis} body weight)
                   </li>
                 )}
               {kidneyFunctionMethod === "none" &&
-                bioavailabilityMethod === "iv" && (
+                effectiveSourceF === effectiveTargetF && (
                   <li className="text-muted-foreground">
-                    No adjustments currently active (IV = 100% bioavailability)
+                    No adjustments currently active
                   </li>
                 )}
             </ul>
