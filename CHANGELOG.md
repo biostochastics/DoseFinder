@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-08-25
+
+Batch 2 of the P1 roadmap: a "trust foundation" plus an explicit First-in-Human
+starting-dose decision surface. Scoped with a multi-model review panel and
+grounded in EMA 2017 Rev.1 (EMEA/CHMP/SWP/28367/07) and FDA 2005.
+
+### Added
+
+- **Golden scientific validation suite** (`src/lib/pharmacology/golden/`): frozen, citation-tagged reference cases treated as assay controls — FDA 2005 Km/HED/MRSD worked examples, Cockcroft-Gault CrCl references, cross-species scaling (allometric/BSA/exploratory collapses), plus **intentional invalid-input guard cases** (NOAEL ≤ 0, unknown species, safety factor < 1, F > 100%) that assert the engine refuses or clamps rather than emitting a plausible-looking dose. If a pinned value changes, the underlying calculation changed and must be re-checked against its citation.
+- **CI workflow** (`.github/workflows/ci.yml`): typecheck → lint → unit → golden → build on every push/PR, with a dedicated golden step so a control failure is unmistakable. New `test:run` / `test:golden` scripts.
+- **Explicit FIH starting-dose decision surface** (`fihDecision.ts`): replaces the previous silent `min()` over species. All candidate starting doses are shown side-by-side; the default recommendation is the **lowest included candidate** per EMA 2017 §7.2, and recommending anything else **requires a written justification** (enforced in the UI). Each species candidate has a user-set **relevance** control (relevant / questionable / excluded, with a reason) so "most sensitive" is no longer automatically treated as "most appropriate".
+- **Parameter provenance tags** (measured / assumed / literature-default): the FIH NOAEL and safety factor are tagged and shown as chips on each candidate and in copy/export; the cross-species calculator's bioavailability and Cockcroft steps already carry source provenance.
+- **First-class regulatory disclaimer banner** on the FIH module ("Educational estimate — NOT for IND submission"), promoted out of buried metadata.
+
+### Changed
+
+- FIH copy/export reports now include the full decision (recommended candidate, rationale, per-candidate relevance/justification, NOAEL provenance) instead of a bare "most conservative" line.
+
 ## [0.9.9] - 2026-08-23
 
 Scientific correctness pass on the cross-species calculator (calculation-layer
