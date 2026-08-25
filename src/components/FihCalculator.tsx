@@ -49,6 +49,7 @@ import {
 import { Math } from "@/components/ui/math";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   calculateFdaFihDose,
   getSupportedSpecies,
@@ -62,6 +63,11 @@ import {
   type Provenance,
   type SpeciesRelevance,
 } from "@/lib/pharmacology/fihDecision";
+import {
+  buildSafetyFactorRange,
+  type FactorLevel,
+  type SafetyFactorInput,
+} from "@/lib/pharmacology/safetyFactorBuilder";
 import {
   SAFETY_FACTOR_GUIDANCE,
   REGULATORY_REFERENCES,
@@ -178,6 +184,38 @@ export function FihCalculator() {
   );
   const [overrideJustification, setOverrideJustification] =
     useState<string>("");
+
+  // Safety-factor rationale builder (EMA 2017 §7.2) — assists, does not decide.
+  const [sfFactors, setSfFactors] = useState<SafetyFactorInput>({
+    novelty: 0,
+    pdCharacteristics: 0,
+    animalModelRelevance: 0,
+    safetyFindings: 0,
+    estimationUncertainty: 0,
+    clinicalMonitorability: 0,
+    wellCharacterizedClass: false,
+  });
+  const [appliedSfRationale, setAppliedSfRationale] = useState<string[] | null>(
+    null,
+  );
+  const sfRange = useMemo(() => buildSafetyFactorRange(sfFactors), [sfFactors]);
+  const setSfFactor = useCallback(
+    (key: keyof SafetyFactorInput, value: FactorLevel | boolean) => {
+      setSfFactors((prev) => ({ ...prev, [key]: value }));
+    },
+    [],
+  );
+  const applySafetyFactor = useCallback(
+    (value: number) => {
+      setSafetyFactor("custom");
+      setCustomSafetyFactor(String(value));
+      setAppliedSfRationale([
+        `Safety factor ${value}× chosen from recommended range ${sfRange.low}–${sfRange.high}× (score ${sfRange.score}/12, ${sfRange.band}).`,
+        ...sfRange.rationale,
+      ]);
+    },
+    [sfRange],
+  );
 
   // Accessibility: Screen reader announcements
   const { announcement, announce } = useAnnounce();
@@ -373,8 +411,14 @@ Generated: ${new Date().toLocaleString()}
 INPUT PARAMETERS
 ----------------
 Primary Species: ${primarySpecies}
-NOAEL: ${primaryNoael} mg/kg
-Safety Factor: ${safetyFactor === "custom" ? customSafetyFactor : safetyFactor}×
+NOAEL: ${primaryNoael} mg/kg (${noaelProvenance})
+Safety Factor: ${safetyFactor === "custom" ? customSafetyFactor : safetyFactor}×${
+      appliedSfRationale
+        ? `
+Safety-factor rationale (EMA 2017 §7.2):
+${appliedSfRationale.map((r) => `  - ${r}`).join("\n")}`
+        : ""
+    }
 Drug Modality: ${modality}
 Human Reference Weight: ${humanWeight} kg
 ${
@@ -453,6 +497,7 @@ guidance documents and seek expert advice for IND submissions.
     modality,
     humanWeight,
     additionalSpecies,
+    appliedSfRationale,
     announce,
   ]);
 
@@ -473,8 +518,14 @@ INPUT PARAMETERS
 ================
 Drug Modality: ${modality}
 Primary Animal Species: ${primarySpecies}
-NOAEL: ${primaryNoael} mg/kg
-Safety Factor: ${effectiveSafetyFactor}×
+NOAEL: ${primaryNoael} mg/kg (${noaelProvenance})
+Safety Factor: ${effectiveSafetyFactor}×${
+      appliedSfRationale
+        ? `
+Safety-factor rationale (EMA 2017 §7.2):
+${appliedSfRationale.map((r) => `  - ${r}`).join("\n")}`
+        : ""
+    }
 Human Reference Weight: ${humanWeight} kg
 ${
   additionalSpecies.length > 0
@@ -591,6 +642,7 @@ This tool does not replace regulatory consultation or expert review.
     modality,
     humanWeight,
     additionalSpecies,
+    appliedSfRationale,
   ]);
 
   return (
@@ -750,7 +802,13 @@ This tool does not replace regulatory consultation or expert review.
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="safety-factor">Safety Factor</Label>
-              <Select value={safetyFactor} onValueChange={setSafetyFactor}>
+              <Select
+                value={safetyFactor}
+                onValueChange={(v) => {
+                  setSafetyFactor(v);
+                  setAppliedSfRationale(null);
+                }}
+              >
                 <SelectTrigger
                   id="safety-factor"
                   aria-label="Select safety factor"
@@ -781,13 +839,133 @@ This tool does not replace regulatory consultation or expert review.
                   id="custom-sf"
                   type="number"
                   value={customSafetyFactor}
-                  onChange={(e) => setCustomSafetyFactor(e.target.value)}
+                  onChange={(e) => {
+                    setCustomSafetyFactor(e.target.value);
+                    setAppliedSfRationale(null);
+                  }}
                   min={1}
                   step="1"
                 />
               </div>
             )}
           </div>
+
+          {/* Safety-factor rationale builder (optional assistant) */}
+          <Accordion type="single" collapsible>
+            <AccordionItem
+              value="sf-builder"
+              className="border rounded-md px-3"
+            >
+              <AccordionTrigger className="text-sm">
+                Safety-factor rationale builder (EMA 2017 §7.2) — optional
+              </AccordionTrigger>
+              <AccordionContent>
+                <p className="text-xs text-muted-foreground mb-3">
+                  The safety factor is a reasoned judgment, not a fixed tier.
+                  Rate each factor; the tool suggests a RANGE with an audit
+                  trail. You commit to a specific value — it never decides for
+                  you.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(
+                    [
+                      ["novelty", "Novelty of substance / MoA"],
+                      [
+                        "pdCharacteristics",
+                        "PD: dose-response / irreversibility",
+                      ],
+                      ["animalModelRelevance", "Animal-model relevance"],
+                      ["safetyFindings", "Character of safety findings"],
+                      [
+                        "estimationUncertainty",
+                        "NOAEL/MABEL/exposure uncertainty",
+                      ],
+                      ["clinicalMonitorability", "Clinical monitorability"],
+                    ] as Array<[keyof SafetyFactorInput, string]>
+                  ).map(([key, label]) => (
+                    <div key={key}>
+                      <Label htmlFor={`sf-${key}`} className="text-xs">
+                        {label}
+                      </Label>
+                      <Select
+                        value={String(sfFactors[key])}
+                        onValueChange={(v) =>
+                          setSfFactor(key, Number(v) as FactorLevel)
+                        }
+                      >
+                        <SelectTrigger
+                          id={`sf-${key}`}
+                          className="h-8"
+                          aria-label={label}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Low / none</SelectItem>
+                          <SelectItem value="1">Moderate</SelectItem>
+                          <SelectItem value="2">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2 mt-3">
+                  <Checkbox
+                    id="sf-well-characterized"
+                    checked={sfFactors.wellCharacterizedClass}
+                    onCheckedChange={(c) =>
+                      setSfFactor("wellCharacterizedClass", c === true)
+                    }
+                  />
+                  <Label htmlFor="sf-well-characterized" className="text-xs">
+                    Well-characterized class with extensive human data (permits
+                    a factor below 10× — must be justified)
+                  </Label>
+                </div>
+
+                <div className="mt-3 rounded-md bg-muted/50 p-3">
+                  <p className="text-sm font-medium">
+                    Recommended range:{" "}
+                    <span className="text-accent">
+                      {sfRange.low}–{sfRange.high}×
+                    </span>{" "}
+                    <Badge variant="outline" className="ml-1 text-[10px]">
+                      {sfRange.band}
+                    </Badge>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {sfRange.summary}
+                  </p>
+                  <ul className="text-xs text-muted-foreground list-disc pl-4 mt-2 space-y-0.5">
+                    {sfRange.rationale.map((r, i) => (
+                      <li key={i}>{r}</li>
+                    ))}
+                  </ul>
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => applySafetyFactor(sfRange.high)}
+                    >
+                      Use conservative end ({sfRange.high}×)
+                    </Button>
+                    {sfRange.low !== sfRange.high && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => applySafetyFactor(sfRange.low)}
+                      >
+                        Use lower end ({sfRange.low}×)
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           {/* Human Reference Weight */}
           <div className="w-1/2">
