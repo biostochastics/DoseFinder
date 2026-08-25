@@ -69,6 +69,10 @@ import {
   type SafetyFactorInput,
 } from "@/lib/pharmacology/safetyFactorBuilder";
 import {
+  calculateOccupancyDose,
+  type OccupancyDoseInput,
+} from "@/lib/pharmacology/mabel";
+import {
   SAFETY_FACTOR_GUIDANCE,
   REGULATORY_REFERENCES,
 } from "@/lib/pharmacology/constants";
@@ -217,6 +221,45 @@ export function FihCalculator() {
     [sfRange],
   );
 
+  // Gated MABEL / PAD (receptor-occupancy) track — educational, off by default.
+  const [mabelAck, setMabelAck] = useState(false);
+  const [mabelKd, setMabelKd] = useState("1");
+  const [mabelVd, setMabelVd] = useState("0.07");
+  const [mabelMw, setMabelMw] = useState("150000");
+  const [mabelF, setMabelF] = useState("100");
+  const [mabelRoPct, setMabelRoPct] = useState("10"); // MABEL: minimal effect
+  const [padRoPct, setPadRoPct] = useState("50"); // PAD: pharmacologically active
+  const [includeMabel, setIncludeMabel] = useState(true);
+  const [includePad, setIncludePad] = useState(false);
+
+  const mabelBaseInput = useMemo<
+    Omit<OccupancyDoseInput, "targetOccupancyPct">
+  >(
+    () => ({
+      bindingConstantNM: parseFloat(mabelKd),
+      vdLPerKg: parseFloat(mabelVd),
+      molecularWeightGPerMol: parseFloat(mabelMw),
+      bioavailabilityPct: parseFloat(mabelF),
+    }),
+    [mabelKd, mabelVd, mabelMw, mabelF],
+  );
+  const mabelResult = useMemo(
+    () =>
+      calculateOccupancyDose({
+        ...mabelBaseInput,
+        targetOccupancyPct: parseFloat(mabelRoPct),
+      }),
+    [mabelBaseInput, mabelRoPct],
+  );
+  const padResult = useMemo(
+    () =>
+      calculateOccupancyDose({
+        ...mabelBaseInput,
+        targetOccupancyPct: parseFloat(padRoPct),
+      }),
+    [mabelBaseInput, padRoPct],
+  );
+
   // Accessibility: Screen reader announcements
   const { announcement, announce } = useAnnounce();
 
@@ -230,35 +273,82 @@ export function FihCalculator() {
   // Build NOAEL-HED-MRSD candidates from the calculation result, then resolve
   // an explicit starting-dose decision (no silent min()).
   const candidates = useMemo<DoseCandidate[]>(() => {
-    if (!result || result.mrsd <= 0) return [];
-    const rows =
-      result.multiSpeciesResults && result.multiSpeciesResults.length > 0
-        ? result.multiSpeciesResults
-        : [
-            {
-              species: primarySpecies,
-              noael: parseFloat(primaryNoael) || 0,
-              hed: result.hed,
-              mrsd: result.mrsd,
-            },
-          ];
-    return rows.map((r) => {
-      const rel = relevanceById[r.species];
-      const cap = r.species.charAt(0).toUpperCase() + r.species.slice(1);
-      return {
-        id: r.species,
-        method: "NOAEL-HED-MRSD",
-        label: `${cap} NOAEL→MRSD`,
-        species: r.species,
-        valueMgKg: r.mrsd,
-        safetyFactor: result.safetyFactor,
-        relevance: rel?.relevance ?? "relevant",
-        relevanceJustification: rel?.justification || undefined,
-        provenance: { noael: noaelProvenance, safetyFactor: "assumed" },
-        notes: `NOAEL ${r.noael} mg/kg → HED ${r.hed.toFixed(3)} mg/kg (SF ${result.safetyFactor}×)`,
+    const list: DoseCandidate[] = [];
+
+    if (result && result.mrsd > 0) {
+      const rows =
+        result.multiSpeciesResults && result.multiSpeciesResults.length > 0
+          ? result.multiSpeciesResults
+          : [
+              {
+                species: primarySpecies,
+                noael: parseFloat(primaryNoael) || 0,
+                hed: result.hed,
+                mrsd: result.mrsd,
+              },
+            ];
+      for (const r of rows) {
+        const rel = relevanceById[r.species];
+        const cap = r.species.charAt(0).toUpperCase() + r.species.slice(1);
+        list.push({
+          id: r.species,
+          method: "NOAEL-HED-MRSD",
+          label: `${cap} NOAEL→MRSD`,
+          species: r.species,
+          valueMgKg: r.mrsd,
+          safetyFactor: result.safetyFactor,
+          relevance: rel?.relevance ?? "relevant",
+          relevanceJustification: rel?.justification || undefined,
+          provenance: { noael: noaelProvenance, safetyFactor: "assumed" },
+          notes: `NOAEL ${r.noael} mg/kg → HED ${r.hed.toFixed(3)} mg/kg (SF ${result.safetyFactor}×)`,
+        });
+      }
+    }
+
+    // Gated MABEL / PAD candidates (educational; only when acknowledged + valid)
+    if (mabelAck) {
+      const addOccupancy = (
+        id: string,
+        method: "MABEL" | "PAD",
+        roPct: string,
+        res: typeof mabelResult,
+      ) => {
+        if (!res.valid) return;
+        const rel = relevanceById[id];
+        list.push({
+          id,
+          method,
+          label: `${method} (${roPct}% RO)`,
+          valueMgKg: res.doseMgPerKg,
+          relevance: rel?.relevance ?? "relevant",
+          relevanceJustification: rel?.justification || undefined,
+          provenance: {
+            Kd: "assumed",
+            Vd: "assumed",
+            MW: "assumed",
+          },
+          notes: `C ${res.concentrationNM.toPrecision(3)} nM → ${res.doseMgPerKg.toPrecision(3)} mg/kg (unvalidated inputs)`,
+        });
       };
-    });
-  }, [result, relevanceById, noaelProvenance, primarySpecies, primaryNoael]);
+      if (includeMabel) addOccupancy("mabel", "MABEL", mabelRoPct, mabelResult);
+      if (includePad) addOccupancy("pad", "PAD", padRoPct, padResult);
+    }
+
+    return list;
+  }, [
+    result,
+    relevanceById,
+    noaelProvenance,
+    primarySpecies,
+    primaryNoael,
+    mabelAck,
+    includeMabel,
+    includePad,
+    mabelResult,
+    padResult,
+    mabelRoPct,
+    padRoPct,
+  ]);
 
   const decision = useMemo(
     () =>
@@ -1096,6 +1186,190 @@ This tool does not replace regulatory consultation or expert review.
             <IconCalculator className="h-4 w-4" stroke={1.5} />
             Calculate MRSD
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Gated MABEL / PAD (receptor occupancy) — biologics, educational only */}
+      <Card className="border-amber-500/30">
+        <CardHeader>
+          <CardTitle className="text-base">
+            MABEL / PAD — receptor occupancy (biologics)
+          </CardTitle>
+          <CardDescription>
+            For biologics/high-risk targets, NOAEL scaling may over-dose. MABEL
+            estimates a minimal-effect dose from in-vitro potency and receptor
+            occupancy. These inputs are compound-specific and{" "}
+            <span className="font-medium">
+              cannot be validated by this tool
+            </span>
+            .
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+            <Checkbox
+              id="mabel-ack"
+              checked={mabelAck}
+              onCheckedChange={(c) => setMabelAck(c === true)}
+              className="mt-0.5"
+            />
+            <Label htmlFor="mabel-ack" className="text-xs leading-snug">
+              I understand these are <strong>unvalidated, user-supplied</strong>{" "}
+              inputs and the result is an <strong>educational estimate</strong>,
+              not a regulatory MABEL and not for IND submission. A single unit
+              error (e.g. Kd in pM vs nM) changes the dose by orders of
+              magnitude.
+            </Label>
+          </div>
+
+          {mabelAck && (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label htmlFor="mabel-kd" className="text-xs">
+                    Kd / EC (nM)
+                  </Label>
+                  <Input
+                    id="mabel-kd"
+                    type="number"
+                    value={mabelKd}
+                    onChange={(e) => setMabelKd(e.target.value)}
+                    min={0}
+                    step="0.1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="mabel-vd" className="text-xs">
+                    Vd (L/kg)
+                  </Label>
+                  <Input
+                    id="mabel-vd"
+                    type="number"
+                    value={mabelVd}
+                    onChange={(e) => setMabelVd(e.target.value)}
+                    min={0}
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="mabel-mw" className="text-xs">
+                    MW (g/mol)
+                  </Label>
+                  <Input
+                    id="mabel-mw"
+                    type="number"
+                    value={mabelMw}
+                    onChange={(e) => setMabelMw(e.target.value)}
+                    min={0}
+                    step="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="mabel-f" className="text-xs">
+                    Bioavailability F (%)
+                  </Label>
+                  <Input
+                    id="mabel-f"
+                    type="number"
+                    value={mabelF}
+                    onChange={(e) => setMabelF(e.target.value)}
+                    min={0}
+                    max={100}
+                    step="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="mabel-ro" className="text-xs">
+                    MABEL occupancy (%)
+                  </Label>
+                  <Input
+                    id="mabel-ro"
+                    type="number"
+                    value={mabelRoPct}
+                    onChange={(e) => setMabelRoPct(e.target.value)}
+                    min={0}
+                    max={100}
+                    step="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="pad-ro" className="text-xs">
+                    PAD occupancy (%)
+                  </Label>
+                  <Input
+                    id="pad-ro"
+                    type="number"
+                    value={padRoPct}
+                    onChange={(e) => setPadRoPct(e.target.value)}
+                    min={0}
+                    max={100}
+                    step="1"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 text-xs">
+                  <Checkbox
+                    checked={includeMabel}
+                    onCheckedChange={(c) => setIncludeMabel(c === true)}
+                  />
+                  Include MABEL as a candidate in the decision
+                </label>
+                <label className="flex items-center gap-2 text-xs">
+                  <Checkbox
+                    checked={includePad}
+                    onCheckedChange={(c) => setIncludePad(c === true)}
+                  />
+                  Include PAD as a candidate
+                </label>
+              </div>
+
+              {/* MABEL result */}
+              {mabelResult.valid ? (
+                <div className="rounded-md bg-muted/50 p-3">
+                  <p className="text-sm">
+                    MABEL ({mabelRoPct}% RO):{" "}
+                    <span className="font-semibold text-accent">
+                      {mabelResult.doseMgPerKg.toPrecision(3)} mg/kg
+                    </span>
+                  </p>
+                  {includePad && padResult.valid && (
+                    <p className="text-sm">
+                      PAD ({padRoPct}% RO):{" "}
+                      <span className="font-semibold text-accent">
+                        {padResult.doseMgPerKg.toPrecision(3)} mg/kg
+                      </span>
+                    </p>
+                  )}
+                  <ul className="text-xs text-muted-foreground list-disc pl-4 mt-2 space-y-0.5">
+                    {mabelResult.steps.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Shown as a candidate in the starting-dose decision below
+                    (after you calculate an MRSD) — never as a standalone
+                    recommended dose.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Enter valid inputs to compute a MABEL estimate.
+                </p>
+              )}
+
+              {mabelResult.warnings.length > 0 && (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2">
+                  <ul className="text-xs text-amber-800 dark:text-amber-300 list-disc pl-4 space-y-0.5">
+                    {mabelResult.warnings.map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 
