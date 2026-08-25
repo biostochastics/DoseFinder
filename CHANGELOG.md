@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-08-25
+
+Batch 3 of the P1 roadmap: a safety-factor **rationale builder** that replaces
+the fixed 3/10/30/100 tiers with reasoned, auditable ranges.
+
+### Added
+
+- **Safety-factor rationale builder** (`safetyFactorBuilder.ts`, `buildSafetyFactorRange`): rates the six EMA 2017 Rev.1 §7.2 factors (novelty, PD/dose-response shape & irreversibility, animal-model relevance, safety-finding character, NOAEL/MABEL/exposure uncertainty, clinical monitorability) and returns a recommended **range** (10× → 30× → 100× → 300× → 1000×) with a per-factor audit trail — never a single "answer" number. A well-characterized-class toggle permits a sub-10× range (per FDA 2005) only when risk is low. Exposed in the FIH calculator as an optional assistant: rate the factors, see the reasoned range + rationale, then commit to a specific value (conservative or lower end) which is recorded in copy/export. Two qualified reviewers can legitimately differ, so the tool structures the judgment rather than making it.
+
+### Changed
+
+- The fixed safety-factor tiers remain available as presets; the builder is additive. FIH copy/export now record the chosen safety factor's rationale trail when the builder was used, and tag the NOAEL with its provenance.
+
 ## [0.10.0] - 2026-08-25
 
 Batch 2 of the P1 roadmap: a "trust foundation" plus an explicit First-in-Human
