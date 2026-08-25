@@ -47,6 +47,8 @@ import {
   IconExternalLink,
 } from "@tabler/icons-react";
 import { Math } from "@/components/ui/math";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   calculateFdaFihDose,
   getSupportedSpecies,
@@ -55,10 +57,35 @@ import {
   type FihWarning,
 } from "@/lib/pharmacology/fda";
 import {
+  buildStartingDoseDecision,
+  type DoseCandidate,
+  type Provenance,
+  type SpeciesRelevance,
+} from "@/lib/pharmacology/fihDecision";
+import {
   SAFETY_FACTOR_GUIDANCE,
   REGULATORY_REFERENCES,
 } from "@/lib/pharmacology/constants";
 import type { DrugModality } from "@/lib/pharmacology/constants";
+
+/** Small provenance chip so an assumption is never mistaken for measured data. */
+function ProvenanceBadge({ provenance }: { provenance: Provenance }) {
+  const styles: Record<Provenance, string> = {
+    measured: "border-green-500/40 text-green-700 dark:text-green-400",
+    assumed: "border-amber-500/40 text-amber-700 dark:text-amber-400",
+    "literature-default": "border-sky-500/40 text-sky-700 dark:text-sky-400",
+  };
+  const label: Record<Provenance, string> = {
+    measured: "measured",
+    assumed: "assumed",
+    "literature-default": "lit. default",
+  };
+  return (
+    <Badge variant="outline" className={`text-[10px] ${styles[provenance]}`}>
+      {label[provenance]}
+    </Badge>
+  );
+}
 
 // ============================================================================
 // Types
@@ -140,6 +167,18 @@ export function FihCalculator() {
   const [errors, setErrors] = useState<string[]>([]);
   const [copySuccess, setCopySuccess] = useState(false);
 
+  // Starting-dose decision state (candidate selection is a post-calculation act)
+  const [noaelProvenance, setNoaelProvenance] =
+    useState<Provenance>("measured");
+  const [relevanceById, setRelevanceById] = useState<
+    Record<string, { relevance: SpeciesRelevance; justification: string }>
+  >({});
+  const [recommendedId, setRecommendedId] = useState<string | undefined>(
+    undefined,
+  );
+  const [overrideJustification, setOverrideJustification] =
+    useState<string>("");
+
   // Accessibility: Screen reader announcements
   const { announcement, announce } = useAnnounce();
 
@@ -149,6 +188,68 @@ export function FihCalculator() {
 
   // Get supported species
   const supportedSpecies = useMemo(() => getSupportedSpecies(), []);
+
+  // Build NOAEL-HED-MRSD candidates from the calculation result, then resolve
+  // an explicit starting-dose decision (no silent min()).
+  const candidates = useMemo<DoseCandidate[]>(() => {
+    if (!result || result.mrsd <= 0) return [];
+    const rows =
+      result.multiSpeciesResults && result.multiSpeciesResults.length > 0
+        ? result.multiSpeciesResults
+        : [
+            {
+              species: primarySpecies,
+              noael: parseFloat(primaryNoael) || 0,
+              hed: result.hed,
+              mrsd: result.mrsd,
+            },
+          ];
+    return rows.map((r) => {
+      const rel = relevanceById[r.species];
+      const cap = r.species.charAt(0).toUpperCase() + r.species.slice(1);
+      return {
+        id: r.species,
+        method: "NOAEL-HED-MRSD",
+        label: `${cap} NOAEL→MRSD`,
+        species: r.species,
+        valueMgKg: r.mrsd,
+        safetyFactor: result.safetyFactor,
+        relevance: rel?.relevance ?? "relevant",
+        relevanceJustification: rel?.justification || undefined,
+        provenance: { noael: noaelProvenance, safetyFactor: "assumed" },
+        notes: `NOAEL ${r.noael} mg/kg → HED ${r.hed.toFixed(3)} mg/kg (SF ${result.safetyFactor}×)`,
+      };
+    });
+  }, [result, relevanceById, noaelProvenance, primarySpecies, primaryNoael]);
+
+  const decision = useMemo(
+    () =>
+      buildStartingDoseDecision(candidates, {
+        recommendedId,
+        overrideJustification,
+      }),
+    [candidates, recommendedId, overrideJustification],
+  );
+
+  const setRelevance = useCallback(
+    (id: string, relevance: SpeciesRelevance) => {
+      setRelevanceById((prev) => ({
+        ...prev,
+        [id]: { relevance, justification: prev[id]?.justification ?? "" },
+      }));
+    },
+    [],
+  );
+
+  const setRelevanceJustification = useCallback(
+    (id: string, justification: string) => {
+      setRelevanceById((prev) => ({
+        ...prev,
+        [id]: { relevance: prev[id]?.relevance ?? "relevant", justification },
+      }));
+    },
+    [],
+  );
 
   // Add additional species
   const addSpecies = useCallback(() => {
@@ -238,6 +339,10 @@ export function FihCalculator() {
     setErrors([]);
     const calculationResult = calculateFdaFihDose(input);
     setResult(calculationResult);
+    // Fresh calculation → clear any prior relevance/recommendation overrides
+    setRelevanceById({});
+    setRecommendedId(undefined);
+    setOverrideJustification("");
 
     // Announce successful calculation
     if (calculationResult.mrsd > 0) {
@@ -287,11 +392,11 @@ Maximum Recommended Starting Dose (MRSD): ${result.mrsd.toFixed(4)} mg/kg
 Total Dose for ${result.humanWeight} kg human: ${result.mrsdTotal.toFixed(2)} mg
 
 ${
-  result.recommendedMrsd
-    ? `RECOMMENDED MRSD: ${result.recommendedMrsd.value.toFixed(4)} mg/kg
-Source: ${result.recommendedMrsd.source}
-Rationale: ${result.recommendedMrsd.rationale}
-`
+  decision.recommended
+    ? `RECOMMENDED STARTING DOSE: ${decision.recommended.valueMgKg.toFixed(4)} mg/kg (${decision.recommended.label})
+Rationale: ${decision.rationale}${decision.requiresJustification ? `\nJustification (non-lowest): ${decision.overrideJustification ?? "[REQUIRED — none provided]"}` : ""}
+NOAEL provenance: ${noaelProvenance}
+${decision.warnings.length ? `Decision notes:\n${decision.warnings.map((w) => `  - ${w}`).join("\n")}\n` : ""}`
     : ""
 }
 CALCULATION STEPS
@@ -339,6 +444,8 @@ guidance documents and seek expert advice for IND submissions.
       });
   }, [
     result,
+    decision,
+    noaelProvenance,
     primarySpecies,
     primaryNoael,
     safetyFactor,
@@ -383,12 +490,21 @@ Human Equivalent Dose (HED): ${result.hed.toFixed(4)} mg/kg
 Maximum Recommended Starting Dose (MRSD): ${result.mrsd.toFixed(4)} mg/kg
 Total Dose for ${result.humanWeight} kg human: ${result.mrsdTotal.toFixed(2)} mg
 ${
-  result.recommendedMrsd
+  decision.recommended
     ? `
-RECOMMENDED MRSD (Most Conservative): ${result.recommendedMrsd.value.toFixed(4)} mg/kg
-Source: ${result.recommendedMrsd.source}
-Rationale: ${result.recommendedMrsd.rationale}
-`
+STARTING-DOSE DECISION
+======================
+Recommended: ${decision.recommended.valueMgKg.toFixed(4)} mg/kg (${decision.recommended.label})
+Rationale: ${decision.rationale}${decision.requiresJustification ? `\nJustification (non-lowest): ${decision.overrideJustification ?? "[REQUIRED — none provided]"}` : ""}
+NOAEL provenance: ${noaelProvenance}
+Candidates:
+${candidates
+  .map(
+    (c) =>
+      `  - ${c.label}: ${c.valueMgKg.toFixed(4)} mg/kg [${c.relevance}${c.relevanceJustification ? `: ${c.relevanceJustification}` : ""}]`,
+  )
+  .join("\n")}
+${decision.warnings.length ? `Notes:\n${decision.warnings.map((w) => `  - ${w}`).join("\n")}\n` : ""}`
     : ""
 }
 ${
@@ -465,6 +581,9 @@ This tool does not replace regulatory consultation or expert review.
     URL.revokeObjectURL(url);
   }, [
     result,
+    decision,
+    candidates,
+    noaelProvenance,
     primarySpecies,
     primaryNoael,
     safetyFactor,
@@ -478,6 +597,31 @@ This tool does not replace regulatory consultation or expert review.
     <div className="space-y-4">
       {/* Screen reader live region for dynamic announcements */}
       <LiveRegion announcement={announcement} />
+
+      {/* First-class regulatory disclaimer — must not be buried in metadata */}
+      <div
+        className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3"
+        role="note"
+        aria-label="Regulatory disclaimer"
+      >
+        <div className="flex items-start gap-2">
+          <IconAlertTriangle
+            className="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-600"
+            stroke={1.5}
+            aria-hidden="true"
+          />
+          <p className="text-xs text-amber-800 dark:text-amber-300">
+            <span className="font-semibold">
+              Educational estimate — NOT for IND submission.
+            </span>{" "}
+            This tool structures the FDA 2005 / EMA 2017 reasoning; it does not
+            validate your inputs and is no substitute for pharmacometric and
+            regulatory expert review. FIH starting-dose selection is an
+            integrative judgment (PK/PD, exposure, mode of action), not a single
+            formula.
+          </p>
+        </div>
+      </div>
 
       {/* Introduction */}
       <Card>
@@ -573,6 +717,32 @@ This tool does not replace regulatory consultation or expert review.
                   errors.length > 0 ? "fih-validation-errors" : undefined
                 }
               />
+              <div className="mt-1">
+                <Label htmlFor="noael-provenance" className="text-xs">
+                  NOAEL source
+                </Label>
+                <Select
+                  value={noaelProvenance}
+                  onValueChange={(v) => setNoaelProvenance(v as Provenance)}
+                >
+                  <SelectTrigger
+                    id="noael-provenance"
+                    className="h-8"
+                    aria-label="NOAEL provenance"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="measured">
+                      Measured (from your study)
+                    </SelectItem>
+                    <SelectItem value="assumed">Assumed / estimated</SelectItem>
+                    <SelectItem value="literature-default">
+                      Literature value
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -848,72 +1018,214 @@ This tool does not replace regulatory consultation or expert review.
                 </div>
               </div>
 
-              {/* Recommended MRSD for multi-species */}
-              {result.recommendedMrsd && (
-                <Alert className="border-green-500/30 bg-green-500/10 mb-4">
-                  <IconInfoCircle
-                    className="h-4 w-4 text-green-700"
-                    stroke={1.5}
-                  />
-                  <AlertTitle className="text-sm font-medium text-green-700">
-                    Recommended MRSD (Most Conservative)
-                  </AlertTitle>
-                  <AlertDescription>
-                    <p className="text-xl font-bold text-green-700">
-                      {result.recommendedMrsd.value.toFixed(4)} mg/kg
-                    </p>
-                    <p className="text-xs text-green-600">
-                      {result.recommendedMrsd.rationale}
-                    </p>
-                  </AlertDescription>
-                </Alert>
-              )}
+              {/* Explicit starting-dose decision surface (no silent min) */}
+              {decision.recommended && (
+                <div className="mb-4 space-y-3">
+                  <Alert className="border-primary/40 bg-primary/10">
+                    <IconInfoCircle
+                      className="h-4 w-4 text-primary"
+                      stroke={1.5}
+                    />
+                    <AlertTitle className="text-sm font-medium">
+                      Recommended starting point: {decision.recommended.label}
+                    </AlertTitle>
+                    <AlertDescription>
+                      <p className="text-xl font-bold text-accent">
+                        {decision.recommended.valueMgKg.toFixed(4)} mg/kg
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {decision.rationale}
+                      </p>
+                    </AlertDescription>
+                  </Alert>
 
-              {/* Multi-species comparison */}
-              {result.multiSpeciesResults &&
-                result.multiSpeciesResults.length > 1 && (
-                  <div className="mb-4">
+                  {/* Justification required when the choice is not the lowest */}
+                  {decision.requiresJustification && (
+                    <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 space-y-2">
+                      <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                        Justification required (EMA 2017 §7.2)
+                      </p>
+                      <p className="text-xs text-red-700/90 dark:text-red-300">
+                        You selected a dose that is not the lowest candidate
+                        (lowest = {decision.lowestIncluded?.label} at{" "}
+                        {decision.lowestIncluded?.valueMgKg.toFixed(4)} mg/kg).
+                        Document why a higher starting dose is justified.
+                      </p>
+                      <Textarea
+                        value={overrideJustification}
+                        onChange={(e) =>
+                          setOverrideJustification(e.target.value)
+                        }
+                        aria-label="Justification for non-lowest starting dose"
+                        placeholder="e.g. the lowest species finding is a species-specific artifact not relevant to humans; supported by mechanism / exposure data…"
+                        className="text-sm"
+                      />
+                    </div>
+                  )}
+
+                  {/* Candidate comparison + relevance controls */}
+                  <div>
                     <p
                       className="text-sm font-medium mb-2"
-                      id="species-comparison-heading"
+                      id="candidate-heading"
                     >
-                      Species Comparison
+                      Candidate starting doses
                     </p>
-                    <Table aria-labelledby="species-comparison-heading">
+                    <Table aria-labelledby="candidate-heading">
                       <caption className="sr-only">
-                        Comparison of NOAEL, HED, and MRSD values across
-                        different species
+                        Candidate starting doses with inputs, provenance,
+                        relevance, and selection
                       </caption>
                       <TableHeader>
                         <TableRow>
-                          <TableHead scope="col">Species</TableHead>
-                          <TableHead scope="col">NOAEL (mg/kg)</TableHead>
-                          <TableHead scope="col">HED (mg/kg)</TableHead>
-                          <TableHead scope="col">MRSD (mg/kg)</TableHead>
+                          <TableHead scope="col">Candidate</TableHead>
+                          <TableHead scope="col">Dose (mg/kg)</TableHead>
+                          <TableHead scope="col">Inputs</TableHead>
+                          <TableHead scope="col">Relevance</TableHead>
+                          <TableHead scope="col">Use</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {result.multiSpeciesResults.map((r, i) => (
-                          <TableRow
-                            key={i}
-                            className={
-                              r.mrsd === result.recommendedMrsd?.value
-                                ? "bg-green-500/10"
-                                : ""
-                            }
-                          >
-                            <TableCell className="capitalize">
-                              {r.species}
-                            </TableCell>
-                            <TableCell>{r.noael}</TableCell>
-                            <TableCell>{r.hed.toFixed(4)}</TableCell>
-                            <TableCell>{r.mrsd.toFixed(4)}</TableCell>
-                          </TableRow>
-                        ))}
+                        {candidates.map((c) => {
+                          const isRec = decision.recommended?.id === c.id;
+                          const isLowest = decision.lowestIncluded?.id === c.id;
+                          const excluded = c.relevance === "excluded";
+                          return (
+                            <React.Fragment key={c.id}>
+                              <TableRow
+                                className={
+                                  isRec
+                                    ? "bg-primary/10"
+                                    : excluded
+                                      ? "opacity-50"
+                                      : ""
+                                }
+                              >
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">
+                                      {c.label}
+                                    </span>
+                                    {isLowest && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px]"
+                                      >
+                                        lowest
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-semibold">
+                                  {c.valueMgKg.toFixed(4)}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground">
+                                  {c.notes}
+                                  {c.provenance && (
+                                    <div className="flex flex-wrap gap-1 mt-1 items-center">
+                                      {Object.entries(c.provenance).map(
+                                        ([k, v]) => (
+                                          <span
+                                            key={k}
+                                            className="inline-flex items-center gap-1"
+                                          >
+                                            <span className="text-[10px]">
+                                              {k}:
+                                            </span>
+                                            <ProvenanceBadge provenance={v} />
+                                          </span>
+                                        ),
+                                      )}
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Select
+                                    value={c.relevance}
+                                    onValueChange={(v) =>
+                                      setRelevance(c.id, v as SpeciesRelevance)
+                                    }
+                                  >
+                                    <SelectTrigger
+                                      className="h-8 w-[130px]"
+                                      aria-label={`Relevance for ${c.label}`}
+                                    >
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="relevant">
+                                        Relevant
+                                      </SelectItem>
+                                      <SelectItem value="questionable">
+                                        Questionable
+                                      </SelectItem>
+                                      <SelectItem value="excluded">
+                                        Excluded
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant={isRec ? "default" : "outline"}
+                                    size="sm"
+                                    disabled={excluded}
+                                    onClick={() => setRecommendedId(c.id)}
+                                    aria-label={`Use ${c.label} as the recommended starting dose`}
+                                  >
+                                    {isRec ? "Recommended" : "Use"}
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                              {c.relevance !== "relevant" && (
+                                <TableRow className="border-0">
+                                  <TableCell colSpan={5} className="pt-0 pb-2">
+                                    <Input
+                                      className="h-8 text-xs"
+                                      placeholder={`Reason ${c.label} is ${c.relevance}…`}
+                                      value={
+                                        relevanceById[c.id]?.justification ?? ""
+                                      }
+                                      onChange={(e) =>
+                                        setRelevanceJustification(
+                                          c.id,
+                                          e.target.value,
+                                        )
+                                      }
+                                      aria-label={`Justification that ${c.label} is ${c.relevance}`}
+                                    />
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
-                )}
+
+                  {decision.warnings.length > 0 && (
+                    <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                      {decision.warnings.map((w, i) => (
+                        <li key={i}>{w}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {recommendedId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setRecommendedId(undefined);
+                        setOverrideJustification("");
+                      }}
+                    >
+                      Reset to lowest (default)
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {/* Calculation Steps */}
               <Accordion type="single" collapsible>

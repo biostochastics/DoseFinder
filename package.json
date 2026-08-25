@@ -1,6 +1,6 @@
 {
   "name": "dosefinder",
-  "version": "0.9.9",
+  "version": "0.10.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
+    "test:run": "vitest run",
+    "test:golden": "vitest run src/lib/pharmacology/golden",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",

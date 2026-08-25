@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "release/**"]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref.
+# NOTE: github.ref is a ref name (not attacker-controlled free text) and is used
+# only to form the concurrency group — no untrusted input flows into any run:.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: typecheck · lint · test · golden · build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:run
+
+      # Golden scientific "assay controls" — run explicitly so a failure is
+      # unmistakable in the CI log even though test:run already includes them.
+      - name: Golden validation suite
+        run: npm run test:golden
+
+      - name: Production build
+        run: npm run build
