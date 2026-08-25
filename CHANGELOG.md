@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-08-25
+
+Batch 4 (final P1 batch): a **gated, educational** MABEL / PAD receptor-occupancy
+track for biologics, integrated into the starting-dose decision.
+
+### Added
+
+- **MABEL / PAD receptor-occupancy dose** (`mabel.ts`, `calculateOccupancyDose`): `C = Kd × RO/(1−RO)`; `Dose = C × Vd × MW / 1e6 / (F/100)` in mg/kg, for a low target occupancy (MABEL, minimal effect) or a higher one (PAD, pharmacologically active). Grounded in EMA 2017 Rev.1 §7.2 and the MABEL literature. A worked mAb reference case (Kd 1 nM, 10% RO, Vd 0.07 L/kg, MW 150 kDa → ≈1.17 µg/kg) is pinned in the golden suite.
+- **Strict validation + unit-sanity guards**: hard-rejects impossible inputs (RO ≤0/≥100%, non-positive Kd/Vd/MW, F out of range) and warns on out-of-window values that usually signal a unit error (Kd outside 1 pM–1 mM, implausible Vd/MW) — the highest liability vector for this calculation.
+- **Gated, educational UI** in the FIH calculator: hidden behind an explicit acknowledgment that the inputs are unvalidated and the result is educational, not for IND. When acknowledged and valid, MABEL/PAD appear as **candidates in the starting-dose decision** (subject to the same "lowest unless justified" + relevance controls, with `assumed` provenance chips) — never as a standalone "recommended" number. For a typical biologic, MABEL correctly becomes the lowest candidate and thus the default recommendation.
+
+### Notes
+
+- Two of four review-panel models urged caution on shipping MABEL in a free tool; per that guidance it is opt-in, unmissably framed as educational, produces no single recommended dose, and validates inputs as far as a formula-only tool can. It is not a substitute for PK/PD or QSP modeling and regulatory review.
+
 ## [0.11.0] - 2026-08-25
 
 Batch 3 of the P1 roadmap: a safety-factor **rationale builder** that replaces

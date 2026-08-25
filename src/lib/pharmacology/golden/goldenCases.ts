@@ -359,3 +359,36 @@ export const GOLDEN_BIOAVAILABILITY_GUARD_CASES: GoldenBioavailabilityGuardCase[
       tol: 1e-6,
     },
   ];
+
+// ============================================================================
+// MABEL / receptor-occupancy dose (Batch 4) — worked reference + guard
+// ============================================================================
+
+export interface GoldenMabelCase {
+  id: string;
+  citation: string;
+  bindingConstantNM: number;
+  targetOccupancyPct: number;
+  vdLPerKg: number;
+  molecularWeightGPerMol: number;
+  bioavailabilityPct: number;
+  expectedConcentrationNM: number;
+  expectedDoseMgPerKg: number;
+  tol: number;
+}
+
+export const GOLDEN_MABEL_CASES: GoldenMabelCase[] = [
+  {
+    id: "mabel-mab-10pct-ro",
+    citation:
+      "MABEL worked example (mAb): C=Kd×RO/(1−RO); Dose=C×Vd×MW/1e6. Kd 1 nM, RO 10%, Vd 0.07 L/kg, MW 150000, IV",
+    bindingConstantNM: 1,
+    targetOccupancyPct: 10,
+    vdLPerKg: 0.07,
+    molecularWeightGPerMol: 150000,
+    bioavailabilityPct: 100,
+    expectedConcentrationNM: 0.111111, // 1 × 0.1/0.9
+    expectedDoseMgPerKg: 0.0011667, // 0.1111 × 0.07 × 150000 / 1e6 ≈ 1.17 µg/kg
+    tol: 1e-5,
+  },
+];

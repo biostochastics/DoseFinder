@@ -11,12 +11,14 @@ import { describe, it, expect } from "vitest";
 import { calculateDose, calculateCockcroftCrCl } from "../calculations";
 import { calculateFdaFihDose, calculateHED, calculateMRSD } from "../fda";
 import { getKmFactor } from "../fda";
+import { calculateOccupancyDose } from "../mabel";
 import {
   GOLDEN_HED_CASES,
   GOLDEN_CRCL_CASES,
   GOLDEN_SCALING_CASES,
   GOLDEN_FIH_GUARD_CASES,
   GOLDEN_BIOAVAILABILITY_GUARD_CASES,
+  GOLDEN_MABEL_CASES,
 } from "./goldenCases";
 
 describe("GOLDEN — FDA 2005 HED / MRSD (assay controls)", () => {
@@ -112,6 +114,29 @@ describe("GOLDEN — intentional invalid-input guards (must REFUSE)", () => {
       // to 100% (== unadjusted) or rejecting (dose 0) both satisfy this.
       expect(Number.isFinite(clamped.dose)).toBe(true);
       expect(clamped.dose).toBeLessThanOrEqual(unadjusted.dose + c.tol);
+    });
+  });
+});
+
+describe("GOLDEN — MABEL / receptor-occupancy dose (assay controls)", () => {
+  GOLDEN_MABEL_CASES.forEach((c) => {
+    it(`${c.id}: ${c.citation}`, () => {
+      const r = calculateOccupancyDose({
+        bindingConstantNM: c.bindingConstantNM,
+        targetOccupancyPct: c.targetOccupancyPct,
+        vdLPerKg: c.vdLPerKg,
+        molecularWeightGPerMol: c.molecularWeightGPerMol,
+        bioavailabilityPct: c.bioavailabilityPct,
+      });
+      expect(r.valid).toBe(true);
+      expect(r.concentrationNM).toBeCloseTo(
+        c.expectedConcentrationNM,
+        decimalsFromTol(c.tol),
+      );
+      expect(r.doseMgPerKg).toBeCloseTo(
+        c.expectedDoseMgPerKg,
+        decimalsFromTol(c.tol),
+      );
     });
   });
 });
